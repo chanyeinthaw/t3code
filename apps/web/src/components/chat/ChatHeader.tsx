@@ -9,7 +9,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
-import { DiffIcon, ListIcon, TerminalSquareIcon } from "lucide-react";
+import { DiffIcon, Globe, ListIcon, TerminalSquareIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
@@ -35,6 +35,10 @@ interface ChatHeaderProps {
   terminalOpen: boolean;
   terminalToggleShortcutLabel: string | null;
   diffToggleShortcutLabel: string | null;
+  /** False on the web build; true only when the desktop preview bridge is present. */
+  previewAvailable: boolean;
+  previewOpen: boolean;
+  previewToggleShortcutLabel: string | null;
   gitCwd: string | null;
   diffOpen: boolean;
   onRunProjectScript: (script: ProjectScript) => void;
@@ -42,6 +46,7 @@ interface ChatHeaderProps {
   onUpdateProjectScript: (scriptId: string, input: NewProjectScriptInput) => Promise<void>;
   onDeleteProjectScript: (scriptId: string) => Promise<void>;
   onToggleTerminal: () => void;
+  onTogglePreview: () => void;
   onToggleDiff: () => void;
 }
 
@@ -73,6 +78,9 @@ export const ChatHeader = memo(function ChatHeader({
   terminalOpen,
   terminalToggleShortcutLabel,
   diffToggleShortcutLabel,
+  previewAvailable,
+  previewOpen,
+  previewToggleShortcutLabel,
   gitCwd,
   diffOpen,
   onRunProjectScript,
@@ -80,6 +88,7 @@ export const ChatHeader = memo(function ChatHeader({
   onUpdateProjectScript,
   onDeleteProjectScript,
   onToggleTerminal,
+  onTogglePreview,
   onToggleDiff,
 }: ChatHeaderProps) {
   const projectShellNavigation = useProjectShellNavigation();
@@ -174,6 +183,29 @@ export const ChatHeader = memo(function ChatHeader({
                 : "Toggle terminal drawer"}
           </TooltipPopup>
         </Tooltip>
+        {previewAvailable ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Toggle
+                  className="shrink-0"
+                  pressed={previewOpen}
+                  onPressedChange={onTogglePreview}
+                  aria-label="Toggle preview browser"
+                  variant="outline"
+                  size="xs"
+                >
+                  <Globe className="size-3" />
+                </Toggle>
+              }
+            />
+            <TooltipPopup side="bottom">
+              {previewToggleShortcutLabel
+                ? `Toggle preview browser (${previewToggleShortcutLabel})`
+                : "Toggle preview browser"}
+            </TooltipPopup>
+          </Tooltip>
+        ) : null}
         <Tooltip>
           <TooltipTrigger
             render={

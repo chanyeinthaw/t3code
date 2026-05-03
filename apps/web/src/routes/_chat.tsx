@@ -6,19 +6,24 @@ import type { SidebarThreadSummary } from "../types";
 import { useCallback, useEffect } from "react";
 
 import { useCommandPaletteStore } from "../commandPaletteStore";
+import { dispatchPreviewAction } from "../components/preview/previewActionBus";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import {
   startNewLocalThreadFromContext,
   startNewThreadFromContext,
 } from "../lib/chatThreadActions";
+import { isPreviewFocused } from "../lib/previewFocus";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { resolveShortcutCommand, threadTraversalDirectionFromCommand } from "../keybindings";
 import { useProjectShellUiStateStore, type ProjectShellUiState } from "../projectShellUiStateStore";
 import { navigateToProjectThread, navigateToProjectThreads } from "../projectRouteNavigation";
 import { selectSidebarThreadsForProjectRef, useStore } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
+import { isPreviewSupportedInRuntime } from "../previewStateStore";
+import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { resolveSidebarNewThreadEnvMode } from "~/components/Sidebar.logic";
+import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 import { useSettings } from "~/hooks/useSettings";
 import { useServerKeybindings } from "~/rpc/serverState";
 
@@ -74,6 +79,14 @@ function ChatRouteGlobalShortcuts() {
   const terminalOpen = useTerminalUiStateStore((state) =>
     routeThreadRef
       ? selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef).terminalOpen
+      : false,
+  );
+  // The `previewOpen` shortcut-context flag here uses the store-only value;
+  // the URL-aware arbitration lives inside ChatView's `onTogglePreview`,
+  // which we invoke via the action bus to avoid duplicating the rule.
+  const previewOpen = useRightPanelStore((state) =>
+    routeThreadRef
+      ? selectActiveRightPanel(state.byThreadKey, routeThreadRef) === "preview"
       : false,
   );
   const appSettings = useSettings();
@@ -143,6 +156,8 @@ function ChatRouteGlobalShortcuts() {
         context: {
           terminalFocus: isTerminalFocused(),
           terminalOpen,
+          previewFocus: isPreviewFocused(),
+          previewOpen,
         },
       });
 
@@ -193,6 +208,49 @@ function ChatRouteGlobalShortcuts() {
         handleThreadTraversal(direction);
         return;
       }
+
+      if (command === "preview.toggle") {
+        event.preventDefault();
+        event.stopPropagation();
+        if (!routeThreadRef) return;
+        if (!isPreviewSupportedInRuntime()) {
+          toastManager.add(
+            stackedThreadToast({
+              type: "info",
+              title: "Preview is desktop-only",
+              description: "Open T3 Code in the desktop app to use the in-app preview.",
+            }),
+          );
+          return;
+        }
+        dispatchPreviewAction("toggle-panel");
+        return;
+      }
+
+      // The remaining preview commands only fire when the panel is the
+      // currently-focused tenant. The `when: previewFocus` rule already
+      // gates this, but defend against the keybinding being misconfigured.
+      if (
+        command === "preview.refresh" ||
+        command === "preview.focusUrl" ||
+        command === "preview.zoomIn" ||
+        command === "preview.zoomOut" ||
+        command === "preview.resetZoom"
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        const action =
+          command === "preview.refresh"
+            ? "refresh"
+            : command === "preview.focusUrl"
+              ? "focus-url"
+              : command === "preview.zoomIn"
+                ? "zoom-in"
+                : command === "preview.zoomOut"
+                  ? "zoom-out"
+                  : "reset-zoom";
+        dispatchPreviewAction(action);
+      }
     };
 
     window.addEventListener("keydown", onWindowKeyDown);
@@ -207,6 +265,8 @@ function ChatRouteGlobalShortcuts() {
     handleThreadTraversal,
     keybindings,
     defaultProjectRef,
+    previewOpen,
+    routeThreadRef,
     selectedThreadKeysSize,
     terminalOpen,
     appSettings.defaultThreadEnvMode,
