@@ -189,6 +189,11 @@ import {
   useKnownTerminalSessions,
   useThreadRunningTerminalIds,
 } from "../terminalSessionState";
+import {
+  appendElementContextsToPrompt,
+  type ElementContextDraft,
+  formatElementContextLabel,
+} from "../lib/elementContext";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { ExpandedImageDialog } from "./chat/ExpandedImageDialog";
 import { PullRequestThreadDialog } from "./PullRequestThreadDialog";
@@ -1068,6 +1073,9 @@ export default function ChatView(props: ChatViewProps) {
   const setComposerDraftTerminalContexts = useComposerDraftStore(
     (store) => store.setTerminalContexts,
   );
+  const setComposerDraftElementContexts = useComposerDraftStore(
+    (store) => store.setElementContexts,
+  );
   const setComposerDraftModelSelection = useComposerDraftStore(
     (store) => store.setModelSelection,
   );
@@ -1102,6 +1110,7 @@ export default function ChatView(props: ChatViewProps) {
   const promptRef = useRef("");
   const composerImagesRef = useRef<ComposerImageAttachment[]>([]);
   const composerTerminalContextsRef = useRef<TerminalContextDraft[]>([]);
+  const composerElementContextsRef = useRef<ElementContextDraft[]>([]);
   const localComposerRef = useRef<ChatComposerHandle | null>(null);
   const composerRef = useComposerHandleContext() ?? localComposerRef;
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
@@ -3519,6 +3528,7 @@ export default function ChatView(props: ChatViewProps) {
     const {
       images: composerImages,
       terminalContexts: composerTerminalContexts,
+      elementContexts: composerElementContexts,
       selectedProvider: ctxSelectedProvider,
       selectedModel: ctxSelectedModel,
       selectedProviderModels: ctxSelectedProviderModels,
@@ -3540,6 +3550,7 @@ export default function ChatView(props: ChatViewProps) {
       prompt: promptForSend,
       imageCount: composerImages.length,
       terminalContexts: composerTerminalContexts,
+      elementContextCount: composerElementContexts.length,
     });
     if (showPlanFollowUpPrompt && activeProposedPlan) {
       const followUp = resolvePlanFollowUpSubmission({
@@ -3557,7 +3568,8 @@ export default function ChatView(props: ChatViewProps) {
     }
     const standaloneSlashCommand =
       composerImages.length === 0 &&
-      sendableComposerTerminalContexts.length === 0
+      sendableComposerTerminalContexts.length === 0 &&
+      composerElementContexts.length === 0
         ? parseStandaloneComposerSlashCommand(trimmed)
         : null;
     if (standaloneSlashCommand) {
@@ -3622,9 +3634,13 @@ export default function ChatView(props: ChatViewProps) {
     const composerTerminalContextsSnapshot = [
       ...sendableComposerTerminalContexts,
     ];
-    const messageTextForSend = appendTerminalContextsToPrompt(
-      promptForSend,
-      composerTerminalContextsSnapshot,
+    const composerElementContextsSnapshot = [...composerElementContexts];
+    const messageTextForSend = appendElementContextsToPrompt(
+      appendTerminalContextsToPrompt(
+        promptForSend,
+        composerTerminalContextsSnapshot,
+      ),
+      composerElementContextsSnapshot,
     );
     const messageIdForSend = newMessageId();
     const messageCreatedAt = new Date().toISOString();
@@ -3710,6 +3726,10 @@ export default function ChatView(props: ChatViewProps) {
         } else if (composerTerminalContextsSnapshot.length > 0) {
           titleSeed = formatTerminalContextLabel(
             composerTerminalContextsSnapshot[0]!,
+          );
+        } else if (composerElementContextsSnapshot.length > 0) {
+          titleSeed = formatElementContextLabel(
+            composerElementContextsSnapshot[0]!,
           );
         } else {
           titleSeed = "New thread";
@@ -3805,7 +3825,8 @@ export default function ChatView(props: ChatViewProps) {
         !turnStartSucceeded &&
         promptRef.current.length === 0 &&
         composerImagesRef.current.length === 0 &&
-        composerTerminalContextsRef.current.length === 0
+        composerTerminalContextsRef.current.length === 0 &&
+        composerElementContextsRef.current.length === 0
       ) {
         setOptimisticUserMessages((existing) => {
           const removed = existing.filter(
@@ -3825,11 +3846,16 @@ export default function ChatView(props: ChatViewProps) {
         );
         composerImagesRef.current = retryComposerImages;
         composerTerminalContextsRef.current = composerTerminalContextsSnapshot;
+        composerElementContextsRef.current = composerElementContextsSnapshot;
         setComposerDraftPrompt(composerDraftTarget, promptForSend);
         addComposerDraftImages(composerDraftTarget, retryComposerImages);
         setComposerDraftTerminalContexts(
           composerDraftTarget,
           composerTerminalContextsSnapshot,
+        );
+        setComposerDraftElementContexts(
+          composerDraftTarget,
+          composerElementContextsSnapshot,
         );
         composerRef.current?.resetCursorState({
           cursor: collapseExpandedComposerCursor(
@@ -4675,6 +4701,7 @@ export default function ChatView(props: ChatViewProps) {
                   promptRef={promptRef}
                   composerImagesRef={composerImagesRef}
                   composerTerminalContextsRef={composerTerminalContextsRef}
+                  composerElementContextsRef={composerElementContextsRef}
                   shouldAutoScrollRef={isAtEndRef}
                   scheduleStickToBottom={scrollToEnd}
                   onSend={onSend}
