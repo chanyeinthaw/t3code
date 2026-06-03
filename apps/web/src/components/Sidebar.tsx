@@ -2471,6 +2471,24 @@ function SortableProjectItem({
   );
 }
 
+const SidebarCollapseTrigger = memo(function SidebarCollapseTrigger() {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <SidebarTrigger
+            aria-label="Collapse sidebar"
+            className="hidden size-7 shrink-0 text-muted-foreground hover:text-foreground md:inline-flex"
+          />
+        }
+      />
+      <TooltipPopup side="bottom" sideOffset={4}>
+        Collapse sidebar
+      </TooltipPopup>
+    </Tooltip>
+  );
+});
+
 const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
 }: {
@@ -2501,6 +2519,7 @@ const SidebarChromeHeader = memo(function SidebarChromeHeader({
           Version {APP_VERSION}
         </TooltipPopup>
       </Tooltip>
+      <SidebarCollapseTrigger />
     </div>
   );
 

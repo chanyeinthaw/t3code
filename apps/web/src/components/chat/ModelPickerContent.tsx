@@ -570,6 +570,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     [
       favoritesSet,
       filteredModelByKey,
+      filteredModelKeys.length,
       isLocked,
       modelJumpLabelByKey,
       showLockedInstanceSidebar,

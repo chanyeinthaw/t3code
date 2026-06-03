@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
+import * as Schema from "effect/Schema";
 
 import ThreadSidebar from "./Sidebar";
 import { Sidebar, SidebarProvider, SidebarRail } from "./ui/sidebar";
@@ -7,12 +8,19 @@ import {
   clearShortcutModifierState,
   syncShortcutModifierStateFromKeyboardEvent,
 } from "../shortcutModifierState";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
+const THREAD_SIDEBAR_OPEN_STORAGE_KEY = "chat_thread_sidebar_open";
 const THREAD_SIDEBAR_WIDTH_STORAGE_KEY = "chat_thread_sidebar_width";
 const THREAD_SIDEBAR_MIN_WIDTH = 13 * 16;
 const THREAD_MAIN_CONTENT_MIN_WIDTH = 40 * 16;
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useLocalStorage(
+    THREAD_SIDEBAR_OPEN_STORAGE_KEY,
+    true,
+    Schema.Boolean,
+  );
 
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -54,7 +62,12 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   }, [navigate]);
 
   return (
-    <SidebarProvider className="h-dvh! min-h-0!" defaultOpen>
+    <SidebarProvider
+      className="h-dvh! min-h-0!"
+      defaultOpen
+      open={sidebarOpen}
+      onOpenChange={setSidebarOpen}
+    >
       <Sidebar
         side="left"
         collapsible="offcanvas"

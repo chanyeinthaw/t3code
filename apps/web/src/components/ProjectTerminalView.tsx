@@ -10,12 +10,14 @@ import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
-import { SidebarInset } from "./ui/sidebar";
+import { SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { readEnvironmentApi } from "../environmentApi";
 import { projectTerminalThreadId } from "../lib/projectTerminal";
 import { selectProjectByRef, useStore } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useKnownTerminalSessions } from "../terminalSessionState";
+import { isElectron } from "../env";
+import { cn } from "../lib/utils";
 
 interface ProjectTerminalViewProps {
   environmentId: EnvironmentId;
@@ -24,6 +26,30 @@ interface ProjectTerminalViewProps {
 }
 
 const PROJECT_TERMINAL_HEIGHT = 10_000;
+
+const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { title: string }) {
+  const { open } = useSidebar();
+
+  return (
+    <header
+      className={cn(
+        "border-b border-border",
+        isElectron
+          ? "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]"
+          : "pb-2 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-2 sm:pb-3 sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)] sm:pt-3",
+      )}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+        {!open && <SidebarTrigger className="rounded-[4px] !size-6 shrink-0" />}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-sm font-medium text-foreground" title={title}>
+            {title}
+          </h2>
+        </div>
+      </div>
+    </header>
+  );
+});
 
 const ProjectTerminalView = memo(function ProjectTerminalView({
   environmentId,
@@ -167,6 +193,7 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
     return (
       <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
         <div className="flex min-h-0 flex-1 flex-col">
+          <ProjectTerminalHeader title="Project terminal" />
           <Empty className="flex-1">
             <EmptyHeader>
               <EmptyTitle>Project not found</EmptyTitle>
@@ -183,6 +210,7 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
+        <ProjectTerminalHeader title={project.name} />
         <div className="min-h-0 flex-1 [&_.thread-terminal-drawer]:h-full! [&_.thread-terminal-drawer]:border-t-0">
           <ThreadTerminalDrawer
             threadRef={terminalThreadRef}
