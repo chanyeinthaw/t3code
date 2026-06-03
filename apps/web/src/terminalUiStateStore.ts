@@ -9,6 +9,7 @@ import { parseScopedThreadKey, scopedThreadKey } from "@t3tools/client-runtime";
 import { type ScopedThreadRef } from "@t3tools/contracts";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { isProjectTerminalThreadId } from "./lib/projectTerminal";
 import { resolveStorage } from "./lib/storage";
 import {
   DEFAULT_THREAD_TERMINAL_HEIGHT,
@@ -612,9 +613,13 @@ export const useTerminalUiStateStore = create<TerminalUiStateStoreState>()(
           }),
         removeOrphanedTerminalUiStates: (activeThreadKeys) =>
           set((state) => {
-            const orphanedIds = Object.keys(state.terminalUiStateByThreadKey).filter(
-              (key) => !activeThreadKeys.has(key),
-            );
+            const orphanedIds = Object.keys(state.terminalUiStateByThreadKey).filter((key) => {
+              const parsed = parseScopedThreadKey(key);
+              if (parsed && isProjectTerminalThreadId(parsed.threadId)) {
+                return false;
+              }
+              return !activeThreadKeys.has(key);
+            });
             if (orphanedIds.length === 0) {
               return state;
             }
