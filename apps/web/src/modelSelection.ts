@@ -42,8 +42,8 @@ const DEFAULT_TEXT_GENERATION_INSTANCE_ID = ProviderInstanceId.make("codex");
  * so readers pick up that promotion immediately — and so first-time
  * viewers on pre-migration settings still see their legacy list on
  * default slots. Custom instances intentionally do not read the legacy
- * per-driver bucket; otherwise one custom model added to `claude_openrouter`
- * can appear on the stock `claudeAgent` instance.
+ * per-driver bucket; otherwise one custom model added to `codex_openrouter`
+ * can appear on the stock `codex` instance.
  */
 function readInstanceCustomModels(
   settings: UnifiedSettings,

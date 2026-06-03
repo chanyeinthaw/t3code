@@ -5,7 +5,7 @@ import type { ProviderDriverKind } from "@t3tools/contracts";
  * Add entries as `provider:slug` when you want to highlight freshly shipped models.
  */
 const NEW_MODEL_KEYS = new Set<string>([
-  // Example: "claudeAgent:claude-opus-4-7",
+  // Example: "codex:gpt-6.0-preview",
 ]);
 
 export function isModelPickerNewModel(provider: ProviderDriverKind, slug: string): boolean {

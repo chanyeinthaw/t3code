@@ -4,7 +4,7 @@
  * Splits the historical "provider kind" concept into two:
  *
  *   - `ProviderDriverKind` is the implementation kind selector (e.g. codex,
- *     claudeAgent, a fork's `ollama`, …). It picks which driver package
+ *     opencode, a fork's `ollama`, …). It picks which driver package
  *     handles the protocol, the probe, the adapter, and text generation.
  *
  *   - `ProviderInstanceId` is the routing key (a user-defined slug).
@@ -42,9 +42,8 @@ const PROVIDER_SLUG_MAX_CHARS = 64;
  * Slug pattern shared by driver kinds and instance ids — letters, digits,
  * dashes, underscores. The first character must be a letter so slugs remain
  * JS-identifier friendly when used as object keys, log fields, or telemetry
- * attributes. Mixed case is permitted so historical driver kinds (e.g.
- * `claudeAgent`) can be used verbatim during the migration and so external
- * fork authors retain reasonable freedom.
+ * attributes. Mixed case is permitted so external fork authors retain
+ * reasonable freedom.
  */
 const PROVIDER_SLUG_PATTERN = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 const ENVIRONMENT_VARIABLE_NAME_MAX_CHARS = 128;

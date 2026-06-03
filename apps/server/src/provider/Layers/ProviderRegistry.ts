@@ -3,7 +3,7 @@
  * single materialized list.
  *
  * Historically this Layer composed four per-kind Live Layers
- * (`CodexProviderLive`, `ClaudeProviderLive`, …) that each exposed a
+ * (`CodexProviderLive`, `OpenCodeProviderLive`, …) that each exposed a
  * `ServerProviderShape`. Those Lives were deleted during the driver /
  * instance refactor — every driver now carries its `snapshot: ServerProviderShape`
  * bundled onto the `ProviderInstance` the registry produces.

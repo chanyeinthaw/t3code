@@ -85,9 +85,9 @@ it.layer(NodeServices.layer)("server settings", (it) => {
             binaryPath: "/usr/local/bin/codex",
             homePath: "/Users/julius/.codex",
           },
-          claudeAgent: {
-            binaryPath: "/usr/local/bin/claude",
-            customModels: ["claude-custom"],
+          opencode: {
+            binaryPath: "/usr/local/bin/opencode",
+            customModels: ["opencode-custom"],
           },
         },
         textGenerationModelSelection: {
@@ -122,12 +122,12 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         shadowHomePath: "",
         customModels: [],
       });
-      assert.deepEqual(next.providers.claudeAgent, {
+      assert.deepEqual(next.providers.opencode, {
         enabled: true,
-        binaryPath: "/usr/local/bin/claude",
-        homePath: "",
-        customModels: ["claude-custom"],
-        launchArgs: "",
+        binaryPath: "/usr/local/bin/opencode",
+        serverUrl: "",
+        serverPassword: "",
+        customModels: ["opencode-custom"],
       });
       assert.deepEqual(
         next.textGenerationModelSelection,
@@ -147,21 +147,19 @@ it.layer(NodeServices.layer)("server settings", (it) => {
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsService;
 
-      // Start with Claude text generation selection
+      // Start with OpenCode text generation selection.
       yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
-          instanceId: ProviderInstanceId.make("claudeAgent"),
-          model: "claude-sonnet-4-6",
-          options: createModelSelection(
-            ProviderInstanceId.make("claudeAgent"),
-            "claude-sonnet-4-6",
-            [{ id: "effort", value: "high" }],
-          ).options!,
+          instanceId: ProviderInstanceId.make("opencode"),
+          model: "openai/gpt-5",
+          options: createModelSelection(ProviderInstanceId.make("opencode"), "openai/gpt-5", [
+            { id: "agent", value: "build" },
+          ]).options!,
         },
       });
 
-      // Switch to Codex — the stale Claude "effort" in options must not
-      // cause the update to lose the selected model.
+      // Switch to Codex — stale provider-specific options must not cause the
+      // update to lose the selected model.
       const next = yield* serverSettings.updateSettings({
         textGenerationModelSelection: {
           instanceId: ProviderInstanceId.make("codex"),
@@ -187,20 +185,20 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       const next = yield* serverSettings.updateSettings({
         providerInstances: {
-          [ProviderInstanceId.make("claude_openrouter")]: {
-            driver: ProviderDriverKind.make("claudeAgent"),
+          [ProviderInstanceId.make("openrouter_text")]: {
+            driver: ProviderDriverKind.make("openrouter"),
             enabled: true,
             config: { customModels: ["openai/gpt-5.5"] },
           },
         },
         textGenerationModelSelection: {
-          instanceId: ProviderInstanceId.make("claude_openrouter"),
+          instanceId: ProviderInstanceId.make("openrouter_text"),
           model: "openai/gpt-5.5",
         },
       });
 
       assert.deepEqual(next.textGenerationModelSelection, {
-        instanceId: ProviderInstanceId.make("claude_openrouter"),
+        instanceId: ProviderInstanceId.make("openrouter_text"),
         model: "openai/gpt-5.5",
       });
     }).pipe(Effect.provide(makeServerSettingsLayer())),
@@ -211,17 +209,17 @@ it.layer(NodeServices.layer)("server settings", (it) => {
     () =>
       Effect.gen(function* () {
         const serverSettings = yield* ServerSettingsService;
-        const instanceId = ProviderInstanceId.make("claude_openrouter");
+        const instanceId = ProviderInstanceId.make("opencode_openrouter");
 
         const next = yield* serverSettings.updateSettings({
           providers: {
-            claudeAgent: {
+            opencode: {
               enabled: false,
             },
           },
           providerInstances: {
             [instanceId]: {
-              driver: ProviderDriverKind.make("claudeAgent"),
+              driver: ProviderDriverKind.make("opencode"),
               enabled: true,
               config: { customModels: ["openai/gpt-5.5"] },
             },
@@ -345,9 +343,6 @@ it.layer(NodeServices.layer)("server settings", (it) => {
             binaryPath: "  /opt/homebrew/bin/codex  ",
             homePath: "   ",
           },
-          claudeAgent: {
-            binaryPath: "  /opt/homebrew/bin/claude  ",
-          },
           opencode: {
             binaryPath: "  /opt/homebrew/bin/opencode  ",
             serverUrl: "  http://127.0.0.1:4096  ",
@@ -362,13 +357,6 @@ it.layer(NodeServices.layer)("server settings", (it) => {
         homePath: "",
         shadowHomePath: "",
         customModels: [],
-      });
-      assert.deepEqual(next.providers.claudeAgent, {
-        enabled: true,
-        binaryPath: "/opt/homebrew/bin/claude",
-        homePath: "",
-        customModels: [],
-        launchArgs: "",
       });
       assert.deepEqual(next.providers.opencode, {
         enabled: true,
@@ -409,14 +397,14 @@ it.layer(NodeServices.layer)("server settings", (it) => {
           codex: {
             binaryPath: "   ",
           },
-          claudeAgent: {
+          opencode: {
             binaryPath: "",
           },
         },
       });
 
       assert.equal(next.providers.codex.binaryPath, "codex");
-      assert.equal(next.providers.claudeAgent.binaryPath, "claude");
+      assert.equal(next.providers.opencode.binaryPath, "opencode");
     }).pipe(Effect.provide(makeServerSettingsLayer())),
   );
 
