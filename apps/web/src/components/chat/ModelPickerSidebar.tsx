@@ -80,7 +80,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
     <ScrollArea
       hideScrollbars
       scrollFade
-      className="w-12 shrink-0 border-r bg-muted/30"
+      className="w-12 shrink-0 bg-muted/30"
       data-model-picker-sidebar="true"
     >
       <div className="flex min-h-full flex-col gap-1 p-1">

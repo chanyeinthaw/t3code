@@ -32,6 +32,7 @@ export const ModelListRow = memo(function ModelListRow(props: {
   useTriggerLabel?: boolean;
   showNewBadge?: boolean;
   jumpLabel?: string | null;
+  isLast?: boolean;
   onToggleFavorite: () => void;
 }) {
   const ProviderIcon = PROVIDER_ICON_BY_PROVIDER[props.driverKind] ?? null;
@@ -47,7 +48,8 @@ export const ModelListRow = memo(function ModelListRow(props: {
       contentClassName="flex w-full items-start gap-2"
       className={cn(
         "w-full cursor-pointer rounded px-3 py-2 transition-colors group",
-        "data-highlighted:bg-muted data-selected:bg-accent data-selected:text-foreground",
+        "border-b data-highlighted:bg-muted data-selected:bg-accent data-selected:text-foreground",
+        props.isLast && "border-b-0",
       )}
     >
       <Tooltip>

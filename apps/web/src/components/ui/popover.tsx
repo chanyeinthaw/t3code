@@ -61,6 +61,7 @@ function PopoverPopup({
               tooltipStyle
                 ? "py-1 [--viewport-inline-padding:--spacing(2)]"
                 : "not-data-transitioning:overflow-y-auto",
+                'rounded-b-[inherit]'
             )}
             data-slot="popover-viewport"
           >
