@@ -35,15 +35,19 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { t
       className={cn(
         "border-b border-border",
         isElectron
-          ? "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]"
-          : "pb-2 pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-2 sm:pb-3 sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)] sm:pt-3",
+          ? cn(
+              "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
+              !open &&
+                "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)] sm:pl-[90px] sm:wco:pl-[calc(env(titlebar-area-x)+1em)]",
+            )
+          : "flex h-[52px] shrink-0 items-center pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)]",
       )}
     >
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        {!open && <SidebarTrigger className="rounded-[4px] !size-6 shrink-0" />}
+        {!open && <SidebarTrigger className="shrink-0" />}
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-sm font-medium text-foreground" title={title}>
-            {title}
+            Terminal: {title}
           </h2>
         </div>
       </div>
