@@ -140,6 +140,7 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
       planSidebarLabel="Plan"
       planSidebarOpen={false}
       runtimeMode="approval-required"
+      supportedAccessModes={["approval-required", "auto-accept-edits", "full-access"]}
       showInteractionModeToggle
       traitsMenuContent={
         <TraitsMenuContent
@@ -302,6 +303,7 @@ describe("CompactComposerControlsMenu", () => {
         planSidebarLabel="Plan"
         planSidebarOpen={false}
         runtimeMode="approval-required"
+        supportedAccessModes={["approval-required", "auto-accept-edits", "full-access"]}
         showInteractionModeToggle={false}
         onToggleInteractionMode={vi.fn()}
         onTogglePlanSidebar={vi.fn()}

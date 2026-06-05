@@ -157,6 +157,14 @@ function createBaseServerConfig(): ServerConfig {
           serverPassword: "",
           customModels: [],
         },
+        pi: {
+          enabled: true,
+          agentDir: "",
+          persistSessions: false,
+          noTools: "",
+          tools: [],
+          excludeTools: [],
+        },
       },
     },
   };

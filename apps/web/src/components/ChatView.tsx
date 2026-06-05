@@ -116,7 +116,11 @@ import {
   projectScriptIdFromCommand,
 } from "~/projectScripts";
 import { newCommandId, newDraftId, newMessageId, newThreadId } from "~/lib/utils";
-import { getProviderModelCapabilities, resolveSelectableProvider } from "../providerModels";
+import {
+  getProviderModelCapabilities,
+  resolveProviderRuntimeMode,
+  resolveSelectableProvider,
+} from "../providerModels";
 import { useSettings } from "../hooks/useSettings";
 import { resolveAppModelSelectionForInstance } from "../modelSelection";
 import { isTerminalFocused } from "../lib/terminalFocus";
@@ -2865,6 +2869,11 @@ export default function ChatView(props: ChatViewProps) {
       selectedPromptEffort: ctxSelectedPromptEffort,
       selectedModelSelection: ctxSelectedModelSelection,
     } = sendCtx;
+    const effectiveRuntimeMode = resolveProviderRuntimeMode({
+      providers: providerStatuses as ServerProvider[],
+      provider: ctxSelectedProvider,
+      runtimeMode,
+    });
     const promptForSend = promptRef.current;
     const {
       trimmedPrompt: trimmed,
@@ -3048,7 +3057,7 @@ export default function ChatView(props: ChatViewProps) {
           threadId: threadIdForSend,
           createdAt: messageCreatedAt,
           ...(ctxSelectedModel ? { modelSelection: ctxSelectedModelSelection } : {}),
-          runtimeMode,
+          runtimeMode: effectiveRuntimeMode,
           interactionMode,
         });
       }
@@ -3063,7 +3072,7 @@ export default function ChatView(props: ChatViewProps) {
                       projectId: activeProject.id,
                       title,
                       modelSelection: threadCreateModelSelection,
-                      runtimeMode,
+                      runtimeMode: effectiveRuntimeMode,
                       interactionMode,
                       branch: activeThreadBranch,
                       worktreePath: activeThread.worktreePath,
@@ -3096,7 +3105,7 @@ export default function ChatView(props: ChatViewProps) {
         },
         modelSelection: ctxSelectedModelSelection,
         titleSeed: title,
-        runtimeMode,
+        runtimeMode: effectiveRuntimeMode,
         interactionMode,
         ...(bootstrap ? { bootstrap } : {}),
         createdAt: messageCreatedAt,

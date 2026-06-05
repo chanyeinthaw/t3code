@@ -3,6 +3,7 @@ import {
   DEFAULT_MODEL_BY_PROVIDER,
   defaultInstanceIdForDriver,
   ProviderDriverKind,
+  type RuntimeMode,
   type ModelCapabilities,
   type ProviderInstanceId,
   type ServerProvider,
@@ -14,6 +15,11 @@ const EMPTY_CAPABILITIES: ModelCapabilities = createModelCapabilities({
   optionDescriptors: [],
 });
 const DEFAULT_DRIVER_KIND = ProviderDriverKind.make("codex");
+const DEFAULT_SUPPORTED_ACCESS_MODES: readonly RuntimeMode[] = [
+  "approval-required",
+  "auto-accept-edits",
+  "full-access",
+];
 
 export function formatProviderDriverKindLabel(provider: ProviderDriverKind): string {
   return provider
@@ -51,6 +57,23 @@ export function getProviderInteractionModeToggle(
   provider: ProviderDriverKind,
 ): boolean {
   return getProviderSnapshot(providers, provider)?.showInteractionModeToggle ?? true;
+}
+
+export function getProviderSupportedAccessModes(
+  providers: ReadonlyArray<ServerProvider>,
+  provider: ProviderDriverKind,
+): readonly RuntimeMode[] {
+  const modes = getProviderSnapshot(providers, provider)?.supportedAccessModes;
+  return modes && modes.length > 0 ? modes : DEFAULT_SUPPORTED_ACCESS_MODES;
+}
+
+export function resolveProviderRuntimeMode(input: {
+  readonly providers: ReadonlyArray<ServerProvider>;
+  readonly provider: ProviderDriverKind;
+  readonly runtimeMode: RuntimeMode;
+}): RuntimeMode {
+  const supportedModes = getProviderSupportedAccessModes(input.providers, input.provider);
+  return supportedModes.includes(input.runtimeMode) ? input.runtimeMode : supportedModes[0]!;
 }
 
 export function isProviderEnabled(
