@@ -13,6 +13,7 @@ const PI_PRESENTATION = {
   badgeLabel: "SDK",
   showInteractionModeToggle: false,
   supportedAccessModes: ["full-access"],
+  deferMidTurnUserMessages: true,
 } as const;
 
 type PiModelRegistry = {

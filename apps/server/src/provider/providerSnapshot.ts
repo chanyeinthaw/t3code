@@ -47,6 +47,7 @@ export interface ServerProviderPresentation {
   readonly badgeLabel?: string;
   readonly showInteractionModeToggle?: boolean;
   readonly supportedAccessModes?: ReadonlyArray<RuntimeMode>;
+  readonly deferMidTurnUserMessages?: boolean;
 }
 
 export type ServerProviderDraft = Omit<ServerProvider, "instanceId" | "driver">;
@@ -218,6 +219,9 @@ export function buildServerProvider(input: {
       : {}),
     ...(input.presentation.supportedAccessModes
       ? { supportedAccessModes: [...input.presentation.supportedAccessModes] }
+      : {}),
+    ...(typeof input.presentation.deferMidTurnUserMessages === "boolean"
+      ? { deferMidTurnUserMessages: input.presentation.deferMidTurnUserMessages }
       : {}),
     enabled: input.enabled,
     installed: input.probe.installed,

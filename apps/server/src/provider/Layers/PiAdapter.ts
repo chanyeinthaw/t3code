@@ -54,6 +54,7 @@ interface PiSessionContext {
   readonly unsubscribe: () => void;
   readonly turns: Array<PiTurnSnapshot>;
   readonly stopped: Ref.Ref<boolean>;
+  readonly deferredUserMessageTexts: Array<string>;
   activeTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
 }
@@ -99,6 +100,40 @@ function resolveThinkingLevel(
     (option) => option.id === "thinkingLevel",
   )?.value;
   return typeof value === "string" ? (value as AgentSession["thinkingLevel"]) : undefined;
+}
+
+function getPiMessageRole(message: unknown): string | undefined {
+  if (!message || typeof message !== "object") return undefined;
+  const role = (message as { readonly role?: unknown }).role;
+  return typeof role === "string" ? role : undefined;
+}
+
+function getPiUserMessageText(message: unknown): string | undefined {
+  if (!message || typeof message !== "object") return undefined;
+  const content = (message as { readonly content?: unknown }).content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return undefined;
+  const text = content
+    .flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const record = entry as { readonly type?: unknown; readonly text?: unknown };
+      return record.type === "text" && typeof record.text === "string" ? [record.text] : [];
+    })
+    .join("\n");
+  return text.length > 0 ? text : undefined;
+}
+
+function takeDeferredUserMessageText(context: PiSessionContext, text: string): boolean {
+  const exactIndex = context.deferredUserMessageTexts.indexOf(text);
+  if (exactIndex !== -1) {
+    context.deferredUserMessageTexts.splice(exactIndex, 1);
+    return true;
+  }
+  if (context.deferredUserMessageTexts.length > 0) {
+    context.deferredUserMessageTexts.shift();
+    return true;
+  }
+  return false;
 }
 
 function appendTurnItem(
@@ -196,6 +231,35 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     };
   });
 
+  const emitContextWindowUsage = Effect.fn("emitPiContextWindowUsage")(function* (
+    context: PiSessionContext,
+    turnId: TurnId,
+  ) {
+    const usage = context.piSession.getContextUsage();
+    if (!usage || typeof usage.tokens !== "number" || usage.tokens <= 0) {
+      return;
+    }
+
+    const usedTokens = Math.max(0, Math.round(usage.tokens));
+    const maxTokens = Math.max(0, Math.round(usage.contextWindow));
+    if (usedTokens <= 0) {
+      return;
+    }
+
+    yield* emit({
+      ...(yield* buildEventBase({ threadId: context.session.threadId, turnId })),
+      type: "thread.token-usage.updated",
+      payload: {
+        usage: {
+          usedTokens,
+          lastUsedTokens: usedTokens,
+          ...(maxTokens > 0 ? { maxTokens } : {}),
+          compactsAutomatically: true,
+        },
+      },
+    });
+  });
+
   const handleSessionEvent = (
     context: PiSessionContext,
     event: AgentSessionEvent,
@@ -203,6 +267,24 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     Effect.gen(function* () {
       const turnId = context.activeTurnId;
       switch (event.type) {
+        case "message_start": {
+          const text = getPiUserMessageText(event.message);
+          if (getPiMessageRole(event.message) === "user" && text !== undefined) {
+            const isDeferredMidTurnMessage = takeDeferredUserMessageText(context, text);
+            if (isDeferredMidTurnMessage) {
+              yield* emit({
+                ...(yield* buildEventBase({
+                  threadId: context.session.threadId,
+                  turnId,
+                  raw: event,
+                })),
+                type: "user-message.observed",
+                payload: { text },
+              });
+            }
+          }
+          break;
+        }
         case "message_update": {
           const assistantEvent = event.assistantMessageEvent;
           if (assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta") {
@@ -385,6 +467,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       unsubscribe,
       turns: [],
       stopped: yield* Ref.make(false),
+      deferredUserMessageTexts: [],
       activeTurnId: undefined,
       activePromptFiber: undefined,
     };
@@ -407,13 +490,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
 
   const sendTurn: PiAdapterShape["sendTurn"] = Effect.fn("sendTurn")(function* (input) {
     const context = ensureSessionContext(sessions, input.threadId);
-    if (context.activeTurnId) {
-      return yield* new ProviderAdapterValidationError({
-        provider: PROVIDER,
-        operation: "sendTurn",
-        issue: "Pi session already has an active turn.",
-      });
-    }
+    const activeTurnId = context.activeTurnId;
 
     const turnId = TurnId.make(`pi-turn-${yield* randomUUIDv4}`);
     const model = resolvePiModel(
@@ -465,6 +542,34 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       });
     }
 
+    if (activeTurnId) {
+      context.deferredUserMessageTexts.push(text ?? "");
+      yield* Effect.tryPromise({
+        try: () =>
+          context.piSession.prompt(text ?? "", {
+            ...(images.length > 0 ? { images } : {}),
+            streamingBehavior: piSettings.midTurnInputMode,
+          }),
+        catch: (cause) =>
+          new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: `prompt/${piSettings.midTurnInputMode}`,
+            detail: errorDetail(cause),
+            cause,
+          }),
+      }).pipe(
+        Effect.tapError(() =>
+          Effect.sync(() => {
+            const index = context.deferredUserMessageTexts.indexOf(text ?? "");
+            if (index !== -1) {
+              context.deferredUserMessageTexts.splice(index, 1);
+            }
+          }),
+        ),
+      );
+      return { threadId: input.threadId, turnId: activeTurnId };
+    }
+
     const thinkingLevel = resolveThinkingLevel(input);
     yield* Effect.tryPromise({
       try: async () => {
@@ -512,6 +617,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           context.activeTurnId = undefined;
           context.activePromptFiber = undefined;
           yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+          yield* emitContextWindowUsage(context, turnId);
           yield* emit({
             ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
             type: "turn.completed",
@@ -522,7 +628,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       Effect.catch((error) =>
         Effect.gen(function* () {
           const stopped = yield* Ref.get(context.stopped);
-          if (stopped) return;
+          if (stopped || context.activeTurnId !== turnId) return;
           context.activeTurnId = undefined;
           context.activePromptFiber = undefined;
           yield* updateProviderSession(
@@ -556,6 +662,23 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   const interruptTurn: PiAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(
     function* (threadId, turnId) {
       const context = ensureSessionContext(sessions, threadId);
+      const activeTurnId = turnId ?? context.activeTurnId;
+
+      context.activeTurnId = undefined;
+      context.activePromptFiber = undefined;
+      context.deferredUserMessageTexts.splice(0);
+
+      yield* Effect.sync(() => context.piSession.clearQueue()).pipe(
+        Effect.mapError(
+          (cause) =>
+            new ProviderAdapterRequestError({
+              provider: PROVIDER,
+              method: "clearQueue",
+              detail: errorDetail(cause),
+              cause,
+            }),
+        ),
+      );
       yield* Effect.tryPromise({
         try: () => context.piSession.abort(),
         catch: (cause) =>
@@ -566,15 +689,17 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             cause,
           }),
       });
-      const activeTurnId = turnId ?? context.activeTurnId;
-      context.activeTurnId = undefined;
-      context.activePromptFiber = undefined;
       yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
       if (activeTurnId) {
         yield* emit({
           ...(yield* buildEventBase({ threadId, turnId: activeTurnId })),
           type: "turn.aborted",
           payload: { reason: "Interrupted by user." },
+        });
+        yield* emit({
+          ...(yield* buildEventBase({ threadId, turnId: activeTurnId })),
+          type: "turn.completed",
+          payload: { state: "interrupted" },
         });
       }
     },

@@ -685,7 +685,20 @@ const make = Effect.gen(function* () {
       return;
     }
 
-    const message = thread.messages.find((entry) => entry.id === event.payload.messageId);
+    const projectedMessage = thread.messages.find((entry) => entry.id === event.payload.messageId);
+    const message =
+      projectedMessage?.role === "user"
+        ? projectedMessage
+        : event.payload.message
+          ? {
+              id: event.payload.message.messageId,
+              role: "user" as const,
+              text: event.payload.message.text,
+              attachments: event.payload.message.attachments,
+              createdAt: event.payload.createdAt,
+              streaming: false,
+            }
+          : undefined;
     if (!message || message.role !== "user") {
       yield* appendProviderFailureActivity({
         threadId: event.payload.threadId,
@@ -699,7 +712,9 @@ const make = Effect.gen(function* () {
     }
 
     const isFirstUserMessageTurn =
-      thread.messages.filter((entry) => entry.role === "user").length === 1;
+      thread.messages.filter((entry) => entry.role === "user").length +
+        (projectedMessage?.role === "user" ? 0 : 1) ===
+      1;
     if (isFirstUserMessageTurn) {
       const project = yield* resolveProject(thread.projectId);
       const generationCwd =

@@ -161,6 +161,7 @@ function createBaseServerConfig(): ServerConfig {
           enabled: true,
           agentDir: "",
           persistSessions: false,
+          midTurnInputMode: "steer",
           noTools: "",
           tools: [],
           excludeTools: [],

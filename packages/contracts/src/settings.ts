@@ -114,13 +114,20 @@ const makeBinaryPathSetting = (fallback: string) =>
     Schema.withDecodingDefault(Effect.succeed(fallback)),
   );
 
-export type ProviderSettingsFormControl = "text" | "password" | "textarea" | "switch";
+export type ProviderSettingsFormControl = "text" | "password" | "textarea" | "switch" | "select";
+
+export interface ProviderSettingsFormSelectOption {
+  readonly value: string;
+  readonly label: string;
+  readonly description?: string | undefined;
+}
 
 export interface ProviderSettingsFormAnnotation {
   readonly control?: ProviderSettingsFormControl | undefined;
   readonly placeholder?: string | undefined;
   readonly hidden?: boolean | undefined;
   readonly clearWhenEmpty?: "omit" | "persist" | undefined;
+  readonly options?: readonly ProviderSettingsFormSelectOption[] | undefined;
 }
 
 export interface ProviderSettingsFormSchemaAnnotation {
@@ -278,6 +285,21 @@ export const PiSettings = makeProviderSettingsSchema(
         providerSettingsForm: { control: "switch" },
       }),
     ),
+    midTurnInputMode: Schema.Literals(["steer", "followUp"]).pipe(
+      Schema.withDecodingDefault(Effect.succeed("steer" as const)),
+      Schema.annotateKey({
+        title: "Mid-turn input mode",
+        description:
+          "How Pi should handle messages sent while a turn is still running. Steer redirects the active run; Follow-up queues the message for later.",
+        providerSettingsForm: {
+          control: "select",
+          options: [
+            { value: "steer", label: "Steer active turn" },
+            { value: "followUp", label: "Queue follow-up" },
+          ],
+        },
+      }),
+    ),
     noTools: Schema.Literals(["", "all", "builtin"]).pipe(
       Schema.withDecodingDefault(Effect.succeed("" as const)),
       Schema.annotateKey({ providerSettingsForm: { hidden: true } }),
@@ -292,7 +314,7 @@ export const PiSettings = makeProviderSettingsSchema(
     ),
   },
   {
-    order: ["agentDir", "persistSessions"],
+    order: ["agentDir", "persistSessions", "midTurnInputMode"],
   },
 );
 export type PiSettings = typeof PiSettings.Type;
@@ -399,6 +421,7 @@ const PiSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
   agentDir: Schema.optionalKey(TrimmedString),
   persistSessions: Schema.optionalKey(Schema.Boolean),
+  midTurnInputMode: Schema.optionalKey(Schema.Literals(["steer", "followUp"])),
   noTools: Schema.optionalKey(Schema.Literals(["", "all", "builtin"])),
   tools: Schema.optionalKey(Schema.Array(Schema.String)),
   excludeTools: Schema.optionalKey(Schema.Array(Schema.String)),

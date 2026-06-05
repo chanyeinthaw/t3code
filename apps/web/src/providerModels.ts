@@ -67,6 +67,13 @@ export function getProviderSupportedAccessModes(
   return modes && modes.length > 0 ? modes : DEFAULT_SUPPORTED_ACCESS_MODES;
 }
 
+export function getProviderDeferMidTurnUserMessages(
+  providers: ReadonlyArray<ServerProvider>,
+  provider: ProviderDriverKind,
+): boolean {
+  return getProviderSnapshot(providers, provider)?.deferMidTurnUserMessages ?? false;
+}
+
 export function resolveProviderRuntimeMode(input: {
   readonly providers: ReadonlyArray<ServerProvider>;
   readonly provider: ProviderDriverKind;

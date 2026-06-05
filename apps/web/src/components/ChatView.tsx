@@ -117,6 +117,7 @@ import {
 } from "~/projectScripts";
 import { newCommandId, newDraftId, newMessageId, newThreadId } from "~/lib/utils";
 import {
+  getProviderDeferMidTurnUserMessages,
   getProviderModelCapabilities,
   resolveProviderRuntimeMode,
   resolveSelectableProvider,
@@ -2929,6 +2930,13 @@ export default function ChatView(props: ChatViewProps) {
     if (!activeProject) return;
     const threadIdForSend = activeThread.id;
     const isFirstMessage = !isServerThread || activeThread.messages.length === 0;
+    const shouldDeferUserMessageUntilProviderEcho =
+      isServerThread &&
+      activeThread.session?.status === "running" &&
+      getProviderDeferMidTurnUserMessages(
+        providerStatuses as ServerProvider[],
+        ctxSelectedProvider,
+      );
     const baseBranchForWorktree =
       isFirstMessage && sendEnvMode === "worktree" && !activeThread.worktreePath
         ? activeThreadBranch
@@ -2944,7 +2952,9 @@ export default function ChatView(props: ChatViewProps) {
     }
 
     sendInFlightRef.current = true;
-    beginLocalDispatch({ preparingWorktree: Boolean(baseBranchForWorktree) });
+    if (!shouldDeferUserMessageUntilProviderEcho) {
+      beginLocalDispatch({ preparingWorktree: Boolean(baseBranchForWorktree) });
+    }
 
     const composerImagesSnapshot = [...composerImages];
     const composerTerminalContextsSnapshot = [...sendableComposerTerminalContexts];
@@ -2986,17 +2996,19 @@ export default function ChatView(props: ChatViewProps) {
     setShowScrollToBottom(false);
     await legendListRef.current?.scrollToEnd?.({ animated: false });
 
-    setOptimisticUserMessages((existing) => [
-      ...existing,
-      {
-        id: messageIdForSend,
-        role: "user",
-        text: outgoingMessageText,
-        ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : {}),
-        createdAt: messageCreatedAt,
-        streaming: false,
-      },
-    ]);
+    if (!shouldDeferUserMessageUntilProviderEcho) {
+      setOptimisticUserMessages((existing) => [
+        ...existing,
+        {
+          id: messageIdForSend,
+          role: "user",
+          text: outgoingMessageText,
+          ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : {}),
+          createdAt: messageCreatedAt,
+          streaming: false,
+        },
+      ]);
+    }
 
     setThreadError(threadIdForSend, null);
     if (expiredTerminalContextCount > 0) {
@@ -3092,7 +3104,9 @@ export default function ChatView(props: ChatViewProps) {
                 : {}),
             }
           : undefined;
-      beginLocalDispatch({ preparingWorktree: false });
+      if (!shouldDeferUserMessageUntilProviderEcho) {
+        beginLocalDispatch({ preparingWorktree: false });
+      }
       await api.orchestration.dispatchCommand({
         type: "thread.turn.start",
         commandId: newCommandId(),
@@ -3103,6 +3117,9 @@ export default function ChatView(props: ChatViewProps) {
           text: outgoingMessageText,
           attachments: turnAttachments,
         },
+        ...(shouldDeferUserMessageUntilProviderEcho
+          ? { deferUserMessageUntilProviderEcho: true }
+          : {}),
         modelSelection: ctxSelectedModelSelection,
         titleSeed: title,
         runtimeMode: effectiveRuntimeMode,
