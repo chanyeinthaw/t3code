@@ -82,7 +82,7 @@ export const resolveReferenceRepoRef = Effect.fn("resolveReferenceRepoRef")(func
   rootDir: string,
   latest: boolean,
 ) {
-  if (latest) {
+  if (latest || !repo.packageJsonPath || !repo.packageVersionPath || !repo.versionTagPrefix) {
     return repo.latestRef;
   }
 

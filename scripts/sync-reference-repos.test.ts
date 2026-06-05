@@ -18,6 +18,7 @@ import {
 const encoder = new TextEncoder();
 const effectSmol = referenceRepos[0]!;
 const alchemyEffect = referenceRepos[1]!;
+const pi = referenceRepos[2]!;
 
 function mockHandle() {
   return ChildProcessSpawner.makeHandle({
@@ -82,6 +83,17 @@ it.layer(NodeServices.layer)("sync-reference-repos", (it) => {
       });
 
       assert.equal(yield* resolveReferenceRepoRef(effectSmol, rootDir, true), "main");
+    }),
+  );
+
+  it.effect("uses latestRef for reference repos without a package version mapping", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const rootDir = yield* fs.makeTempDirectoryScoped({
+        prefix: "sync-reference-repos-unversioned-",
+      });
+
+      assert.equal(yield* resolveReferenceRepoRef(pi, rootDir, false), "main");
     }),
   );
 
@@ -173,7 +185,7 @@ it.layer(NodeServices.layer)("sync-reference-repos", (it) => {
 
       assert.equal(
         error.message,
-        "Unknown reference repo 'missing'. Expected one of: effect-smol, alchemy-effect.",
+        "Unknown reference repo 'missing'. Expected one of: effect-smol, alchemy-effect, pi.",
       );
     }),
   );

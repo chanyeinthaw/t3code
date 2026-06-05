@@ -3,9 +3,9 @@ export interface ReferenceRepo {
   readonly prefix: string;
   readonly repository: string;
   readonly latestRef: string;
-  readonly packageJsonPath: string;
-  readonly packageVersionPath: ReadonlyArray<string>;
-  readonly versionTagPrefix: string;
+  readonly packageJsonPath?: string;
+  readonly packageVersionPath?: ReadonlyArray<string>;
+  readonly versionTagPrefix?: string;
 }
 
 export const referenceRepos: ReadonlyArray<ReferenceRepo> = [
@@ -26,5 +26,11 @@ export const referenceRepos: ReadonlyArray<ReferenceRepo> = [
     packageJsonPath: "infra/relay/package.json",
     packageVersionPath: ["dependencies", "alchemy"],
     versionTagPrefix: "v",
+  },
+  {
+    id: "pi",
+    prefix: ".repos/pi",
+    repository: "git@github.com:earendil-works/pi.git",
+    latestRef: "main",
   },
 ];

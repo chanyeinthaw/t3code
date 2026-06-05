@@ -69,3 +69,4 @@ agents.
   examples of idiomatic usage, tests, module structure, and API design.
 - When writing relay infrastructure code with Alchemy, inspect `.repos/alchemy-effect/` for examples of
   idiomatic usage, tests, module structure, and API design.
+- When working on pi coding-agent integration, inspect `.repos/pi/` for implementation references.
