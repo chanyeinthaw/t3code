@@ -160,7 +160,6 @@ function createBaseServerConfig(): ServerConfig {
         pi: {
           enabled: true,
           agentDir: "",
-          persistSessions: false,
           midTurnInputMode: "steer",
           noTools: "",
           tools: [],

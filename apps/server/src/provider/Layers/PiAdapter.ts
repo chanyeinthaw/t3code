@@ -42,6 +42,26 @@ const PROVIDER = ProviderDriverKind.make("pi");
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
 
+interface PiResumeCursor {
+  readonly sessionFile: string;
+  readonly sessionId?: string;
+}
+
+function isPiResumeCursor(value: unknown): value is PiResumeCursor {
+  if (!value || typeof value !== "object") return false;
+  const record = value as { readonly sessionFile?: unknown };
+  return typeof record.sessionFile === "string" && record.sessionFile.trim().length > 0;
+}
+
+function buildPiResumeCursor(sessionManager: SessionManager): PiResumeCursor | undefined {
+  const sessionFile = sessionManager.getSessionFile();
+  if (!sessionFile) return undefined;
+  return {
+    sessionFile,
+    sessionId: sessionManager.getSessionId(),
+  };
+}
+
 interface PiTurnSnapshot {
   readonly id: TurnId;
   readonly items: Array<unknown>;
@@ -423,6 +443,9 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       });
     }
 
+    const sessionManager = isPiResumeCursor(input.resumeCursor)
+      ? SessionManager.open(input.resumeCursor.sessionFile, undefined, cwd)
+      : undefined;
     const sessionScope = yield* Scope.make();
     const created = yield* Effect.tryPromise({
       try: () =>
@@ -436,9 +459,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             ),
           modelRegistry: options.modelRegistry,
           model,
-          sessionManager: piSettings.persistSessions
-            ? SessionManager.create(cwd)
-            : SessionManager.inMemory(),
+          ...(sessionManager ? { sessionManager } : {}),
           ...(piSettings.tools.length > 0 ? { tools: [...piSettings.tools] } : {}),
           ...(piSettings.excludeTools.length > 0
             ? { excludeTools: [...piSettings.excludeTools] }
@@ -457,6 +478,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     }).pipe(Effect.onError(() => Scope.close(sessionScope, Exit.void).pipe(Effect.ignore)));
 
     const createdAt = yield* nowIso;
+    const resumeCursor = buildPiResumeCursor(created.session.sessionManager);
     const session: ProviderSession = {
       provider: PROVIDER,
       providerInstanceId: boundInstanceId,
@@ -465,6 +487,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       cwd,
       model: `${model.provider}/${model.id}`,
       threadId: input.threadId,
+      ...(resumeCursor ? { resumeCursor } : {}),
       createdAt,
       updatedAt: createdAt,
     };
@@ -671,7 +694,13 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       Effect.asVoid,
       Effect.forkIn(context.sessionScope),
     );
-    return { threadId: input.threadId, turnId };
+    return {
+      threadId: input.threadId,
+      turnId,
+      ...(context.session.resumeCursor !== undefined
+        ? { resumeCursor: context.session.resumeCursor }
+        : {}),
+    };
   });
 
   const interruptTurn: PiAdapterShape["interruptTurn"] = Effect.fn("interruptTurn")(

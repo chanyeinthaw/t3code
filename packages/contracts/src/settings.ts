@@ -276,15 +276,6 @@ export const PiSettings = makeProviderSettingsSchema(
         },
       }),
     ),
-    persistSessions: Schema.Boolean.pipe(
-      Schema.withDecodingDefault(Effect.succeed(false)),
-      Schema.annotateKey({
-        title: "Persist Pi sessions",
-        description:
-          "Store Pi SDK session files in Pi's session store instead of keeping them in memory.",
-        providerSettingsForm: { control: "switch" },
-      }),
-    ),
     midTurnInputMode: Schema.Literals(["steer", "followUp"]).pipe(
       Schema.withDecodingDefault(Effect.succeed("steer" as const)),
       Schema.annotateKey({
@@ -314,7 +305,7 @@ export const PiSettings = makeProviderSettingsSchema(
     ),
   },
   {
-    order: ["agentDir", "persistSessions", "midTurnInputMode"],
+    order: ["agentDir", "midTurnInputMode"],
   },
 );
 export type PiSettings = typeof PiSettings.Type;
@@ -420,7 +411,6 @@ const OpenCodeSettingsPatch = Schema.Struct({
 const PiSettingsPatch = Schema.Struct({
   enabled: Schema.optionalKey(Schema.Boolean),
   agentDir: Schema.optionalKey(TrimmedString),
-  persistSessions: Schema.optionalKey(Schema.Boolean),
   midTurnInputMode: Schema.optionalKey(Schema.Literals(["steer", "followUp"])),
   noTools: Schema.optionalKey(Schema.Literals(["", "all", "builtin"])),
   tools: Schema.optionalKey(Schema.Array(Schema.String)),
