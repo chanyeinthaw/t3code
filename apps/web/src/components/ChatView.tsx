@@ -105,7 +105,7 @@ import { BranchToolbar } from "./BranchToolbar";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../keybindings";
 import PlanSidebar from "./PlanSidebar";
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
-import { ChevronDownIcon, TriangleAlertIcon, WifiOffIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, TriangleAlertIcon, WifiOffIcon } from "lucide-react";
 import { cn, randomHex } from "~/lib/utils";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { decodeProjectScriptKeybindingRule } from "~/lib/projectScriptKeybindings";
@@ -204,6 +204,94 @@ import {
 const IMAGE_ONLY_BOOTSTRAP_PROMPT =
   "[User attached one or more images without additional text. Respond using the conversation context and the attached image(s).]";
 const EMPTY_ACTIVITIES: OrchestrationThreadActivity[] = [];
+
+type QueuedInputMode = "steer" | "followUp";
+
+interface QueuedInputItem {
+  readonly id: string;
+  readonly mode: QueuedInputMode;
+  readonly text: string;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function deriveQueuedInputItems(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+): ReadonlyArray<QueuedInputItem> {
+  const latestQueueActivity = activities.findLast(
+    (activity) => activity.kind === "input.queue.updated",
+  );
+  const payload =
+    latestQueueActivity?.payload && typeof latestQueueActivity.payload === "object"
+      ? (latestQueueActivity.payload as Record<string, unknown>)
+      : null;
+  if (!payload) return [];
+
+  return [
+    ...readStringArray(payload.steering).map((text, index) => ({
+      id: `steer:${index}:${text}`,
+      mode: "steer" as const,
+      text,
+    })),
+    ...readStringArray(payload.followUp).map((text, index) => ({
+      id: `followUp:${index}:${text}`,
+      mode: "followUp" as const,
+      text,
+    })),
+  ];
+}
+
+function queuedInputModeLabel(mode: QueuedInputMode): string {
+  return mode === "steer" ? "steer" : "follow-up";
+}
+
+function QueuedInputStackCard({ items }: { items: ReadonlyArray<QueuedInputItem> }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleItem = items.at(-1);
+  if (!visibleItem) return null;
+
+  const hiddenItems = items.slice(0, -1);
+  const displayItems = expanded ? items : [visibleItem];
+
+  return (
+    <div className="px-3 pt-1 sm:px-5 pb-1">
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="rounded-xl border border-border/70 bg-card/80 px-2.5 py-2 shadow-xs">
+          <div className="space-y-1.5">
+            {displayItems.map((item) => (
+              <div key={item.id} className="flex min-w-0 items-center gap-2 text-xs">
+                <span className="shrink-0 rounded-md border border-border/70 bg-background/80 px-1.5 py-0.5 font-medium text-[10px] text-muted-foreground uppercase tracking-wide">
+                  {queuedInputModeLabel(item.mode)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-muted-foreground/90">
+                  {item.text}
+                </span>
+              </div>
+            ))}
+          </div>
+          {hiddenItems.length > 0 ? (
+            <div className="mt-1.5 flex justify-end">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+                onClick={() => setExpanded((current) => !current)}
+              >
+                {expanded ? "show less" : `${hiddenItems.length} more`}
+                <ChevronUpIcon
+                  className={cn("size-3 transition-transform", expanded && "rotate-180")}
+                />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
 const EMPTY_PROPOSED_PLANS: Thread["proposedPlans"] = [];
 const EMPTY_PROVIDERS: ServerProvider[] = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
@@ -1475,6 +1563,10 @@ export default function ChatView(props: ChatViewProps) {
   const selectedProvider: ProviderDriverKind = lockedProvider ?? unlockedSelectedProvider;
   const phase = derivePhase(activeThread?.session ?? null);
   const threadActivities = activeThread?.activities ?? EMPTY_ACTIVITIES;
+  const queuedInputItems = useMemo(
+    () => deriveQueuedInputItems(threadActivities),
+    [threadActivities],
+  );
   const workLogEntries = useMemo(
     () => deriveWorkLogEntries(threadActivities, activeLatestTurn?.turnId ?? undefined),
     [activeLatestTurn?.turnId, threadActivities],
@@ -3837,6 +3929,7 @@ export default function ChatView(props: ChatViewProps) {
               skills={activeProviderStatus?.skills ?? EMPTY_PROVIDER_SKILLS}
               onIsAtEndChange={onIsAtEndChange}
             />
+            <QueuedInputStackCard items={queuedInputItems} />
 
             {/* scroll to bottom pill — shown when user has scrolled away from the bottom */}
             {showScrollToBottom && (
@@ -3856,7 +3949,7 @@ export default function ChatView(props: ChatViewProps) {
           {/* Input bar */}
           <div
             className={cn(
-              "pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] pt-1.5 sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)] sm:pt-2",
+              "pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)]",
               isGitRepo
                 ? "pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
                 : "pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1rem)]",

@@ -272,6 +272,24 @@ function runtimeEventToActivities(
       : {};
   })();
   switch (event.type) {
+    case "input.queue.updated": {
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: "input.queue.updated",
+          summary: "Input queue updated",
+          payload: {
+            steering: event.payload.steering,
+            followUp: event.payload.followUp,
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "request.opened": {
       if (event.payload.requestType === "tool_user_input") {
         return [];

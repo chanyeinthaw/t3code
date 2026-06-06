@@ -172,6 +172,7 @@ const ProviderRuntimeEventType = Schema.Literals([
   "item.completed",
   "content.delta",
   "user-message.observed",
+  "input.queue.updated",
   "request.opened",
   "request.resolved",
   "user-input.requested",
@@ -223,6 +224,7 @@ const ItemUpdatedType = Schema.Literal("item.updated");
 const ItemCompletedType = Schema.Literal("item.completed");
 const ContentDeltaType = Schema.Literal("content.delta");
 const UserMessageObservedType = Schema.Literal("user-message.observed");
+const InputQueueUpdatedType = Schema.Literal("input.queue.updated");
 const RequestOpenedType = Schema.Literal("request.opened");
 const RequestResolvedType = Schema.Literal("request.resolved");
 const UserInputRequestedType = Schema.Literal("user-input.requested");
@@ -424,6 +426,12 @@ const UserMessageObservedPayload = Schema.Struct({
   text: Schema.String,
 });
 export type UserMessageObservedPayload = typeof UserMessageObservedPayload.Type;
+
+const InputQueueUpdatedPayload = Schema.Struct({
+  steering: Schema.Array(Schema.String),
+  followUp: Schema.Array(Schema.String),
+});
+export type InputQueueUpdatedPayload = typeof InputQueueUpdatedPayload.Type;
 
 const RequestOpenedPayload = Schema.Struct({
   requestType: CanonicalRequestType,
@@ -798,6 +806,14 @@ const ProviderRuntimeUserMessageObservedEvent = Schema.Struct({
 export type ProviderRuntimeUserMessageObservedEvent =
   typeof ProviderRuntimeUserMessageObservedEvent.Type;
 
+const ProviderRuntimeInputQueueUpdatedEvent = Schema.Struct({
+  ...ProviderRuntimeEventBase.fields,
+  type: InputQueueUpdatedType,
+  payload: InputQueueUpdatedPayload,
+});
+export type ProviderRuntimeInputQueueUpdatedEvent =
+  typeof ProviderRuntimeInputQueueUpdatedEvent.Type;
+
 const ProviderRuntimeRequestOpenedEvent = Schema.Struct({
   ...ProviderRuntimeEventBase.fields,
   type: RequestOpenedType,
@@ -990,6 +1006,7 @@ export const ProviderRuntimeEventV2 = Schema.Union([
   ProviderRuntimeItemCompletedEvent,
   ProviderRuntimeContentDeltaEvent,
   ProviderRuntimeUserMessageObservedEvent,
+  ProviderRuntimeInputQueueUpdatedEvent,
   ProviderRuntimeRequestOpenedEvent,
   ProviderRuntimeRequestResolvedEvent,
   ProviderRuntimeUserInputRequestedEvent,

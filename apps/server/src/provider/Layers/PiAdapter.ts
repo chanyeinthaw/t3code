@@ -267,6 +267,21 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     Effect.gen(function* () {
       const turnId = context.activeTurnId;
       switch (event.type) {
+        case "queue_update": {
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              raw: event,
+            })),
+            type: "input.queue.updated",
+            payload: {
+              steering: [...event.steering],
+              followUp: [...event.followUp],
+            },
+          });
+          break;
+        }
         case "message_start": {
           const text = getPiUserMessageText(event.message);
           if (getPiMessageRole(event.message) === "user" && text !== undefined) {
