@@ -1,4 +1,4 @@
-import type { ServerProviderSkill } from "@t3tools/contracts";
+import type { ServerProviderSkill, ServerProviderSlashCommand } from "@t3tools/contracts";
 import { ProviderDriverKind, type PiSettings, type ServerProviderModel } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
@@ -73,6 +73,16 @@ function piModelToServerModel(
   };
 }
 
+const PI_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
+  {
+    name: "compact",
+    description: "Manually compact the session context to reduce token usage",
+    input: {
+      hint: "Optional instructions for the compaction summary",
+    },
+  },
+];
+
 function loadPiSkills(agentDir: string | undefined): ReadonlyArray<ServerProviderSkill> {
   const resolvedAgentDir =
     agentDir && agentDir.trim().length > 0 ? agentDir : getAgentDir();
@@ -111,6 +121,7 @@ export function makePendingPiProvider(settings: PiSettings): Effect.Effect<Serve
       checkedAt,
       models: [],
       skills: loadPiSkills(settings.agentDir),
+      slashCommands: PI_SLASH_COMMANDS,
       probe: {
         installed: true,
         version: null,
@@ -140,6 +151,7 @@ export function checkPiProviderStatus(input: {
       checkedAt,
       models,
       skills,
+      slashCommands: PI_SLASH_COMMANDS,
       probe: {
         installed: true,
         version: null,

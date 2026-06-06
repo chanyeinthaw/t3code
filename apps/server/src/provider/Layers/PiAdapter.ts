@@ -68,6 +68,15 @@ interface PiTurnSnapshot {
   readonly items: Array<unknown>;
 }
 
+interface PiQueuedDuringCompactionInput {
+  readonly mode: "steer" | "followUp";
+  readonly text: string;
+  readonly images: Array<{ readonly type: "image"; readonly data: string; readonly mimeType: string }>;
+  readonly createdAt: string;
+}
+
+type PiTurnFailure = { readonly state: "failed" | "interrupted"; readonly message: string };
+
 interface PiSessionContext {
   session: ProviderSession;
   readonly piSession: AgentSession;
@@ -76,13 +85,13 @@ interface PiSessionContext {
   readonly turns: Array<PiTurnSnapshot>;
   readonly stopped: Ref.Ref<boolean>;
   readonly deferredUserMessageTexts: Array<string>;
+  readonly queuedDuringCompaction: Array<PiQueuedDuringCompactionInput>;
   readonly toolArgsByCallId: Map<string, unknown>;
   activeTurnId: TurnId | undefined;
+  activeCompactionTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
   activeAssistantItemId: string | undefined;
-  activeTurnFailure:
-    | { readonly state: "failed" | "interrupted"; readonly message: string }
-    | undefined;
+  activeTurnFailure: PiTurnFailure | undefined;
   nextAssistantMessageIndex: number;
 }
 
@@ -210,6 +219,29 @@ function takeDeferredUserMessageText(context: PiSessionContext, text: string): b
     return true;
   }
   return false;
+}
+
+function queuedDuringCompactionTexts(
+  context: PiSessionContext,
+  mode: "steer" | "followUp",
+): Array<string> {
+  return context.queuedDuringCompaction
+    .filter((message) => message.mode === mode)
+    .map((message) => message.text);
+}
+
+function enqueueDuringCompaction(
+  context: PiSessionContext,
+  input: PiQueuedDuringCompactionInput,
+): void {
+  context.queuedDuringCompaction.push(input);
+}
+
+function drainQueuedDuringCompaction(
+  context: PiSessionContext,
+): Array<PiQueuedDuringCompactionInput> {
+  const queued = context.queuedDuringCompaction.splice(0);
+  return queued;
 }
 
 function appendTurnItem(
@@ -347,13 +379,14 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     readonly turnId?: TurnId | undefined;
     readonly itemId?: string | undefined;
     readonly raw?: unknown;
+    readonly createdAt?: string | undefined;
   }) {
     return {
       eventId: EventId.make(`pi-event-${yield* randomUUIDv4}`),
       provider: PROVIDER,
       providerInstanceId: boundInstanceId,
       threadId: input.threadId,
-      createdAt: yield* nowIso,
+      createdAt: input.createdAt ?? (yield* nowIso),
       ...(input.turnId ? { turnId: input.turnId } : {}),
       ...(input.itemId ? { itemId: RuntimeItemId.make(input.itemId) } : {}),
       ...(input.raw ? { raw: { source: "pi.sdk.event" as const, payload: input.raw } } : {}),
@@ -412,6 +445,131 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         },
       },
     });
+  });
+
+  const emitQueuedDuringCompactionUpdate = Effect.fn("emitQueuedDuringCompactionUpdate")(function* (
+    context: PiSessionContext,
+    turnId: TurnId | undefined,
+  ) {
+    yield* emit({
+      ...(yield* buildEventBase({ threadId: context.session.threadId, turnId })),
+      type: "input.queue.updated",
+      payload: {
+        steering: queuedDuringCompactionTexts(context, "steer"),
+        followUp: queuedDuringCompactionTexts(context, "followUp"),
+      },
+    });
+  });
+
+  const runQueuedAfterCompaction = Effect.fn("runQueuedAfterCompaction")(function* (
+    context: PiSessionContext,
+    modelSlug: string,
+  ) {
+    const queued = drainQueuedDuringCompaction(context);
+    if (queued.length === 0) return;
+
+    const queuedTurnId = TurnId.make(`pi-turn-${yield* randomUUIDv4}`);
+    context.activeTurnId = queuedTurnId;
+    context.activeAssistantItemId = undefined;
+    context.activeTurnFailure = undefined;
+    context.nextAssistantMessageIndex = 0;
+    yield* updateProviderSession(
+      context,
+      { status: "running", activeTurnId: queuedTurnId, model: modelSlug },
+      { clearLastError: true },
+    );
+    yield* emit({
+      ...(yield* buildEventBase({ threadId: context.session.threadId, turnId: queuedTurnId })),
+      type: "turn.started",
+      payload: { model: modelSlug },
+    });
+
+    const continueExit = yield* Effect.tryPromise({
+      try: async () => {
+        const agentMessages = queued.map((message) => ({
+          role: "user" as const,
+          content: [{ type: "text" as const, text: message.text }, ...message.images],
+          timestamp: Date.parse(message.createdAt),
+        }));
+        const lastMessage = context.piSession.agent.state.messages.at(-1);
+        if (lastMessage?.role === "assistant") {
+          for (let index = 0; index < queued.length; index += 1) {
+            const message = queued[index]!;
+            const agentMessage = agentMessages[index]!;
+            context.deferredUserMessageTexts.push(message.text);
+            if (message.mode === "followUp") {
+              context.piSession.agent.followUp(agentMessage);
+            } else {
+              context.piSession.agent.steer(agentMessage);
+            }
+          }
+          while (context.piSession.agent.hasQueuedMessages()) {
+            await context.piSession.agent.continue();
+          }
+          return;
+        }
+
+        for (const message of queued) {
+          context.deferredUserMessageTexts.push(message.text);
+        }
+        await context.piSession.agent.prompt(agentMessages);
+        while (context.piSession.agent.hasQueuedMessages()) {
+          await context.piSession.agent.continue();
+        }
+      },
+      catch: (cause) =>
+        new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "compact/continueQueuedInput",
+          detail: errorDetail(cause),
+          cause,
+        }),
+    }).pipe(Effect.exit);
+
+    yield* emitQueuedDuringCompactionUpdate(context, queuedTurnId);
+    const stopped = yield* Ref.get(context.stopped);
+    if (stopped || context.activeTurnId !== queuedTurnId) return;
+    const turnFailure = context.activeTurnFailure as PiTurnFailure | undefined;
+    context.activeTurnId = undefined;
+    context.activePromptFiber = undefined;
+    context.activeTurnFailure = undefined;
+    if (Exit.isSuccess(continueExit)) {
+      yield* updateProviderSession(
+        context,
+        turnFailure
+          ? {
+              status: turnFailure.state === "interrupted" ? "ready" : "error",
+              lastError: turnFailure.message,
+            }
+          : { status: "ready" },
+        { clearActiveTurnId: true },
+      );
+      yield* emitContextWindowUsage(context, queuedTurnId).pipe(Effect.ignore);
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: context.session.threadId, turnId: queuedTurnId })),
+        type: "turn.completed",
+        payload: turnFailure
+          ? { state: turnFailure.state, errorMessage: turnFailure.message }
+          : { state: "completed" },
+      });
+    } else {
+      const detail = Cause.pretty(continueExit.cause);
+      yield* updateProviderSession(
+        context,
+        { status: "error", lastError: detail },
+        { clearActiveTurnId: true },
+      );
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: context.session.threadId, turnId: queuedTurnId })),
+        type: "turn.completed",
+        payload: { state: "failed", errorMessage: detail },
+      });
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: context.session.threadId, turnId: queuedTurnId })),
+        type: "runtime.error",
+        payload: { message: detail, class: "provider_error", detail: continueExit.cause },
+      });
+    }
   });
 
   const handleSessionEvent = (
@@ -829,8 +987,10 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       turns: [],
       stopped: yield* Ref.make(false),
       deferredUserMessageTexts: [],
+      queuedDuringCompaction: [],
       toolArgsByCallId: new Map(),
       activeTurnId: undefined,
+      activeCompactionTurnId: undefined,
       activePromptFiber: undefined,
       activeAssistantItemId: undefined,
       activeTurnFailure: undefined,
@@ -905,6 +1065,108 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         operation: "sendTurn",
         issue: "Pi turns require text input or at least one attachment.",
       });
+    }
+
+    if (context.activeCompactionTurnId && text !== undefined) {
+      const compactionTurnId = context.activeCompactionTurnId;
+      const mode = piSettings.midTurnInputMode;
+      enqueueDuringCompaction(context, { mode, text, images, createdAt: yield* nowIso });
+      yield* emitQueuedDuringCompactionUpdate(context, compactionTurnId);
+      return { threadId: input.threadId, turnId: compactionTurnId };
+    }
+
+    // Handle /compact slash command — trigger manual compaction instead of
+    // starting a turn. Supports optional custom instructions after the command.
+    const compactMatch = text?.match(/^\/compact(?:\s+(.+))?$/);
+    if (compactMatch) {
+      const customInstructions = compactMatch[1]?.trim();
+      context.activeTurnId = turnId;
+      context.activeCompactionTurnId = turnId;
+      context.activeAssistantItemId = undefined;
+      context.activeTurnFailure = undefined;
+      yield* updateProviderSession(
+        context,
+        { status: "running", activeTurnId: turnId, model: `${model.provider}/${model.id}` },
+        { clearLastError: true },
+      );
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
+        type: "turn.started",
+        payload: { model: `${model.provider}/${model.id}` },
+      });
+      yield* emitContextWindowUsage(context, turnId).pipe(Effect.ignore);
+      const compactEffect = Effect.tryPromise({
+        try: () => context.piSession.compact(customInstructions),
+        catch: (cause) =>
+          new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: "compact",
+            detail: errorDetail(cause),
+            cause,
+          }),
+      }).pipe(
+        Effect.flatMap(() =>
+          Effect.gen(function* () {
+            const stopped = yield* Ref.get(context.stopped);
+            if (stopped || context.activeTurnId !== turnId) return;
+            context.activeTurnId = undefined;
+            context.activeCompactionTurnId = undefined;
+            context.activePromptFiber = undefined;
+            context.activeTurnFailure = undefined;
+            yield* emitContextWindowUsage(context, turnId).pipe(Effect.ignore);
+            yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
+              type: "thread.state.changed",
+              payload: {
+                state: "compacted",
+                detail: customInstructions
+                  ? { instructions: customInstructions }
+                  : { reason: "manual_compact_command" },
+              },
+            });
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
+              type: "turn.completed",
+              payload: { state: "completed" },
+            });
+            yield* runQueuedAfterCompaction(context, `${model.provider}/${model.id}`);
+          }),
+        ),
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            const stopped = yield* Ref.get(context.stopped);
+            if (stopped || context.activeTurnId !== turnId) return;
+            context.activeTurnId = undefined;
+            context.activeCompactionTurnId = undefined;
+            context.activePromptFiber = undefined;
+            const detail = error.detail;
+            yield* updateProviderSession(
+              context,
+              { status: "error", lastError: detail },
+              { clearActiveTurnId: true },
+            );
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
+              type: "turn.completed",
+              payload: { state: "failed", errorMessage: detail },
+            });
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
+              type: "runtime.error",
+              payload: { message: detail, class: "provider_error", detail: error },
+            });
+          }),
+        ),
+        Effect.catchCause((cause) =>
+          Effect.logError("Pi compact fiber failed", { cause: Cause.pretty(cause) }),
+        ),
+      );
+      context.activePromptFiber = yield* compactEffect.pipe(
+        Effect.asVoid,
+        Effect.forkIn(context.sessionScope),
+      );
+      return { threadId: input.threadId, turnId };
     }
 
     if (activeTurnId) {

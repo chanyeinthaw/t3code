@@ -875,7 +875,11 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       }));
     }
     if (composerTrigger.kind === "slash-command") {
-      const builtInSlashCommandItems = [
+      const canToggleInteractionMode =
+        selectedProviderStatus?.showInteractionModeToggle !== false;
+      const builtInSlashCommandItems: Array<
+        Extract<ComposerCommandItem, { type: "slash-command" }>
+      > = [
         {
           id: "slash:model",
           type: "slash-command",
@@ -883,21 +887,25 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           label: "/model",
           description: "Switch response model for this thread",
         },
-        {
-          id: "slash:plan",
-          type: "slash-command",
-          command: "plan",
-          label: "/plan",
-          description: "Switch this thread into plan mode",
-        },
-        {
-          id: "slash:default",
-          type: "slash-command",
-          command: "default",
-          label: "/default",
-          description: "Switch this thread back to normal build mode",
-        },
-      ] satisfies ReadonlyArray<Extract<ComposerCommandItem, { type: "slash-command" }>>;
+        ...(canToggleInteractionMode
+          ? [
+              {
+                id: "slash:plan" as const,
+                type: "slash-command" as const,
+                command: "plan" as const,
+                label: "/plan",
+                description: "Switch this thread into plan mode",
+              },
+              {
+                id: "slash:default" as const,
+                type: "slash-command" as const,
+                command: "default" as const,
+                label: "/default",
+                description: "Switch this thread back to normal build mode",
+              },
+            ]
+          : []),
+      ];
       const providerSlashCommandItems = (selectedProviderStatus?.slashCommands ?? []).map(
         (command) => ({
           id: `provider-slash-command:${selectedProvider}:${command.name}`,
