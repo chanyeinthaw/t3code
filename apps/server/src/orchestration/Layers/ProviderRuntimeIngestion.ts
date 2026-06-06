@@ -346,15 +346,17 @@ function runtimeEventToActivities(
     }
 
     case "runtime.error": {
+      const message = truncateDetail(event.payload.message);
       return [
         {
           id: event.eventId,
           createdAt: event.createdAt,
           tone: "error",
           kind: "runtime.error",
-          summary: "Runtime error",
+          summary: message || "Runtime error",
           payload: {
-            message: truncateDetail(event.payload.message),
+            message,
+            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -363,15 +365,16 @@ function runtimeEventToActivities(
     }
 
     case "runtime.warning": {
+      const message = truncateDetail(event.payload.message);
       return [
         {
           id: event.eventId,
           createdAt: event.createdAt,
           tone: "info",
           kind: "runtime.warning",
-          summary: "Runtime warning",
+          summary: message || "Runtime warning",
           payload: {
-            message: truncateDetail(event.payload.message),
+            message,
             ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,

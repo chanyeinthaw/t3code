@@ -2346,6 +2346,7 @@ describe("ProviderRuntimeIngestion", () => {
         : undefined;
 
     expect(activity?.kind).toBe("runtime.error");
+    expect(activity?.summary).toBe("runtime activity exploded");
     expect(activityPayload?.message).toBe("runtime activity exploded");
   });
 
@@ -2569,6 +2570,7 @@ describe("ProviderRuntimeIngestion", () => {
         ? (warning.payload as Record<string, unknown>)
         : undefined;
     expect(warning?.kind).toBe("runtime.warning");
+    expect(warning?.summary).toBe("Provider got slow");
     expect(warningPayload?.message).toBe("Provider got slow");
 
     const checkpoint = thread.checkpoints.find(

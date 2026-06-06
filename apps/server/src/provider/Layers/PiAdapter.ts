@@ -37,6 +37,7 @@ import {
 } from "../Errors.ts";
 import type { PiAdapterShape } from "../Services/PiAdapter.ts";
 import type { PiSettings } from "@t3tools/contracts";
+import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 
@@ -78,6 +79,11 @@ interface PiSessionContext {
   readonly toolArgsByCallId: Map<string, unknown>;
   activeTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
+  activeAssistantItemId: string | undefined;
+  activeTurnFailure:
+    | { readonly state: "failed" | "interrupted"; readonly message: string }
+    | undefined;
+  nextAssistantMessageIndex: number;
 }
 
 interface PiAdapterOptions {
@@ -85,6 +91,7 @@ interface PiAdapterOptions {
   readonly environment?: NodeJS.ProcessEnv;
   readonly authStorage?: AuthStorage;
   readonly modelRegistry: ModelRegistry;
+  readonly nativeEventLogger?: EventNdjsonLogger;
 }
 
 export type PiAdapterEnv = Crypto.Crypto | FileSystem.FileSystem | ServerConfig;
@@ -129,7 +136,7 @@ function getPiMessageRole(message: unknown): string | undefined {
   return typeof role === "string" ? role : undefined;
 }
 
-function getPiUserMessageText(message: unknown): string | undefined {
+function getPiMessageText(message: unknown): string | undefined {
   if (!message || typeof message !== "object") return undefined;
   const content = (message as { readonly content?: unknown }).content;
   if (typeof content === "string") return content;
@@ -142,6 +149,54 @@ function getPiUserMessageText(message: unknown): string | undefined {
     })
     .join("\n");
   return text.length > 0 ? text : undefined;
+}
+
+function getPiUserMessageText(message: unknown): string | undefined {
+  return getPiMessageText(message);
+}
+
+function getPiAssistantStopReason(message: unknown): string | undefined {
+  if (getPiMessageRole(message) !== "assistant" || !message || typeof message !== "object") {
+    return undefined;
+  }
+  const stopReason = (message as { readonly stopReason?: unknown }).stopReason;
+  return typeof stopReason === "string" ? stopReason : undefined;
+}
+
+function getPiAssistantErrorMessage(message: unknown): string | undefined {
+  if (getPiMessageRole(message) !== "assistant" || !message || typeof message !== "object") {
+    return undefined;
+  }
+  const errorMessage = (message as { readonly errorMessage?: unknown }).errorMessage;
+  if (typeof errorMessage !== "string") return undefined;
+  const trimmed = errorMessage.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function findLastPiAssistantTerminalError(
+  messages: ReadonlyArray<unknown>,
+): { readonly state: "failed" | "interrupted"; readonly message: string } | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (getPiMessageRole(message) !== "assistant") continue;
+    const stopReason = getPiAssistantStopReason(message);
+    if (stopReason !== "error" && stopReason !== "aborted") return undefined;
+    return {
+      state: stopReason === "aborted" ? "interrupted" : "failed",
+      message:
+        getPiAssistantErrorMessage(message) ??
+        (stopReason === "aborted" ? "Pi request was aborted." : "Pi provider returned an error."),
+    };
+  }
+  return undefined;
+}
+
+function ensureAssistantItemId(context: PiSessionContext, turnId: TurnId | undefined): string {
+  if (context.activeAssistantItemId) return context.activeAssistantItemId;
+  const itemId = `pi-assistant-${turnId ?? "session"}-${context.nextAssistantMessageIndex}`;
+  context.nextAssistantMessageIndex += 1;
+  context.activeAssistantItemId = itemId;
+  return itemId;
 }
 
 function takeDeferredUserMessageText(context: PiSessionContext, text: string): boolean {
@@ -247,11 +302,27 @@ function buildPiToolData(input: {
   };
 }
 
+function piCompactionDetail(
+  event: Extract<AgentSessionEvent, { type: "compaction_end" }>,
+): string | undefined {
+  if (event.errorMessage && event.errorMessage.trim().length > 0) {
+    return event.errorMessage.trim();
+  }
+  if (event.aborted) {
+    return "Context compaction aborted.";
+  }
+  if (!event.result) {
+    return undefined;
+  }
+  return "Context compaction completed.";
+}
+
 export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   piSettings: PiSettings,
   options: PiAdapterOptions,
 ) {
   const boundInstanceId = options.instanceId ?? ProviderInstanceId.make("pi");
+  const nativeEventLogger = options.nativeEventLogger;
   const serverConfig = yield* ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
   const crypto = yield* Crypto.Crypto;
@@ -290,6 +361,14 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   });
 
   const emit = (event: ProviderRuntimeEvent) => Queue.offer(runtimeEvents, event);
+
+  const writeNativeEvent = Effect.fn("writePiNativeEvent")(function* (
+    threadId: ThreadId,
+    event: AgentSessionEvent,
+  ) {
+    if (!nativeEventLogger) return;
+    yield* nativeEventLogger.write(event, threadId);
+  });
 
   const updateProviderSession = Effect.fn("updatePiProviderSession")(function* (
     context: PiSessionContext,
@@ -358,8 +437,15 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "message_start": {
+          const role = getPiMessageRole(event.message);
+          if (role === "assistant") {
+            context.activeAssistantItemId = `pi-assistant-${turnId ?? "session"}-${context.nextAssistantMessageIndex}`;
+            context.nextAssistantMessageIndex += 1;
+            return;
+          }
+
           const text = getPiUserMessageText(event.message);
-          if (getPiMessageRole(event.message) === "user" && text !== undefined) {
+          if (role === "user" && text !== undefined) {
             const isDeferredMidTurnMessage = takeDeferredUserMessageText(context, text);
             if (isDeferredMidTurnMessage) {
               yield* emit({
@@ -379,10 +465,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           const assistantEvent = event.assistantMessageEvent;
           if (assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta") {
             if (assistantEvent.delta.length === 0) return;
+            const itemId = ensureAssistantItemId(context, turnId);
             yield* emit({
               ...(yield* buildEventBase({
                 threadId: context.session.threadId,
                 turnId,
+                itemId,
                 raw: event,
               })),
               type: "content.delta",
@@ -394,6 +482,47 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               },
             });
           }
+          break;
+        }
+        case "message_end": {
+          if (getPiMessageRole(event.message) !== "assistant") {
+            break;
+          }
+          const stopReason = getPiAssistantStopReason(event.message);
+          const assistantErrorMessage = getPiAssistantErrorMessage(event.message);
+          if (stopReason === "error" || stopReason === "aborted") {
+            context.activeTurnFailure = {
+              state: stopReason === "aborted" ? "interrupted" : "failed",
+              message:
+                assistantErrorMessage ??
+                (stopReason === "aborted"
+                  ? "Pi request was aborted."
+                  : "Pi provider returned an error."),
+            };
+          }
+          const itemId = ensureAssistantItemId(context, turnId);
+          context.activeAssistantItemId = undefined;
+          const detail = getPiMessageText(event.message) ?? assistantErrorMessage;
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              itemId,
+              raw: event,
+            })),
+            type: "item.completed",
+            payload: {
+              itemType: "assistant_message",
+              status: stopReason === "error" ? "failed" : "completed",
+              title: "Assistant message",
+              ...(detail ? { detail } : {}),
+              data: {
+                itemId,
+                ...(stopReason ? { stopReason } : {}),
+                ...(assistantErrorMessage ? { errorMessage: assistantErrorMessage } : {}),
+              },
+            },
+          });
           break;
         }
         case "tool_execution_start": {
@@ -468,6 +597,123 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
                 result: event.result,
                 isError: event.isError,
               }),
+            },
+          });
+          break;
+        }
+        case "agent_end": {
+          if (event.willRetry) {
+            break;
+          }
+          const terminalError = findLastPiAssistantTerminalError(event.messages);
+          if (!terminalError) {
+            break;
+          }
+          // Pi emits assistant message_end before agent_end. The assistant message already
+          // carries the terminal error text, so agent_end should only preserve failed turn
+          // state and not emit a duplicate runtime.error work-log entry.
+          context.activeTurnFailure = terminalError;
+          break;
+        }
+        case "session_info_changed": {
+          if (!event.name || event.name.trim().length === 0) {
+            break;
+          }
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              raw: event,
+            })),
+            type: "thread.metadata.updated",
+            payload: { name: event.name.trim() },
+          });
+          break;
+        }
+        case "compaction_start": {
+          const itemId = `pi-compaction-${turnId ?? "session"}`;
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              itemId,
+              raw: event,
+            })),
+            type: "item.started",
+            payload: {
+              itemType: "context_compaction",
+              status: "inProgress",
+              title: "Context compaction",
+              data: { reason: event.reason },
+            },
+          });
+          break;
+        }
+        case "compaction_end": {
+          const itemId = `pi-compaction-${turnId ?? "session"}`;
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              itemId,
+              raw: event,
+            })),
+            type: "item.completed",
+            payload: {
+              itemType: "context_compaction",
+              status: event.aborted || event.errorMessage ? "failed" : "completed",
+              title: "Context compaction",
+              ...(piCompactionDetail(event) ? { detail: piCompactionDetail(event) } : {}),
+              data: {
+                reason: event.reason,
+                aborted: event.aborted,
+                willRetry: event.willRetry,
+                ...(event.result !== undefined ? { result: event.result } : {}),
+                ...(event.errorMessage !== undefined ? { errorMessage: event.errorMessage } : {}),
+              },
+            },
+          });
+          break;
+        }
+        case "auto_retry_start": {
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              raw: event,
+            })),
+            type: "runtime.warning",
+            payload: {
+              message: `Pi retrying request (${event.attempt}/${event.maxAttempts}): ${event.errorMessage}`,
+              detail: {
+                attempt: event.attempt,
+                maxAttempts: event.maxAttempts,
+                delayMs: event.delayMs,
+                errorMessage: event.errorMessage,
+              },
+            },
+          });
+          break;
+        }
+        case "auto_retry_end": {
+          if (event.success) {
+            break;
+          }
+          yield* emit({
+            ...(yield* buildEventBase({
+              threadId: context.session.threadId,
+              turnId,
+              raw: event,
+            })),
+            type: "runtime.error",
+            payload: {
+              message: event.finalError ?? `Pi retry attempt ${event.attempt} failed.`,
+              class: "provider_error",
+              detail: {
+                success: event.success,
+                attempt: event.attempt,
+                ...(event.finalError !== undefined ? { finalError: event.finalError } : {}),
+              },
             },
           });
           break;
@@ -569,7 +815,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     const unsubscribe = created.session.subscribe((event) => {
       const context = contextRef.current;
       if (!context) return;
-      runFork(handleSessionEvent(context, event));
+      runFork(
+        writeNativeEvent(context.session.threadId, event).pipe(
+          Effect.andThen(handleSessionEvent(context, event)),
+        ),
+      );
     });
     const context: PiSessionContext = {
       session,
@@ -582,6 +832,9 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       toolArgsByCallId: new Map(),
       activeTurnId: undefined,
       activePromptFiber: undefined,
+      activeAssistantItemId: undefined,
+      activeTurnFailure: undefined,
+      nextAssistantMessageIndex: 0,
     };
     contextRef.current = context;
     sessions.set(input.threadId, context);
@@ -698,6 +951,9 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     });
 
     context.activeTurnId = turnId;
+    context.activeAssistantItemId = undefined;
+    context.activeTurnFailure = undefined;
+    context.nextAssistantMessageIndex = 0;
     yield* updateProviderSession(
       context,
       { status: "running", activeTurnId: turnId, model: `${model.provider}/${model.id}` },
@@ -726,14 +982,27 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         Effect.gen(function* () {
           const stopped = yield* Ref.get(context.stopped);
           if (stopped || context.activeTurnId !== turnId) return;
+          const turnFailure = context.activeTurnFailure;
           context.activeTurnId = undefined;
           context.activePromptFiber = undefined;
-          yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+          context.activeTurnFailure = undefined;
+          yield* updateProviderSession(
+            context,
+            turnFailure
+              ? {
+                  status: turnFailure.state === "interrupted" ? "ready" : "error",
+                  lastError: turnFailure.message,
+                }
+              : { status: "ready" },
+            { clearActiveTurnId: true },
+          );
           yield* emitContextWindowUsage(context, turnId);
           yield* emit({
             ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
             type: "turn.completed",
-            payload: { state: "completed" },
+            payload: turnFailure
+              ? { state: turnFailure.state, errorMessage: turnFailure.message }
+              : { state: "completed" },
           });
         }),
       ),
@@ -784,6 +1053,8 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
 
       context.activeTurnId = undefined;
       context.activePromptFiber = undefined;
+      context.activeAssistantItemId = undefined;
+      context.activeTurnFailure = undefined;
       context.deferredUserMessageTexts.splice(0);
 
       yield* Effect.sync(() => context.piSession.clearQueue()).pipe(
