@@ -1,3 +1,4 @@
+import type { ServerProviderSkill } from "@t3tools/contracts";
 import { ProviderDriverKind, type PiSettings, type ServerProviderModel } from "@t3tools/contracts";
 import { createModelCapabilities } from "@t3tools/shared/model";
 import * as DateTime from "effect/DateTime";
@@ -5,6 +6,11 @@ import * as Effect from "effect/Effect";
 
 import { ServerSettingsError } from "@t3tools/contracts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
+import {
+  getAgentDir,
+  loadSkills,
+  type Skill as PiSkill,
+} from "@earendil-works/pi-coding-agent";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 
@@ -67,6 +73,34 @@ function piModelToServerModel(
   };
 }
 
+function loadPiSkills(agentDir: string | undefined): ReadonlyArray<ServerProviderSkill> {
+  const resolvedAgentDir =
+    agentDir && agentDir.trim().length > 0 ? agentDir : getAgentDir();
+  const { skills } = loadSkills({
+    cwd: process.cwd(),
+    agentDir: resolvedAgentDir,
+    skillPaths: [],
+    includeDefaults: true,
+  });
+
+  return skills.map((skill: PiSkill): ServerProviderSkill => {
+    const shortDescription =
+      skill.description.length > 100
+        ? skill.description.slice(0, 100).replace(/\s+\S*$/, "")
+        : skill.description;
+
+    return {
+      name: skill.name,
+      description: skill.description,
+      path: skill.filePath,
+      scope: skill.sourceInfo.scope === "project" ? "project" : "user",
+      enabled: !skill.disableModelInvocation,
+      displayName: toTitle(skill.name),
+      shortDescription,
+    };
+  });
+}
+
 export function makePendingPiProvider(settings: PiSettings): Effect.Effect<ServerProviderDraft> {
   return Effect.gen(function* () {
     const checkedAt = yield* DateTime.now.pipe(Effect.map(DateTime.formatIso));
@@ -76,6 +110,7 @@ export function makePendingPiProvider(settings: PiSettings): Effect.Effect<Serve
       enabled: settings.enabled,
       checkedAt,
       models: [],
+      skills: loadPiSkills(settings.agentDir),
       probe: {
         installed: true,
         version: null,
@@ -97,12 +132,14 @@ export function checkPiProviderStatus(input: {
     const loadError = input.modelRegistry.getError?.();
     const models = availableModels.map(piModelToServerModel);
     const hasModels = models.length > 0;
+    const skills = loadPiSkills(input.settings.agentDir);
     return buildServerProvider({
       driver: PROVIDER,
       presentation: PI_PRESENTATION,
       enabled: input.settings.enabled,
       checkedAt,
       models,
+      skills,
       probe: {
         installed: true,
         version: null,
