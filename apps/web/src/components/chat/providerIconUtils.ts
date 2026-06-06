@@ -2,13 +2,17 @@ import { ProviderDriverKind } from "@t3tools/contracts";
 import { Icon, OpenAI, OpenCodeIcon, PiAgentIcon } from "../Icons";
 import { PROVIDER_OPTIONS } from "../../session-logic";
 
-export const PROVIDER_ICON_BY_PROVIDER: Partial<Record<ProviderDriverKind, Icon>> = {
+export const PROVIDER_ICON_BY_PROVIDER: Partial<
+  Record<ProviderDriverKind, Icon>
+> = {
   [ProviderDriverKind.make("codex")]: OpenAI,
   [ProviderDriverKind.make("opencode")]: OpenCodeIcon,
   [ProviderDriverKind.make("pi")]: PiAgentIcon,
 };
 
-function isAvailableProviderOption(option: (typeof PROVIDER_OPTIONS)[number]): option is {
+function isAvailableProviderOption(
+  option: (typeof PROVIDER_OPTIONS)[number],
+): option is {
   value: ProviderDriverKind;
   label: string;
   available: true;
@@ -17,7 +21,9 @@ function isAvailableProviderOption(option: (typeof PROVIDER_OPTIONS)[number]): o
   return option.available;
 }
 
-export const AVAILABLE_PROVIDER_OPTIONS = PROVIDER_OPTIONS.filter(isAvailableProviderOption);
+export const AVAILABLE_PROVIDER_OPTIONS = PROVIDER_OPTIONS.filter(
+  isAvailableProviderOption,
+);
 
 export type ModelEsque = {
   slug: string;
@@ -42,5 +48,5 @@ export function getTriggerDisplayModelName(model: ModelEsque): string {
 
 export function getTriggerDisplayModelLabel(model: ModelEsque): string {
   const title = getTriggerDisplayModelName(model);
-  return model.subProvider ? `${model.subProvider} · ${title}` : title;
+  return model.subProvider ? `${model.subProvider} / ${title}` : title;
 }

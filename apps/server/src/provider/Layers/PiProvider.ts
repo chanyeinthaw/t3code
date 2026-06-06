@@ -10,7 +10,6 @@ const PROVIDER = ProviderDriverKind.make("pi");
 
 const PI_PRESENTATION = {
   displayName: "Pi",
-  badgeLabel: "SDK",
   showInteractionModeToggle: false,
   supportedAccessModes: ["full-access"],
   deferMidTurnUserMessages: true,
@@ -82,7 +81,7 @@ export function makePendingPiProvider(settings: PiSettings): Effect.Effect<Serve
         version: null,
         status: "warning",
         auth: { status: "unknown" },
-        message: "Pi SDK provider is starting.",
+        message: "Pi provider is starting.",
       },
     });
   });
@@ -112,7 +111,9 @@ export function checkPiProviderStatus(input: {
           status: hasModels ? "authenticated" : "unauthenticated",
         },
         ...(loadError || !hasModels
-          ? { message: loadError ?? "No Pi models with configured auth were found." }
+          ? {
+              message: loadError ?? "No Pi models with configured auth were found.",
+            }
           : {}),
       },
     });
