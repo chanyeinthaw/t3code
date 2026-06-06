@@ -1,7 +1,21 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+
+export function findGitRepositoryRoot(cwd: string): string | undefined {
+  let current = resolve(cwd);
+  while (true) {
+    if (existsSync(join(current, ".git"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return undefined;
+    }
+    current = parent;
+  }
+}
 
 export function isGitRepository(cwd: string): boolean {
-  return existsSync(join(cwd, ".git"));
+  return findGitRepositoryRoot(cwd) !== undefined;
 }
