@@ -75,6 +75,7 @@ interface PiSessionContext {
   readonly turns: Array<PiTurnSnapshot>;
   readonly stopped: Ref.Ref<boolean>;
   readonly deferredUserMessageTexts: Array<string>;
+  readonly toolArgsByCallId: Map<string, unknown>;
   activeTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
 }
@@ -190,6 +191,60 @@ function toToolItemType(
     return "file_change";
   }
   return "dynamic_tool_call";
+}
+
+function readPiToolCommand(toolName: string, args: unknown): string | undefined {
+  const normalized = toolName.toLowerCase();
+  if (!normalized.includes("bash") && !normalized.includes("command")) {
+    return undefined;
+  }
+  if (!args || typeof args !== "object") {
+    return undefined;
+  }
+  const command = (args as { readonly command?: unknown }).command;
+  return typeof command === "string" && command.trim().length > 0 ? command : undefined;
+}
+
+function readPiToolTextOutput(result: unknown): string | undefined {
+  if (typeof result === "string") {
+    const trimmed = result.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+  const content = (result as { readonly content?: unknown }).content;
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+  const text = content
+    .flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const block = entry as { readonly type?: unknown; readonly text?: unknown };
+      return block.type === "text" && typeof block.text === "string" ? [block.text] : [];
+    })
+    .join("\n")
+    .trim();
+  return text.length > 0 ? text : undefined;
+}
+
+function buildPiToolData(input: {
+  readonly toolCallId: string;
+  readonly toolName: string;
+  readonly args: unknown;
+  readonly partialResult?: unknown;
+  readonly result?: unknown;
+  readonly isError?: boolean;
+}): Record<string, unknown> {
+  const command = readPiToolCommand(input.toolName, input.args);
+  return {
+    toolCallId: input.toolCallId,
+    args: input.args,
+    ...(command !== undefined ? { command } : {}),
+    ...(input.partialResult !== undefined ? { partialResult: input.partialResult } : {}),
+    ...(input.result !== undefined ? { result: input.result } : {}),
+    ...(input.isError !== undefined ? { isError: input.isError } : {}),
+  };
 }
 
 export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
@@ -342,6 +397,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "tool_execution_start": {
+          context.toolArgsByCallId.set(event.toolCallId, event.args);
           appendTurnItem(context, turnId, event);
           yield* emit({
             ...(yield* buildEventBase({
@@ -355,7 +411,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType: toToolItemType(event.toolName),
               status: "inProgress",
               title: event.toolName,
-              data: { args: event.args },
+              data: buildPiToolData({
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                args: event.args,
+              }),
             },
           });
           break;
@@ -373,14 +433,21 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType: toToolItemType(event.toolName),
               status: "inProgress",
               title: event.toolName,
-              detail: typeof event.partialResult === "string" ? event.partialResult : undefined,
-              data: { args: event.args, partialResult: event.partialResult },
+              detail: readPiToolTextOutput(event.partialResult),
+              data: buildPiToolData({
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                args: event.args,
+                partialResult: event.partialResult,
+              }),
             },
           });
           break;
         }
         case "tool_execution_end": {
           appendTurnItem(context, turnId, event);
+          const toolArgs = context.toolArgsByCallId.get(event.toolCallId);
+          context.toolArgsByCallId.delete(event.toolCallId);
           yield* emit({
             ...(yield* buildEventBase({
               threadId: context.session.threadId,
@@ -393,8 +460,14 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType: toToolItemType(event.toolName),
               status: event.isError ? "failed" : "completed",
               title: event.toolName,
-              detail: typeof event.result === "string" ? event.result : undefined,
-              data: { result: event.result, isError: event.isError },
+              detail: readPiToolTextOutput(event.result),
+              data: buildPiToolData({
+                toolCallId: event.toolCallId,
+                toolName: event.toolName,
+                args: toolArgs,
+                result: event.result,
+                isError: event.isError,
+              }),
             },
           });
           break;
@@ -506,6 +579,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       turns: [],
       stopped: yield* Ref.make(false),
       deferredUserMessageTexts: [],
+      toolArgsByCallId: new Map(),
       activeTurnId: undefined,
       activePromptFiber: undefined,
     };

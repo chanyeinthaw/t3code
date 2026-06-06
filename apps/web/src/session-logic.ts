@@ -593,9 +593,34 @@ function collapseDerivedWorkLogEntries(
       collapsed[collapsed.length - 1] = mergeDerivedWorkLogEntries(previous, entry);
       continue;
     }
+
+    const matchingIndex = findCollapsibleToolLifecycleEntryIndex(collapsed, entry);
+    if (matchingIndex >= 0) {
+      collapsed[matchingIndex] = mergeDerivedWorkLogEntries(collapsed[matchingIndex]!, entry);
+      continue;
+    }
+
     collapsed.push(entry);
   }
   return collapsed;
+}
+
+function findCollapsibleToolLifecycleEntryIndex(
+  entries: ReadonlyArray<DerivedWorkLogEntry>,
+  next: DerivedWorkLogEntry,
+): number {
+  if (next.activityKind !== "tool.updated" && next.activityKind !== "tool.completed") {
+    return -1;
+  }
+
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const previous = entries[index];
+    if (!previous) continue;
+    if (shouldCollapseToolLifecycleEntries(previous, next)) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function shouldCollapseToolLifecycleEntries(
