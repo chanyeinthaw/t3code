@@ -11,12 +11,17 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
 import { Button } from "../components/ui/button";
-import { SidebarInset, SidebarTrigger, useSidebar } from "../components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarTrigger,
+  useSidebar,
+} from "../components/ui/sidebar";
 import { isElectron } from "../env";
 import { cn } from "../lib/utils";
 
 function RestoreDefaultsButton({ onRestored }: { onRestored: () => void }) {
-  const { changedSettingLabels, restoreDefaults } = useSettingsRestore(onRestored);
+  const { changedSettingLabels, restoreDefaults } =
+    useSettingsRestore(onRestored);
 
   return (
     <Button
@@ -68,8 +73,13 @@ function SettingsContentLayout() {
         {!isElectron && (
           <header className="flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5">
             <div className="flex min-w-0 w-full items-center justify-between gap-2">
-              {!open && <SidebarTrigger className="size-7 shrink-0" />}
-              <span className="text-sm font-medium text-foreground">Settings</span>
+              {!open && (
+                <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
+              )}
+              <SidebarTrigger className="shrink-0 md:hidden" />
+              <span className="text-sm font-medium text-foreground">
+                Settings
+              </span>
               {showRestoreDefaults ? (
                 <div className="ms-auto flex items-center gap-2">
                   <RestoreDefaultsButton onRestored={handleRestored} />
@@ -86,7 +96,10 @@ function SettingsContentLayout() {
               !open && "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)]",
             )}
           >
-            {!open && <SidebarTrigger className="shrink-0" />}
+            {!open && (
+              <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
+            )}
+            <SidebarTrigger className="shrink-0 md:hidden" />
             <span className="text-xs font-medium tracking-wide text-muted-foreground/70">
               Settings
             </span>
