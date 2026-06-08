@@ -240,8 +240,14 @@ const make = Effect.gen(function* () {
       event.preventDefault();
       window.setTitle(environment.displayName);
     });
+    const sendFullScreenState = () => {
+      window.webContents.send(IpcChannels.WINDOW_FULL_SCREEN_CHANGE_CHANNEL, window.isFullScreen());
+    };
+    window.on("enter-full-screen", sendFullScreenState);
+    window.on("leave-full-screen", sendFullScreenState);
     window.webContents.on("did-finish-load", () => {
       window.setTitle(environment.displayName);
+      sendFullScreenState();
     });
     window.webContents.on(
       "did-fail-load",

@@ -16,15 +16,13 @@ export function NoActiveThreadState() {
               ? cn(
                   "drag-region flex h-[52px] items-center wco:h-[env(titlebar-area-height)]",
                   !open &&
-                    "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)] sm:pl-[90px] sm:wco:pl-[calc(env(titlebar-area-x)+1em)]",
+                    "pl-[90px] electron-full-screen:pl-3 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3 sm:pl-[90px] sm:electron-full-screen:pl-5 sm:wco:pl-[calc(env(titlebar-area-x)+1em)] sm:electron-full-screen:wco:pl-5",
                 )
               : "flex h-[52px] shrink-0 items-center",
           )}
         >
           <div className="flex min-w-0 items-center gap-2">
-            {!open && (
-              <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
-            )}
+            {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
             <SidebarTrigger className="shrink-0 md:hidden" />
             <span className="truncate text-sm font-medium text-foreground md:text-muted-foreground/60">
               No active thread
@@ -35,9 +33,7 @@ export function NoActiveThreadState() {
         <Empty className="flex-1">
           <div className="w-full max-w-lg rounded-3xl border border-border/55 bg-card/20 px-8 py-12 shadow-sm/5">
             <EmptyHeader className="max-w-none">
-              <EmptyTitle className="text-foreground text-xl">
-                Pick a thread to continue
-              </EmptyTitle>
+              <EmptyTitle className="text-foreground text-xl">Pick a thread to continue</EmptyTitle>
               <EmptyDescription className="mt-2 text-sm text-muted-foreground/78">
                 Select an existing thread or create a new one to get started.
               </EmptyDescription>

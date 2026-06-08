@@ -96,6 +96,19 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       ...(position === undefined ? {} : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
+  getWindowFullScreenState: () =>
+    ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULL_SCREEN_STATE_CHANNEL),
+  onWindowFullScreenChange: (listener) => {
+    const wrappedListener = (_event: Electron.IpcRendererEvent, isFullScreen: unknown) => {
+      if (typeof isFullScreen !== "boolean") return;
+      listener(isFullScreen);
+    };
+
+    ipcRenderer.on(IpcChannels.WINDOW_FULL_SCREEN_CHANGE_CHANNEL, wrappedListener);
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.WINDOW_FULL_SCREEN_CHANGE_CHANNEL, wrappedListener);
+    };
+  },
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
       if (typeof action !== "string") return;

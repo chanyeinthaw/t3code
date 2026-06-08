@@ -1,4 +1,5 @@
 const WCO_CLASS_NAME = "wco";
+const ELECTRON_FULL_SCREEN_CLASS_NAME = "electron-full-screen";
 
 interface WindowControlsOverlayLike {
   readonly visible: boolean;
@@ -37,4 +38,26 @@ export function syncDocumentWindowControlsOverlayClass(): () => void {
   return () => {
     overlay.removeEventListener("geometrychange", update);
   };
+}
+
+export function syncDocumentElectronFullScreenClass(): () => void {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return () => {};
+  }
+
+  const update = (isFullScreen: boolean) => {
+    document.documentElement.classList.toggle(ELECTRON_FULL_SCREEN_CLASS_NAME, isFullScreen);
+  };
+
+  const getInitialFullScreenState = window.desktopBridge?.getWindowFullScreenState;
+  if (getInitialFullScreenState) {
+    update(getInitialFullScreenState());
+  }
+
+  const onWindowFullScreenChange = window.desktopBridge?.onWindowFullScreenChange;
+  if (!onWindowFullScreenChange) {
+    return () => {};
+  }
+
+  return onWindowFullScreenChange(update);
 }

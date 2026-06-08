@@ -5,10 +5,7 @@ import {
   type ProjectId,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import {
-  nextTerminalId,
-  resolveTerminalSessionLabel,
-} from "@t3tools/shared/terminalLabels";
+import { nextTerminalId, resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabels";
 import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
@@ -17,10 +14,7 @@ import { SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { readEnvironmentApi } from "../environmentApi";
 import { projectTerminalThreadId } from "../lib/projectTerminal";
 import { selectProjectByRef, useStore } from "../store";
-import {
-  selectThreadTerminalUiState,
-  useTerminalUiStateStore,
-} from "../terminalUiStateStore";
+import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useKnownTerminalSessions } from "../terminalSessionState";
 import { isElectron } from "../env";
 import { cn } from "../lib/utils";
@@ -33,11 +27,7 @@ interface ProjectTerminalViewProps {
 
 const PROJECT_TERMINAL_HEIGHT = 10_000;
 
-const ProjectTerminalHeader = memo(function ProjectTerminalHeader({
-  title,
-}: {
-  title: string;
-}) {
+const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { title: string }) {
   const { open } = useSidebar();
 
   return (
@@ -48,7 +38,7 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({
           ? cn(
               "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
               !open &&
-                "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)] sm:pl-[90px] sm:wco:pl-[calc(env(titlebar-area-x)+1em)]",
+                "pl-[90px] electron-full-screen:pl-3 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3 sm:pl-[90px] sm:electron-full-screen:pl-5 sm:wco:pl-[calc(env(titlebar-area-x)+1em)] sm:electron-full-screen:wco:pl-5",
             )
           : "flex h-[52px] shrink-0 items-center pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)]",
       )}
@@ -57,10 +47,7 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({
         {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
         <SidebarTrigger className="shrink-0 md:hidden" />
         <div className="min-w-0 flex-1">
-          <h2
-            className="truncate text-sm font-medium text-foreground"
-            title={title}
-          >
+          <h2 className="truncate text-sm font-medium text-foreground" title={title}>
             Terminal: {title}
           </h2>
         </div>
@@ -74,41 +61,21 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
   projectId,
   keybindings,
 }: ProjectTerminalViewProps) {
-  const project = useStore((state) =>
-    selectProjectByRef(state, { environmentId, projectId }),
-  );
-  const terminalThreadId = useMemo(
-    () => projectTerminalThreadId(projectId),
-    [projectId],
-  );
+  const project = useStore((state) => selectProjectByRef(state, { environmentId, projectId }));
+  const terminalThreadId = useMemo(() => projectTerminalThreadId(projectId), [projectId]);
   const terminalThreadRef = useMemo(
     () => scopeThreadRef(environmentId, terminalThreadId),
     [environmentId, terminalThreadId],
   );
   const terminalUiState = useTerminalUiStateStore((state) =>
-    selectThreadTerminalUiState(
-      state.terminalUiStateByThreadKey,
-      terminalThreadRef,
-    ),
+    selectThreadTerminalUiState(state.terminalUiStateByThreadKey, terminalThreadRef),
   );
-  const storeEnsureTerminal = useTerminalUiStateStore(
-    (state) => state.ensureTerminal,
-  );
-  const storeSplitTerminal = useTerminalUiStateStore(
-    (state) => state.splitTerminal,
-  );
-  const storeNewTerminal = useTerminalUiStateStore(
-    (state) => state.newTerminal,
-  );
-  const storeSetActiveTerminal = useTerminalUiStateStore(
-    (state) => state.setActiveTerminal,
-  );
-  const storeCloseTerminal = useTerminalUiStateStore(
-    (state) => state.closeTerminal,
-  );
-  const reconcileTerminalIds = useTerminalUiStateStore(
-    (state) => state.reconcileTerminalIds,
-  );
+  const storeEnsureTerminal = useTerminalUiStateStore((state) => state.ensureTerminal);
+  const storeSplitTerminal = useTerminalUiStateStore((state) => state.splitTerminal);
+  const storeNewTerminal = useTerminalUiStateStore((state) => state.newTerminal);
+  const storeSetActiveTerminal = useTerminalUiStateStore((state) => state.setActiveTerminal);
+  const storeCloseTerminal = useTerminalUiStateStore((state) => state.closeTerminal);
+  const reconcileTerminalIds = useTerminalUiStateStore((state) => state.reconcileTerminalIds);
   const knownTerminalSessions = useKnownTerminalSessions({
     environmentId,
     threadId: terminalThreadId,
@@ -122,18 +89,14 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
     for (const session of knownTerminalSessions) {
       next.set(
         session.target.terminalId,
-        resolveTerminalSessionLabel(
-          session.target.terminalId,
-          session.state.summary,
-        ),
+        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary),
       );
     }
     return next;
   }, [knownTerminalSessions]);
   const [focusRequestId, setFocusRequestId] = useState(0);
   const runtimeEnv = useMemo(
-    () =>
-      project ? projectScriptRuntimeEnv({ project: { cwd: project.cwd } }) : {},
+    () => (project ? projectScriptRuntimeEnv({ project: { cwd: project.cwd } }) : {}),
     [project],
   );
 
@@ -162,10 +125,7 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
   );
 
   useEffect(() => {
-    const terminalId =
-      terminalUiState.activeTerminalId ||
-      serverOrderedTerminalIds[0] ||
-      "term-1";
+    const terminalId = terminalUiState.activeTerminalId || serverOrderedTerminalIds[0] || "term-1";
     storeEnsureTerminal(terminalThreadRef, terminalId, {
       open: true,
       active: true,
@@ -187,24 +147,14 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
     storeSplitTerminal(terminalThreadRef, terminalId);
     setFocusRequestId((value) => value + 1);
     void openTerminal(terminalId).catch(() => undefined);
-  }, [
-    openTerminal,
-    storeSplitTerminal,
-    terminalThreadRef,
-    terminalUiState.terminalIds,
-  ]);
+  }, [openTerminal, storeSplitTerminal, terminalThreadRef, terminalUiState.terminalIds]);
 
   const createNewTerminal = useCallback(() => {
     const terminalId = nextTerminalId(terminalUiState.terminalIds);
     storeNewTerminal(terminalThreadRef, terminalId);
     setFocusRequestId((value) => value + 1);
     void openTerminal(terminalId).catch(() => undefined);
-  }, [
-    openTerminal,
-    storeNewTerminal,
-    terminalThreadRef,
-    terminalUiState.terminalIds,
-  ]);
+  }, [openTerminal, storeNewTerminal, terminalThreadRef, terminalUiState.terminalIds]);
 
   const activateTerminal = useCallback(
     (terminalId: string) => {

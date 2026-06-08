@@ -3857,7 +3857,7 @@ export default function ChatView(props: ChatViewProps) {
                 "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
                 reserveTitleBarControlInset &&
                   !sidebarOpen &&
-                  "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)] sm:pl-[90px] sm:wco:pl-[calc(env(titlebar-area-x)+1em)]",
+                  "pl-[90px] electron-full-screen:pl-3 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3 sm:pl-[90px] sm:electron-full-screen:pl-5 sm:wco:pl-[calc(env(titlebar-area-x)+1em)] sm:electron-full-screen:wco:pl-5",
               )
             : "flex py-2 md:py-0 h-auto md:h-[52px] shrink-0 items-center pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)]",
         )}

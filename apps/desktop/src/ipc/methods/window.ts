@@ -133,3 +133,16 @@ export const openExternal = makeIpcMethod({
     return yield* shell.openExternal(url);
   }),
 });
+
+export const getWindowFullScreenState = makeSyncIpcMethod({
+  channel: IpcChannels.GET_WINDOW_FULL_SCREEN_STATE_CHANNEL,
+  result: Schema.Boolean,
+  handler: Effect.fn("desktop.ipc.window.getWindowFullScreenState")(function* () {
+    const electronWindow = yield* ElectronWindow.ElectronWindow;
+    const window = yield* electronWindow.focusedMainOrFirst;
+    return Option.match(window, {
+      onNone: () => false,
+      onSome: (value) => value.isFullScreen(),
+    });
+  }),
+});

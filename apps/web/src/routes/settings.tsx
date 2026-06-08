@@ -11,17 +11,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useSettingsRestore } from "../components/settings/SettingsPanels";
 import { Button } from "../components/ui/button";
-import {
-  SidebarInset,
-  SidebarTrigger,
-  useSidebar,
-} from "../components/ui/sidebar";
+import { SidebarInset, SidebarTrigger, useSidebar } from "../components/ui/sidebar";
 import { isElectron } from "../env";
 import { cn } from "../lib/utils";
 
 function RestoreDefaultsButton({ onRestored }: { onRestored: () => void }) {
-  const { changedSettingLabels, restoreDefaults } =
-    useSettingsRestore(onRestored);
+  const { changedSettingLabels, restoreDefaults } = useSettingsRestore(onRestored);
 
   return (
     <Button
@@ -73,13 +68,9 @@ function SettingsContentLayout() {
         {!isElectron && (
           <header className="flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5">
             <div className="flex min-w-0 w-full items-center justify-between gap-2">
-              {!open && (
-                <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
-              )}
+              {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
               <SidebarTrigger className="shrink-0 md:hidden" />
-              <span className="text-sm font-medium text-foreground">
-                Settings
-              </span>
+              <span className="text-sm font-medium text-foreground">Settings</span>
               {showRestoreDefaults ? (
                 <div className="ms-auto flex items-center gap-2">
                   <RestoreDefaultsButton onRestored={handleRestored} />
@@ -93,12 +84,11 @@ function SettingsContentLayout() {
           <div
             className={cn(
               "drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-5 wco:h-[env(titlebar-area-height)]",
-              !open && "pl-[90px] wco:pl-[calc(env(titlebar-area-x)+1em)]",
+              !open &&
+                "pl-[90px] electron-full-screen:pl-5 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-5",
             )}
           >
-            {!open && (
-              <SidebarTrigger className="hidden shrink-0 md:inline-flex" />
-            )}
+            {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
             <SidebarTrigger className="shrink-0 md:hidden" />
             <span className="text-xs font-medium tracking-wide text-muted-foreground/70">
               Settings

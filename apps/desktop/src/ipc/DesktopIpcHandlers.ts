@@ -36,6 +36,7 @@ import {
   confirm,
   getAppBranding,
   getLocalEnvironmentBootstrap,
+  getWindowFullScreenState,
   openExternal,
   pickFolder,
   setTheme,
@@ -47,6 +48,7 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
 
   yield* ipc.handleSync(getAppBranding);
   yield* ipc.handleSync(getLocalEnvironmentBootstrap);
+  yield* ipc.handleSync(getWindowFullScreenState);
 
   yield* ipc.handle(getClientSettings);
   yield* ipc.handle(setClientSettings);
