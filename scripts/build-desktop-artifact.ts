@@ -238,6 +238,7 @@ interface StagePackageJson {
     readonly electron: string;
   };
   readonly overrides: Record<string, unknown>;
+  readonly patchedDependencies?: Record<string, unknown>;
 }
 
 const AzureTrustedSigningOptionsConfig = Config.all({
@@ -849,10 +850,21 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       electron: electronVersion,
     },
     overrides: resolvedOverrides,
+    patchedDependencies: rootPackageJson.patchedDependencies,
   };
 
   const stagePackageJsonString = yield* encodeJsonString(stagePackageJson);
   yield* fs.writeFileString(path.join(stageAppDir, "package.json"), `${stagePackageJsonString}\n`);
+
+  const rootPatchesDir = path.join(repoRoot, "patches");
+  if (Object.keys(rootPackageJson.patchedDependencies ?? {}).length > 0) {
+    if (!(yield* fs.exists(rootPatchesDir))) {
+      return yield* new BuildScriptError({
+        message: `Root package.json declares patchedDependencies but patches directory was not found at ${rootPatchesDir}.`,
+      });
+    }
+    yield* fs.copy(rootPatchesDir, path.join(stageAppDir, "patches"));
+  }
 
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
   yield* runCommand(
