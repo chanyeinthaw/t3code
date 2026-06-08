@@ -6,11 +6,7 @@ import * as Effect from "effect/Effect";
 
 import { ServerSettingsError } from "@t3tools/contracts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
-import {
-  getAgentDir,
-  loadSkills,
-  type Skill as PiSkill,
-} from "@earendil-works/pi-coding-agent";
+import { getAgentDir, loadSkills, type Skill as PiSkill } from "@earendil-works/pi-coding-agent";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 
@@ -84,8 +80,7 @@ const PI_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
 ];
 
 function loadPiSkills(agentDir: string | undefined): ReadonlyArray<ServerProviderSkill> {
-  const resolvedAgentDir =
-    agentDir && agentDir.trim().length > 0 ? agentDir : getAgentDir();
+  const resolvedAgentDir = agentDir && agentDir.trim().length > 0 ? agentDir : getAgentDir();
   const { skills } = loadSkills({
     cwd: process.cwd(),
     agentDir: resolvedAgentDir,

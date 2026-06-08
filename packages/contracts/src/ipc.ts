@@ -65,7 +65,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration.ts";
-import { EnvironmentId } from "./baseSchemas.ts";
+import { EnvironmentId, ThreadId } from "./baseSchemas.ts";
 import { AuthAccessTokenResult, AuthSessionState, AuthWebSocketTicketResult } from "./auth.ts";
 import { AdvertisedEndpoint } from "./remoteAccess.ts";
 import { EditorId } from "./editor.ts";
@@ -372,6 +372,16 @@ export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
+export interface DesktopOpenThreadWindowInput {
+  environmentId: EnvironmentId;
+  threadId: ThreadId;
+}
+
+export const DesktopOpenThreadWindowInputSchema = Schema.Struct({
+  environmentId: EnvironmentId,
+  threadId: ThreadId,
+});
+
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
@@ -417,6 +427,7 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
+  openThreadWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   getWindowFullScreenState: () => boolean;
   onWindowFullScreenChange: (listener: (isFullScreen: boolean) => void) => () => void;
   onMenuAction: (listener: (action: string) => void) => () => void;
@@ -446,6 +457,7 @@ export interface LocalApi {
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
+    openThreadInNewWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   };
   contextMenu: {
     show: <T extends string>(

@@ -3,6 +3,7 @@ export const CONFIRM_CHANNEL = "desktop:confirm";
 export const SET_THEME_CHANNEL = "desktop:set-theme";
 export const CONTEXT_MENU_CHANNEL = "desktop:context-menu";
 export const OPEN_EXTERNAL_CHANNEL = "desktop:open-external";
+export const OPEN_THREAD_WINDOW_CHANNEL = "desktop:open-thread-window";
 export const GET_WINDOW_FULL_SCREEN_STATE_CHANNEL = "desktop:get-window-full-screen-state";
 export const WINDOW_FULL_SCREEN_CHANGE_CHANNEL = "desktop:window-full-screen-change";
 export const MENU_ACTION_CHANNEL = "desktop:menu-action";

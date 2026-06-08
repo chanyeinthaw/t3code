@@ -71,7 +71,11 @@ interface PiTurnSnapshot {
 interface PiQueuedDuringCompactionInput {
   readonly mode: "steer" | "followUp";
   readonly text: string;
-  readonly images: Array<{ readonly type: "image"; readonly data: string; readonly mimeType: string }>;
+  readonly images: Array<{
+    readonly type: "image";
+    readonly data: string;
+    readonly mimeType: string;
+  }>;
   readonly createdAt: string;
 }
 

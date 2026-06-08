@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       ...(position === undefined ? {} : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
+  openThreadWindow: (input) => ipcRenderer.invoke(IpcChannels.OPEN_THREAD_WINDOW_CHANNEL, input),
   getWindowFullScreenState: () =>
     ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULL_SCREEN_STATE_CHANNEL),
   onWindowFullScreenChange: (listener) => {

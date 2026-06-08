@@ -52,6 +52,7 @@ export type DesktopWindowError =
 
 export interface DesktopWindowShape {
   readonly createMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
+  readonly createNew: (route?: string) => Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly ensureMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly revealOrCreateMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly activate: Effect.Effect<void, DesktopWindowError>;
@@ -67,6 +68,15 @@ export class DesktopWindow extends Context.Service<DesktopWindow, DesktopWindowS
 
 const { logInfo: logWindowInfo, logWarning: logWindowWarning } =
   DesktopObservability.makeComponentLogger("desktop-window");
+
+function appendHashRoute(baseUrl: string, route: string | undefined): string {
+  if (route === undefined || route.length === 0 || route === "/") {
+    return baseUrl;
+  }
+
+  const normalizedRoute = route.startsWith("/") ? route : `/${route}`;
+  return `${baseUrl.replace(/#.*$/, "")}#${normalizedRoute}`;
+}
 
 function resolveDesktopDevServerUrl(
   environment: DesktopEnvironment.DesktopEnvironmentShape,
@@ -158,6 +168,7 @@ const make = Effect.gen(function* () {
 
   const createWindow = Effect.fn("desktop.window.createWindow")(function* (
     backendHttpUrl: URL,
+    route?: string,
   ): Effect.fn.Return<Electron.BrowserWindow, DesktopWindowError> {
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths);
@@ -283,10 +294,10 @@ const make = Effect.gen(function* () {
 
     if (environment.isDevelopment) {
       const devServerUrl = yield* resolveDesktopDevServerUrl(environment);
-      void window.loadURL(devServerUrl);
+      void window.loadURL(appendHashRoute(devServerUrl, route));
       window.webContents.openDevTools({ mode: "detach" });
     } else {
-      void window.loadURL(backendHttpUrl.href);
+      void window.loadURL(appendHashRoute(backendHttpUrl.href, route));
     }
 
     window.on("closed", () => {
@@ -303,6 +314,13 @@ const make = Effect.gen(function* () {
     yield* logWindowInfo("main window created");
     return window;
   }).pipe(Effect.withSpan("desktop.window.createMain"));
+
+  const createNew = Effect.fn("desktop.window.createNew")(function* (route?: string) {
+    const backendConfig = yield* serverExposure.backendConfig;
+    const window = yield* createWindow(backendConfig.httpBaseUrl, route);
+    yield* logWindowInfo("window created", route === undefined ? {} : { route });
+    return window;
+  });
 
   const ensureMain = Effect.gen(function* () {
     const existingWindow = yield* electronWindow.currentMainOrFirst;
@@ -328,6 +346,7 @@ const make = Effect.gen(function* () {
 
   return DesktopWindow.of({
     createMain,
+    createNew,
     ensureMain,
     revealOrCreateMain,
     activate: Effect.gen(function* () {

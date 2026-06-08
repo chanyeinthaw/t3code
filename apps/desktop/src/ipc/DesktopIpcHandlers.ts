@@ -38,6 +38,7 @@ import {
   getLocalEnvironmentBootstrap,
   getWindowFullScreenState,
   openExternal,
+  openThreadWindow,
   pickFolder,
   setTheme,
   showContextMenu,
@@ -77,6 +78,7 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(setTheme);
   yield* ipc.handle(showContextMenu);
   yield* ipc.handle(openExternal);
+  yield* ipc.handle(openThreadWindow);
 
   yield* ipc.handle(getUpdateState);
   yield* ipc.handle(setUpdateChannel);

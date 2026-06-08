@@ -1933,6 +1933,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       const threadWorkspacePath = thread.worktreePath ?? threadProject?.cwd ?? project.cwd ?? null;
       const clicked = await api.contextMenu.show(
         [
+          { id: "open-new-window", label: "Open in New Window" },
           { id: "rename", label: "Rename thread" },
           { id: "mark-unread", label: "Mark unread" },
           { id: "copy-path", label: "Copy Path" },
@@ -1941,6 +1942,11 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         ],
         position,
       );
+
+      if (clicked === "open-new-window") {
+        await api.shell.openThreadInNewWindow(threadRef);
+        return;
+      }
 
       if (clicked === "rename") {
         setRenamingThreadKey(threadKey);

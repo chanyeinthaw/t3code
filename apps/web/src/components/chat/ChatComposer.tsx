@@ -875,8 +875,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       }));
     }
     if (composerTrigger.kind === "slash-command") {
-      const canToggleInteractionMode =
-        selectedProviderStatus?.showInteractionModeToggle !== false;
+      const canToggleInteractionMode = selectedProviderStatus?.showInteractionModeToggle !== false;
       const builtInSlashCommandItems: Array<
         Extract<ComposerCommandItem, { type: "slash-command" }>
       > = [

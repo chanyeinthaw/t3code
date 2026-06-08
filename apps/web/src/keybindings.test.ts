@@ -116,7 +116,6 @@ const DEFAULT_BINDINGS = compile([
     whenAst: whenNot(whenIdentifier("terminalFocus")),
   },
   { shortcut: modShortcut("o", { shiftKey: true }), command: "chat.new" },
-  { shortcut: modShortcut("n", { shiftKey: true }), command: "chat.newLocal" },
   { shortcut: modShortcut("o"), command: "editor.openFavorite" },
   { shortcut: modShortcut("[", { shiftKey: true }), command: "thread.previous" },
   { shortcut: modShortcut("]", { shiftKey: true }), command: "thread.next" },
@@ -435,14 +434,18 @@ describe("chat/editor shortcuts", () => {
     );
   });
 
-  it("matches chat.newLocal shortcut", () => {
+  it("matches configured chat.newLocal shortcut", () => {
+    const bindings = compile([
+      { shortcut: modShortcut("n", { shiftKey: true }), command: "chat.newLocal" },
+    ]);
+
     assert.isTrue(
-      isChatNewLocalShortcut(event({ key: "n", metaKey: true, shiftKey: true }), DEFAULT_BINDINGS, {
+      isChatNewLocalShortcut(event({ key: "n", metaKey: true, shiftKey: true }), bindings, {
         platform: "MacIntel",
       }),
     );
     assert.isTrue(
-      isChatNewLocalShortcut(event({ key: "n", ctrlKey: true, shiftKey: true }), DEFAULT_BINDINGS, {
+      isChatNewLocalShortcut(event({ key: "n", ctrlKey: true, shiftKey: true }), bindings, {
         platform: "Linux",
       }),
     );

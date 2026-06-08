@@ -62,6 +62,15 @@ function createBrowserLocalApi(rpcClient?: WsRpcClient): LocalApi {
 
         window.open(url, "_blank", "noopener,noreferrer");
       },
+      openThreadInNewWindow: async (input) => {
+        if (window.desktopBridge) {
+          await window.desktopBridge.openThreadWindow(input);
+          return;
+        }
+
+        const route = `/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
+        window.open(`${window.location.origin}/#${route}`, "_blank", "noopener,noreferrer");
+      },
     },
     contextMenu: {
       show: async <T extends string>(
