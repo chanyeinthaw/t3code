@@ -90,7 +90,10 @@ interface PiSessionContext {
   readonly stopped: Ref.Ref<boolean>;
   readonly deferredUserMessageTexts: Array<string>;
   readonly queuedDuringCompaction: Array<PiQueuedDuringCompactionInput>;
-  readonly toolArgsByCallId: Map<string, unknown>;
+  readonly activeToolsByCallId: Map<
+    string,
+    { readonly turnId: TurnId | undefined; readonly toolName: string; readonly args: unknown }
+  >;
   activeTurnId: TurnId | undefined;
   activeCompactionTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
@@ -113,6 +116,36 @@ const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function withTemporaryProcessEnvironment<T>(
+  environment: NodeJS.ProcessEnv | undefined,
+  fn: () => Promise<T>,
+): Promise<T> {
+  if (!environment) return fn();
+
+  const previous = new Map<string, string | undefined>();
+  for (const [key, value] of Object.entries(environment)) {
+    if (process.env[key] === value) continue;
+    previous.set(key, process.env[key]);
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
+      }
+    }
+  }
 }
 
 function parsePiModelSlug(slug: string | undefined): { provider: string; modelId: string } | null {
@@ -688,7 +721,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "tool_execution_start": {
-          context.toolArgsByCallId.set(event.toolCallId, event.args);
+          context.activeToolsByCallId.set(event.toolCallId, {
+            turnId,
+            toolName: event.toolName,
+            args: event.args,
+          });
           appendTurnItem(context, turnId, event);
           yield* emit({
             ...(yield* buildEventBase({
@@ -712,10 +749,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "tool_execution_update": {
+          const activeTool = context.activeToolsByCallId.get(event.toolCallId);
+          const toolTurnId = activeTool?.turnId ?? turnId;
           yield* emit({
             ...(yield* buildEventBase({
               threadId: context.session.threadId,
-              turnId,
+              turnId: toolTurnId,
               itemId: event.toolCallId,
               raw: event,
             })),
@@ -728,7 +767,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               data: buildPiToolData({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
-                args: event.args,
+                args: activeTool?.args ?? event.args,
                 partialResult: event.partialResult,
               }),
             },
@@ -736,13 +775,14 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "tool_execution_end": {
-          appendTurnItem(context, turnId, event);
-          const toolArgs = context.toolArgsByCallId.get(event.toolCallId);
-          context.toolArgsByCallId.delete(event.toolCallId);
+          const activeTool = context.activeToolsByCallId.get(event.toolCallId);
+          const toolTurnId = activeTool?.turnId ?? turnId;
+          appendTurnItem(context, toolTurnId, event);
+          context.activeToolsByCallId.delete(event.toolCallId);
           yield* emit({
             ...(yield* buildEventBase({
               threadId: context.session.threadId,
-              turnId,
+              turnId: toolTurnId,
               itemId: event.toolCallId,
               raw: event,
             })),
@@ -755,7 +795,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               data: buildPiToolData({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
-                args: toolArgs,
+                args: activeTool?.args,
                 result: event.result,
                 isError: event.isError,
               }),
@@ -930,24 +970,28 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     const sessionScope = yield* Scope.make();
     const created = yield* Effect.tryPromise({
       try: () =>
-        createAgentSession({
-          cwd,
-          ...(piSettings.agentDir ? { agentDir: piSettings.agentDir } : {}),
-          authStorage:
-            options.authStorage ??
-            AuthStorage.create(
-              piSettings.agentDir ? `${piSettings.agentDir}/auth.json` : undefined,
-            ),
-          modelRegistry: options.modelRegistry,
-          model,
-          ...(sessionManager ? { sessionManager } : {}),
-          ...(piSettings.tools.length > 0 ? { tools: [...piSettings.tools] } : {}),
-          ...(piSettings.excludeTools.length > 0
-            ? { excludeTools: [...piSettings.excludeTools] }
-            : {}),
-          ...(piSettings.noTools === "all" || piSettings.noTools === "builtin"
-            ? { noTools: piSettings.noTools }
-            : {}),
+        withTemporaryProcessEnvironment(options.environment, async () => {
+          const created = await createAgentSession({
+            cwd,
+            ...(piSettings.agentDir ? { agentDir: piSettings.agentDir } : {}),
+            authStorage:
+              options.authStorage ??
+              AuthStorage.create(
+                piSettings.agentDir ? `${piSettings.agentDir}/auth.json` : undefined,
+              ),
+            modelRegistry: options.modelRegistry,
+            model,
+            ...(sessionManager ? { sessionManager } : {}),
+            ...(piSettings.tools.length > 0 ? { tools: [...piSettings.tools] } : {}),
+            ...(piSettings.excludeTools.length > 0
+              ? { excludeTools: [...piSettings.excludeTools] }
+              : {}),
+            ...(piSettings.noTools === "all" || piSettings.noTools === "builtin"
+              ? { noTools: piSettings.noTools }
+              : {}),
+          });
+          await created.session.bindExtensions({});
+          return created;
         }),
       catch: (cause) =>
         new ProviderAdapterProcessError({
@@ -992,7 +1036,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       stopped: yield* Ref.make(false),
       deferredUserMessageTexts: [],
       queuedDuringCompaction: [],
-      toolArgsByCallId: new Map(),
+      activeToolsByCallId: new Map(),
       activeTurnId: undefined,
       activeCompactionTurnId: undefined,
       activePromptFiber: undefined,

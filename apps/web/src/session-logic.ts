@@ -483,8 +483,11 @@ export function deriveWorkLogEntries(
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
   const entries: DerivedWorkLogEntry[] = [];
   for (const activity of ordered) {
-    if (latestTurnId && activity.turnId !== latestTurnId) continue;
-    if (activity.kind === "tool.started") continue;
+    if (latestTurnId && activity.turnId !== latestTurnId) {
+      if (!shouldKeepInterruptedTurnToolActivity(ordered, activity)) continue;
+    }
+    if (activity.kind === "tool.started" && hasLaterToolLifecycleActivity(ordered, activity))
+      continue;
     if (activity.kind === "task.started") continue;
     if (activity.kind === "context-window.updated") continue;
     if (activity.summary === "Checkpoint captured") continue;
@@ -494,6 +497,83 @@ export function deriveWorkLogEntries(
   return collapseDerivedWorkLogEntries(entries).map(
     ({ activityKind: _activityKind, collapseKey: _collapseKey, ...entry }) => entry,
   );
+}
+
+function shouldKeepInterruptedTurnToolActivity(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+  activity: OrchestrationThreadActivity,
+): boolean {
+  return isToolLifecycleActivity(activity) && hasInterruptedTurnCompletion(activities, activity);
+}
+
+function isToolLifecycleActivity(activity: OrchestrationThreadActivity): boolean {
+  return (
+    activity.kind === "tool.started" ||
+    activity.kind === "tool.updated" ||
+    activity.kind === "tool.completed"
+  );
+}
+
+function hasInterruptedTurnCompletion(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+  startedActivity: OrchestrationThreadActivity,
+): boolean {
+  return activities.some((activity) => {
+    if (activity.turnId !== startedActivity.turnId) return false;
+    if (activity.kind !== "turn.completed") return false;
+    if (compareActivitiesByOrder(activity, startedActivity) <= 0) return false;
+    const payload = extractPayloadRecord(activity);
+    return payload?.state === "interrupted";
+  });
+}
+
+function hasLaterToolLifecycleActivity(
+  activities: ReadonlyArray<OrchestrationThreadActivity>,
+  startedActivity: OrchestrationThreadActivity,
+): boolean {
+  const startedToolCallId = extractToolCallIdFromActivity(startedActivity);
+  const startedItemType = extractWorkLogItemTypeFromActivity(startedActivity);
+  const startedLabel = normalizeCompactToolLabel(
+    extractToolTitleFromActivity(startedActivity) ?? startedActivity.summary,
+  );
+
+  return activities.some((activity) => {
+    if (activity === startedActivity) return false;
+    if (activity.turnId !== startedActivity.turnId) return false;
+    if (activity.kind !== "tool.updated" && activity.kind !== "tool.completed") return false;
+    if (compareActivitiesByOrder(activity, startedActivity) <= 0) return false;
+
+    const toolCallId = extractToolCallIdFromActivity(activity);
+    if (startedToolCallId || toolCallId) {
+      return startedToolCallId === toolCallId;
+    }
+
+    const itemType = extractWorkLogItemTypeFromActivity(activity);
+    const label = normalizeCompactToolLabel(
+      extractToolTitleFromActivity(activity) ?? activity.summary,
+    );
+    return startedItemType === itemType && startedLabel === label;
+  });
+}
+
+function extractPayloadRecord(
+  activity: OrchestrationThreadActivity,
+): Record<string, unknown> | null {
+  return activity.payload && typeof activity.payload === "object"
+    ? (activity.payload as Record<string, unknown>)
+    : null;
+}
+
+function extractToolCallIdFromActivity(activity: OrchestrationThreadActivity): string | null {
+  return extractToolCallId(extractPayloadRecord(activity));
+}
+
+function extractToolTitleFromActivity(activity: OrchestrationThreadActivity): string | null {
+  return extractToolTitle(extractPayloadRecord(activity));
+}
+
+function extractWorkLogItemTypeFromActivity(activity: OrchestrationThreadActivity): string | null {
+  return extractWorkLogItemType(extractPayloadRecord(activity)) ?? null;
 }
 
 function isPlanBoundaryToolActivity(activity: OrchestrationThreadActivity): boolean {

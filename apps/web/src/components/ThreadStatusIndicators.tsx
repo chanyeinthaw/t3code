@@ -1,4 +1,8 @@
-import { scopeProjectRef, scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime";
+import {
+  scopeProjectRef,
+  scopedThreadKey,
+  scopeThreadRef,
+} from "@t3tools/client-runtime";
 import type { VcsStatusResult } from "@t3tools/contracts";
 import { CloudIcon, GitPullRequestIcon, TerminalIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -12,7 +16,10 @@ import { type AppState, selectProjectByRef, useStore } from "../store";
 import { useThreadRunningTerminalIds } from "../terminalSessionState";
 import { useUiStateStore } from "../uiStateStore";
 import { resolveChangeRequestPresentation } from "../sourceControlPresentation";
-import { resolveThreadStatusPill, type ThreadStatusPill } from "./Sidebar.logic";
+import {
+  resolveThreadStatusPill,
+  type ThreadStatusPill,
+} from "./Sidebar.logic";
 import type { SidebarThreadSummary } from "../types";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 
@@ -73,7 +80,11 @@ export function resolveThreadPr(
   threadBranch: string | null,
   gitStatus: VcsStatusResult | null,
 ): ThreadPr | null {
-  if (threadBranch === null || gitStatus === null || gitStatus.refName !== threadBranch) {
+  if (
+    threadBranch === null ||
+    gitStatus === null ||
+    gitStatus.refName !== threadBranch
+  ) {
     return null;
   }
 
@@ -126,7 +137,7 @@ export function ThreadStatusLabel({
           status.pulse ? "animate-pulse" : ""
         }`}
       />
-      <span className="hidden md:inline">{status.label}</span>
+      <span className="sr-only hidden md:inline">{status.label}</span>
     </span>
   );
 }
@@ -136,7 +147,11 @@ export function ThreadStatusLabel({
  * like the command palette. Shows the change request state icon (if present) and the
  * thread status dot, matching the sidebar's leading indicators.
  */
-export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummary }) {
+export function ThreadRowLeadingStatus({
+  thread,
+}: {
+  thread: SidebarThreadSummary;
+}) {
   const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   const lastVisitedAt = useUiStateStore(
     (state) => state.threadLastVisitedAtById[scopedThreadKey(threadRef)],
@@ -144,8 +159,10 @@ export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummar
   const threadProjectCwd = useStore(
     useMemo(
       () => (state: AppState) =>
-        selectProjectByRef(state, scopeProjectRef(thread.environmentId, thread.projectId))?.cwd ??
-        null,
+        selectProjectByRef(
+          state,
+          scopeProjectRef(thread.environmentId, thread.projectId),
+        )?.cwd ?? null,
       [thread.environmentId, thread.projectId],
     ),
   );
@@ -194,14 +211,19 @@ export function ThreadRowLeadingStatus({ thread }: { thread: SidebarThreadSummar
  * like the command palette. Shows a terminal-running indicator and a remote
  * environment indicator, matching the sidebar's trailing indicators.
  */
-export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSummary }) {
+export function ThreadRowTrailingStatus({
+  thread,
+}: {
+  thread: SidebarThreadSummary;
+}) {
   const runningTerminalIds = useThreadRunningTerminalIds({
     environmentId: thread.environmentId,
     threadId: thread.id,
   });
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const isRemoteThread =
-    primaryEnvironmentId !== null && thread.environmentId !== primaryEnvironmentId;
+    primaryEnvironmentId !== null &&
+    thread.environmentId !== primaryEnvironmentId;
   const remoteEnvLabel = useSavedEnvironmentRuntimeStore(
     (state) => state.byId[thread.environmentId]?.descriptor?.label ?? null,
   );
@@ -226,7 +248,9 @@ export function ThreadRowTrailingStatus({ thread }: { thread: SidebarThreadSumma
           title={terminalStatus.label}
           className={`inline-flex items-center justify-center ${terminalStatus.colorClass}`}
         >
-          <TerminalIcon className={`size-3 ${terminalStatus.pulse ? "animate-pulse" : ""}`} />
+          <TerminalIcon
+            className={`size-3 ${terminalStatus.pulse ? "animate-pulse" : ""}`}
+          />
         </span>
       ) : null}
       {isRemoteThread ? (

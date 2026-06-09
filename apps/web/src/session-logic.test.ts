@@ -573,24 +573,92 @@ describe("findSidebarProposedPlan", () => {
 });
 
 describe("deriveWorkLogEntries", () => {
-  it("omits tool started entries and keeps completed entries", () => {
+  it("omits tool started entries once a later update or completion exists", () => {
     const activities: OrchestrationThreadActivity[] = [
       makeActivity({
         id: "tool-complete",
         createdAt: "2026-02-23T00:00:03.000Z",
         summary: "Tool call complete",
         kind: "tool.completed",
+        payload: { data: { toolCallId: "tool-1" } },
       }),
       makeActivity({
         id: "tool-start",
         createdAt: "2026-02-23T00:00:02.000Z",
         summary: "Tool call",
         kind: "tool.started",
+        payload: { data: { toolCallId: "tool-1" } },
       }),
     ];
 
     const entries = deriveWorkLogEntries(activities, undefined);
     expect(entries.map((entry) => entry.id)).toEqual(["tool-complete"]);
+  });
+
+  it("keeps orphaned tool started entries after an interrupted Pi turn", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "tool-start",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        summary: "bash started",
+        kind: "tool.started",
+        turnId: "turn-1",
+        payload: { itemType: "command_execution", data: { toolCallId: "tool-1" } },
+      }),
+      makeActivity({
+        id: "turn-interrupted",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        kind: "turn.completed",
+        summary: "Turn interrupted",
+        tone: "info",
+        turnId: "turn-1",
+        payload: { state: "interrupted" },
+      }),
+    ];
+
+    const entries = deriveWorkLogEntries(activities, undefined);
+    expect(entries.map((entry) => entry.id)).toEqual(["tool-start", "turn-interrupted"]);
+  });
+
+  it("keeps prior interrupted Pi tool activity visible when a follow-up turn becomes latest", () => {
+    const activities: OrchestrationThreadActivity[] = [
+      makeActivity({
+        id: "tool-start",
+        createdAt: "2026-02-23T00:00:02.000Z",
+        summary: "bash started",
+        kind: "tool.started",
+        turnId: "turn-1",
+        payload: { itemType: "command_execution", data: { toolCallId: "tool-1" } },
+      }),
+      makeActivity({
+        id: "tool-complete",
+        createdAt: "2026-02-23T00:00:03.000Z",
+        summary: "bash",
+        kind: "tool.completed",
+        turnId: "turn-1",
+        payload: { itemType: "command_execution", data: { toolCallId: "tool-1" } },
+      }),
+      makeActivity({
+        id: "turn-interrupted",
+        createdAt: "2026-02-23T00:00:04.000Z",
+        kind: "turn.completed",
+        summary: "Turn interrupted",
+        tone: "info",
+        turnId: "turn-1",
+        payload: { state: "interrupted" },
+      }),
+      makeActivity({
+        id: "follow-up-tool",
+        createdAt: "2026-02-23T00:00:05.000Z",
+        summary: "Read File",
+        kind: "tool.completed",
+        turnId: "turn-2",
+        payload: { itemType: "file_change", data: { toolCallId: "tool-2" } },
+      }),
+    ];
+
+    const entries = deriveWorkLogEntries(activities, TurnId.make("turn-2"));
+    expect(entries.map((entry) => entry.id)).toEqual(["tool-complete", "follow-up-tool"]);
   });
 
   it("omits task.started but shows task.progress and task.completed", () => {
