@@ -1,9 +1,10 @@
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 
 import ThreadSidebar from "./Sidebar";
 import { Sidebar, SidebarProvider, SidebarRail } from "./ui/sidebar";
+import { useIsMobile } from "~/hooks/useMediaQuery";
 import {
   clearShortcutModifierState,
   syncShortcutModifierStateFromKeyboardEvent,
@@ -21,6 +22,43 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     true,
     Schema.Boolean,
   );
+  const isMobile = useIsMobile();
+  const [peekOpen, setPeekOpen] = useState(false);
+  const peekLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const shouldEnablePeek = !sidebarOpen && !isMobile;
+  const isPeeking = shouldEnablePeek && peekOpen;
+
+  const clearPeekLeaveTimer = useCallback(() => {
+    if (peekLeaveTimerRef.current !== null) {
+      clearTimeout(peekLeaveTimerRef.current);
+      peekLeaveTimerRef.current = null;
+    }
+  }, []);
+
+  const handleHotzoneMouseEnter = useCallback(() => {
+    clearPeekLeaveTimer();
+    setPeekOpen(true);
+  }, [clearPeekLeaveTimer]);
+
+  const handleSidebarMouseEnter = useCallback(() => {
+    clearPeekLeaveTimer();
+  }, [clearPeekLeaveTimer]);
+
+  const handleSidebarMouseLeave = useCallback(() => {
+    peekLeaveTimerRef.current = setTimeout(() => {
+      setPeekOpen(false);
+    }, 300);
+  }, []);
+
+  // Cleanup the leave timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (peekLeaveTimerRef.current !== null) {
+        clearTimeout(peekLeaveTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -78,10 +116,22 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
             wrapper.clientWidth - nextWidth >= THREAD_MAIN_CONTENT_MIN_WIDTH,
           storageKey: THREAD_SIDEBAR_WIDTH_STORAGE_KEY,
         }}
+        peeked={isPeeking}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
       >
         <ThreadSidebar />
         <SidebarRail />
       </Sidebar>
+
+      {/* Hotzone on the left edge to trigger a peek when the sidebar is closed on desktop. */}
+      {shouldEnablePeek && !peekOpen && (
+        <div
+          className="fixed left-0 inset-y-0 z-20 w-[6px] cursor-pointer"
+          onMouseEnter={handleHotzoneMouseEnter}
+        />
+      )}
+
       {children}
     </SidebarProvider>
   );
