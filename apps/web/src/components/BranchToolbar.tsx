@@ -43,6 +43,7 @@ interface BranchToolbarProps {
   threadId: ThreadId;
   draftId?: DraftId;
   onEnvModeChange: (mode: EnvMode) => void;
+  onSelectExistingWorktree?: (branch: string, worktreePath: string) => void;
   effectiveEnvModeOverride?: EnvMode;
   activeThreadBranchOverride?: string | null;
   onActiveThreadBranchOverrideChange?: (branch: string | null) => void;
@@ -90,8 +91,11 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
     ? resolveLockedWorkspaceLabel(activeWorktreePath)
     : effectiveEnvMode === "worktree"
       ? resolveEnvModeLabel("worktree")
-      : resolveCurrentWorkspaceLabel(activeWorktreePath);
+      : activeWorktreePath
+        ? "Current worktree"
+        : resolveEnvModeLabel("local");
   const isLocked = envLocked || envModeLocked;
+  const hasLocalWorktreeForMobile = activeWorktreePath !== null;
   const EnvironmentIcon = activeEnvironment?.isPrimary ? MonitorIcon : CloudIcon;
   const icon = showEnvironmentPicker ? (
     // Button's base styles apply `-mx-0.5` to descendant SVGs, which eats 4px
@@ -161,21 +165,30 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
         <MenuGroup>
           <MenuGroupLabel>Workspace</MenuGroupLabel>
           <MenuRadioGroup
-            value={effectiveEnvMode}
-            onValueChange={(value) => onEnvModeChange(value as EnvMode)}
+            value={effectiveEnvMode === "worktree" ? "worktree" : activeWorktreePath ? "local-worktree" : "local"}
+            onValueChange={(value) => {
+              if (value === "local-worktree") {
+                onEnvModeChange("local");
+                return;
+              }
+              onEnvModeChange(value as EnvMode);
+            }}
           >
             <MenuRadioItem disabled={envModeLocked} value="local">
               <span className="flex min-w-0 items-center gap-1.5">
-                {activeWorktreePath ? (
-                  <FolderGitIcon className="size-3" />
-                ) : (
-                  <FolderIcon className="size-3" />
-                )}
-                <span className="min-w-0 truncate">
-                  {resolveCurrentWorkspaceLabel(activeWorktreePath)}
-                </span>
+                <FolderIcon className="size-3" />
+                <span className="min-w-0 truncate">{resolveEnvModeLabel("local")}</span>
               </span>
             </MenuRadioItem>
+            {hasLocalWorktreeForMobile ? (
+              <MenuRadioItem disabled={envModeLocked} value="local-worktree">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <FolderGitIcon className="size-3" />
+                  <span className="min-w-0 truncate">Current worktree</span>
+                </span>
+              </MenuRadioItem>
+            ) : null}
+            <MenuSeparator />
             <MenuRadioItem disabled={envModeLocked} value="worktree">
               <span className="flex min-w-0 items-center gap-1.5">
                 <FolderGit2Icon className="size-3" />
@@ -194,6 +207,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   threadId,
   draftId,
   onEnvModeChange,
+  onSelectExistingWorktree,
   effectiveEnvModeOverride,
   activeThreadBranchOverride,
   onActiveThreadBranchOverrideChange,
@@ -271,7 +285,11 @@ export const BranchToolbar = memo(function BranchToolbar({
             envLocked={envModeLocked}
             effectiveEnvMode={effectiveEnvMode}
             activeWorktreePath={activeWorktreePath}
+            activeThreadBranch={serverThread?.branch ?? draftThread?.branch ?? null}
+            projectCwd={activeProject?.cwd ?? null}
+            environmentId={environmentId}
             onEnvModeChange={onEnvModeChange}
+            {...(onSelectExistingWorktree ? { onSelectExistingWorktree } : {})}
           />
         </div>
       )}

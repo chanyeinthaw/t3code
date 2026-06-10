@@ -3780,12 +3780,16 @@ export default function ChatView(props: ChatViewProps) {
     (mode: DraftThreadEnvMode) => {
       if (canOverrideServerThreadEnvMode) {
         setPendingServerThreadEnvMode(mode);
+        if (mode === "local") {
+          setPendingServerThreadBranch(null);
+        }
         scheduleComposerFocus();
         return;
       }
       if (isLocalDraftThread) {
         setDraftThreadContext(composerDraftTarget, {
           envMode: mode,
+          ...(mode === "local" ? { worktreePath: null, branch: null } : {}),
           ...(mode === "worktree" && draftThread?.worktreePath ? { worktreePath: null } : {}),
         });
       }
@@ -3797,6 +3801,32 @@ export default function ChatView(props: ChatViewProps) {
       draftThread?.worktreePath,
       isLocalDraftThread,
       setPendingServerThreadEnvMode,
+      scheduleComposerFocus,
+      setDraftThreadContext,
+    ],
+  );
+
+  const onSelectExistingWorktree = useCallback(
+    (branch: string, worktreePath: string) => {
+      if (canOverrideServerThreadEnvMode) {
+        setPendingServerThreadEnvMode("local");
+        setPendingServerThreadBranch(branch);
+        scheduleComposerFocus();
+        return;
+      }
+      if (isLocalDraftThread) {
+        setDraftThreadContext(composerDraftTarget, {
+          branch,
+          worktreePath,
+          envMode: "local",
+        });
+      }
+      scheduleComposerFocus();
+    },
+    [
+      canOverrideServerThreadEnvMode,
+      composerDraftTarget,
+      isLocalDraftThread,
       scheduleComposerFocus,
       setDraftThreadContext,
     ],
@@ -4037,6 +4067,7 @@ export default function ChatView(props: ChatViewProps) {
                 threadId={activeThread.id}
                 {...(routeKind === "draft" && draftId ? { draftId } : {})}
                 onEnvModeChange={onEnvModeChange}
+                onSelectExistingWorktree={onSelectExistingWorktree}
                 {...(canOverrideServerThreadEnvMode ? { effectiveEnvModeOverride: envMode } : {})}
                 {...(canOverrideServerThreadEnvMode
                   ? {

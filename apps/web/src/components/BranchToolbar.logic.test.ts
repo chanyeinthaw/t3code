@@ -143,14 +143,14 @@ describe("resolveEffectiveEnvMode", () => {
 
 describe("resolveEnvModeLabel", () => {
   it("uses explicit workspace labels", () => {
-    expect(resolveEnvModeLabel("local")).toBe("Current checkout");
+    expect(resolveEnvModeLabel("local")).toBe("Local checkout");
     expect(resolveEnvModeLabel("worktree")).toBe("New worktree");
   });
 });
 
 describe("resolveCurrentWorkspaceLabel", () => {
   it("describes the main repo checkout when no worktree path is active", () => {
-    expect(resolveCurrentWorkspaceLabel(null)).toBe("Current checkout");
+    expect(resolveCurrentWorkspaceLabel(null)).toBe("Local checkout");
   });
 
   it("describes the active checkout as a worktree when one is attached", () => {
@@ -163,8 +163,8 @@ describe("resolveLockedWorkspaceLabel", () => {
     expect(resolveLockedWorkspaceLabel(null)).toBe("Local checkout");
   });
 
-  it("uses a shorter label for an attached worktree", () => {
-    expect(resolveLockedWorkspaceLabel("/repo/.t3/worktrees/feature-a")).toBe("Worktree");
+  it("shows the worktree name for an attached worktree", () => {
+    expect(resolveLockedWorkspaceLabel("/repo/.t3/worktrees/feature-a")).toBe("feature-a");
   });
 });
 
