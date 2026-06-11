@@ -123,6 +123,14 @@ export interface WsRpcClient {
   readonly review: {
     readonly getDiffPreview: RpcUnaryMethod<typeof WS_METHODS.reviewGetDiffPreview>;
   };
+  readonly provider: {
+    readonly getComposerCapabilities: RpcUnaryMethod<
+      typeof WS_METHODS.providerGetComposerCapabilities
+    >;
+    readonly listModels: RpcUnaryMethod<typeof WS_METHODS.providerListModels>;
+    readonly listSkills: RpcUnaryMethod<typeof WS_METHODS.providerListSkills>;
+    readonly listCommands: RpcUnaryMethod<typeof WS_METHODS.providerListCommands>;
+  };
   readonly server: {
     readonly getConfig: RpcUnaryNoArgMethod<typeof WS_METHODS.serverGetConfig>;
     readonly refreshProviders: (
@@ -277,6 +285,16 @@ export function createWsRpcClient(
     review: {
       getDiffPreview: (input) =>
         transport.request((client) => client[WS_METHODS.reviewGetDiffPreview](input)),
+    },
+    provider: {
+      getComposerCapabilities: (input) =>
+        transport.request((client) => client[WS_METHODS.providerGetComposerCapabilities](input)),
+      listModels: (input) =>
+        transport.request((client) => client[WS_METHODS.providerListModels](input)),
+      listSkills: (input) =>
+        transport.request((client) => client[WS_METHODS.providerListSkills](input)),
+      listCommands: (input) =>
+        transport.request((client) => client[WS_METHODS.providerListCommands](input)),
     },
     server: {
       getConfig: () => transport.request((client) => client[WS_METHODS.serverGetConfig]({})),

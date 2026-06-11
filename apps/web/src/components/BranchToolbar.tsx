@@ -165,7 +165,13 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
         <MenuGroup>
           <MenuGroupLabel>Workspace</MenuGroupLabel>
           <MenuRadioGroup
-            value={effectiveEnvMode === "worktree" ? "worktree" : activeWorktreePath ? "local-worktree" : "local"}
+            value={
+              effectiveEnvMode === "worktree"
+                ? "worktree"
+                : activeWorktreePath
+                  ? "local-worktree"
+                  : "local"
+            }
             onValueChange={(value) => {
               if (value === "local-worktree") {
                 onEnvModeChange("local");

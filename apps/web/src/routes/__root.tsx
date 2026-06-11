@@ -12,6 +12,7 @@ import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
+import { SettingsSidebarLayout } from "../components/SettingsSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
 import { SshPasswordPromptDialog } from "../components/desktop/SshPasswordPromptDialog";
 import { ProviderUpdateLaunchNotification } from "../components/ProviderUpdateLaunchNotification";
@@ -121,11 +122,19 @@ function RootRouteView() {
     return <Outlet />;
   }
 
+  const isOnSettings = pathname.startsWith("/settings");
+
   const appShell = (
     <CommandPalette>
-      <AppSidebarLayout>
-        <Outlet />
-      </AppSidebarLayout>
+      {isOnSettings ? (
+        <SettingsSidebarLayout>
+          <Outlet />
+        </SettingsSidebarLayout>
+      ) : (
+        <AppSidebarLayout>
+          <Outlet />
+        </AppSidebarLayout>
+      )}
     </CommandPalette>
   );
 

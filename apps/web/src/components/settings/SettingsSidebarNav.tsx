@@ -1,4 +1,4 @@
-import { useCallback, type ComponentType } from "react";
+import { memo, useCallback, type ComponentType } from "react";
 import {
   ArchiveIcon,
   ArrowLeftIcon,
@@ -8,18 +8,63 @@ import {
   Link2Icon,
   Settings2Icon,
 } from "lucide-react";
-import { useCanGoBack, useNavigate } from "@tanstack/react-router";
+import { Link, useCanGoBack, useNavigate } from "@tanstack/react-router";
 
 import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
 } from "../ui/sidebar";
+import { T3Wordmark } from "../T3Wordmark";
+import { isElectron } from "../../env";
+import { APP_STAGE_LABEL, APP_VERSION } from "../../branding";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+
+const SettingsSidebarChromeHeader = memo(function SettingsSidebarChromeHeader() {
+  const wordmark = (
+    <div className="flex items-center gap-2 w-full">
+      <SidebarTrigger className="shrink-0 md:hidden" />
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Link
+              aria-label="Go to threads"
+              className="ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md outline-hidden ring-ring transition-colors hover:text-foreground focus-visible:ring-2"
+              to="/"
+            >
+              <T3Wordmark />
+              <span className="truncate text-sm font-medium tracking-tight text-muted-foreground shrink-0">
+                Code
+              </span>
+              <span className="rounded-full bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                {APP_STAGE_LABEL}
+              </span>
+            </Link>
+          }
+        />
+        <TooltipPopup side="bottom" sideOffset={2}>
+          Version {APP_VERSION}
+        </TooltipPopup>
+      </Tooltip>
+      <div className="flex-1" />
+    </div>
+  );
+
+  return isElectron ? (
+    <SidebarHeader className="drag-region h-[52px] flex-row items-center gap-2 px-4 py-0 pl-[90px] electron-full-screen:pl-4 wco:h-[env(titlebar-area-height)] wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-4">
+      {wordmark}
+    </SidebarHeader>
+  ) : (
+    <SidebarHeader className="gap-3 px-3 py-2 sm:gap-2.5 sm:px-4 sm:py-3">{wordmark}</SidebarHeader>
+  );
+});
 
 export type SettingsSectionPath =
   | "/settings/general"
@@ -68,6 +113,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
 
   return (
     <>
+      <SettingsSidebarChromeHeader />
       <SidebarContent className="overflow-x-hidden">
         <SidebarGroup className="px-2 py-3">
           <SidebarMenu>

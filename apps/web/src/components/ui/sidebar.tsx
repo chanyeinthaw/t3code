@@ -286,9 +286,7 @@ function Sidebar({
         <div
           className={cn(
             "fixed inset-y-0 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
-            peeked
-              ? "!left-0 z-30 shadow-2xl"
-              : "z-10",
+            peeked ? "!left-0 z-30 shadow-2xl" : "z-10",
             side === "left"
               ? "group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] left-0"
               : "group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] right-0",
