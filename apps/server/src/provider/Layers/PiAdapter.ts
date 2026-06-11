@@ -3,6 +3,9 @@ import {
   ProviderDriverKind,
   ProviderInstanceId,
   ProviderItemId,
+  type ProviderListCommandsResult,
+  type ProviderListModelsResult,
+  type ProviderListSkillsResult,
   type ProviderRuntimeEvent,
   type ProviderSendTurnInput,
   type ProviderSession,
@@ -27,7 +30,12 @@ import type {
   AgentSessionEvent,
   ModelRegistry,
 } from "@earendil-works/pi-coding-agent";
-import { AuthStorage, createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
+import {
+  AuthStorage,
+  createAgentSession,
+  createAgentSessionServices,
+  SessionManager,
+} from "@earendil-works/pi-coding-agent";
 
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
 import { ServerConfig } from "../../config.ts";
@@ -42,6 +50,15 @@ import type { PiSettings } from "@t3tools/contracts";
 import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 
 const PROVIDER = ProviderDriverKind.make("pi");
+const DEFAULT_PI_THINKING_LEVEL = "medium";
+const PI_THINKING_OPTIONS = [
+  { value: "off", label: "Off", description: "No extra reasoning" },
+  { value: "minimal", label: "Minimal", description: "Light reasoning" },
+  { value: "low", label: "Low", description: "Faster reasoning" },
+  { value: "medium", label: "Medium", description: "Balanced reasoning" },
+  { value: "high", label: "High", description: "Deeper reasoning" },
+  { value: "xhigh", label: "Extra High", description: "Maximum reasoning" },
+] as const;
 
 type PiModel = NonNullable<ReturnType<ModelRegistry["find"]>>;
 
@@ -193,6 +210,24 @@ function resolveThinkingLevel(
     (option) => option.id === "thinkingLevel",
   )?.value;
   return typeof value === "string" ? (value as AgentSession["thinkingLevel"]) : undefined;
+}
+
+function trimToUndefined(value: string | null | undefined): string | undefined {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function getPiSupportedThinkingOptions(model: {
+  readonly reasoning?: boolean;
+  readonly thinkingLevelMap?: Partial<Record<string, string | null>>;
+}) {
+  if (!model.reasoning) return [];
+  return PI_THINKING_OPTIONS.filter((option) => {
+    const mapped = model.thinkingLevelMap?.[option.value];
+    if (mapped === null) return false;
+    if (option.value === "xhigh") return mapped !== undefined;
+    return true;
+  });
 }
 
 function getPiMessageRole(message: unknown): string | undefined {
@@ -2024,9 +2059,180 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       });
     });
 
+  const listModels: NonNullable<PiAdapterShape["listModels"]> = () =>
+    Effect.try({
+      try: () => {
+        options.modelRegistry.refresh();
+        const models = options.modelRegistry.getAvailable().map((model) => {
+          const supportedThinkingOptions = getPiSupportedThinkingOptions(model);
+          return {
+            slug: `${model.provider}/${model.id}`,
+            name: model.name,
+            upstreamProviderId: model.provider,
+            upstreamProviderName: options.modelRegistry.getProviderDisplayName(model.provider),
+            ...(supportedThinkingOptions.length > 0
+              ? {
+                  supportedReasoningEfforts: supportedThinkingOptions.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                    description: option.description,
+                  })),
+                  ...(supportedThinkingOptions.some(
+                    (option) => option.value === DEFAULT_PI_THINKING_LEVEL,
+                  )
+                    ? { defaultReasoningEffort: DEFAULT_PI_THINKING_LEVEL }
+                    : {}),
+                }
+              : {}),
+          };
+        });
+        return { models, source: "pi.sdk", cached: false } satisfies ProviderListModelsResult;
+      },
+      catch: (cause) =>
+        new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "model/list",
+          detail: errorDetail(cause),
+          cause,
+        }),
+    });
+
+  const listSkills: NonNullable<PiAdapterShape["listSkills"]> = (input) =>
+    Effect.tryPromise({
+      try: async () => {
+        const active = input.threadId ? sessions.get(input.threadId) : undefined;
+        const loader = active?.piSession.resourceLoader;
+        if (active && input.forceReload) await active.piSession.reload();
+        const services = loader
+          ? undefined
+          : await createAgentSessionServices({
+              cwd: input.cwd ?? serverConfig.cwd,
+              ...(piSettings.agentDir ? { agentDir: piSettings.agentDir } : {}),
+              modelRegistry: options.modelRegistry,
+            });
+        if (services && input.forceReload) await services.resourceLoader.reload();
+        const result = (loader ?? services!.resourceLoader).getSkills();
+        return {
+          skills: result.skills.map((skill) => {
+            const description = trimToUndefined(skill.description);
+            const scope = trimToUndefined(skill.sourceInfo.source);
+            return {
+              name: skill.name,
+              ...(description ? { description } : {}),
+              path: skill.filePath,
+              enabled: !skill.disableModelInvocation,
+              ...(scope ? { scope } : {}),
+            };
+          }),
+          source: "pi.sdk",
+          cached: false,
+        } satisfies ProviderListSkillsResult;
+      },
+      catch: (cause) =>
+        new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "skill/list",
+          detail: errorDetail(cause),
+          cause,
+        }),
+    });
+
+  const listCommands: NonNullable<PiAdapterShape["listCommands"]> = (input) =>
+    Effect.tryPromise({
+      try: async () => {
+        const active = input.threadId ? sessions.get(input.threadId) : undefined;
+        const session = active?.piSession;
+        const reloadCommand = {
+          name: "reload",
+          description: "Reload Pi extensions, skills, prompts, themes, tools, and settings",
+        };
+        const compactCommand = {
+          name: "compact",
+          description: "Compact the current Pi thread context",
+        };
+        if (session) {
+          if (input.forceReload) await session.reload();
+          const extensionCommands = session.extensionRunner
+            .getRegisteredCommands()
+            .map((command) => ({
+              name: command.invocationName,
+              description: trimToUndefined(command.description) ?? "Extension command",
+            }));
+          const promptCommands = session.promptTemplates.map((template) => ({
+            name: template.name,
+            description: trimToUndefined(template.description) ?? "Prompt template",
+          }));
+          const skillCommands = session.resourceLoader.getSkills().skills.map((skill) => ({
+            name: `skill:${skill.name}`,
+            description: trimToUndefined(skill.description) ?? "Skill",
+          }));
+          return {
+            commands: [
+              reloadCommand,
+              compactCommand,
+              ...extensionCommands,
+              ...promptCommands,
+              ...skillCommands,
+            ],
+            source: "pi.sdk",
+            cached: false,
+          } satisfies ProviderListCommandsResult;
+        }
+        const services = await createAgentSessionServices({
+          cwd: input.cwd ?? serverConfig.cwd,
+          ...(piSettings.agentDir ? { agentDir: piSettings.agentDir } : {}),
+          modelRegistry: options.modelRegistry,
+        });
+        if (input.forceReload) await services.resourceLoader.reload();
+        const promptCommands = services.resourceLoader.getPrompts().prompts.map((template) => ({
+          name: template.name,
+          description: trimToUndefined(template.description) ?? "Prompt template",
+        }));
+        const skillCommands = services.resourceLoader.getSkills().skills.map((skill) => ({
+          name: `skill:${skill.name}`,
+          description: trimToUndefined(skill.description) ?? "Skill",
+        }));
+        return {
+          commands: [reloadCommand, compactCommand, ...promptCommands, ...skillCommands],
+          source: "pi.sdk",
+          cached: false,
+        } satisfies ProviderListCommandsResult;
+      },
+      catch: (cause) =>
+        new ProviderAdapterRequestError({
+          provider: PROVIDER,
+          method: "command/list",
+          detail: errorDetail(cause),
+          cause,
+        }),
+    });
+
+  const getComposerCapabilities: NonNullable<PiAdapterShape["getComposerCapabilities"]> = () =>
+    Effect.succeed({
+      instanceId: boundInstanceId,
+      provider: PROVIDER,
+      supportsSkillMentions: true,
+      supportsSkillDiscovery: true,
+      supportsNativeSlashCommandDiscovery: true,
+      supportsPluginMentions: false,
+      supportsPluginDiscovery: false,
+      supportsRuntimeModelList: true,
+      supportsThreadCompaction: true,
+      supportsThreadImport: false,
+      supportsTurnSteering: true,
+    });
+
   return {
     provider: PROVIDER,
-    capabilities: { sessionModelSwitch: "in-session" },
+    capabilities: {
+      sessionModelSwitch: "in-session",
+      supportsSkillMentions: true,
+      supportsSkillDiscovery: true,
+      supportsNativeSlashCommandDiscovery: true,
+      supportsRuntimeModelList: true,
+      supportsThreadCompaction: true,
+      supportsTurnSteering: true,
+    },
     startSession,
     sendTurn,
     interruptTurn,
@@ -2038,6 +2244,10 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     readThread,
     rollbackThread,
     stopAll,
+    getComposerCapabilities,
+    listModels,
+    listSkills,
+    listCommands,
     get streamEvents() {
       return Stream.fromQueue(runtimeEvents);
     },

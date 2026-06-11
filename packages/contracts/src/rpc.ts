@@ -59,6 +59,15 @@ import {
 } from "./orchestration.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
 import {
+  ProviderComposerCapabilities,
+  ProviderDiscoveryError,
+  ProviderDiscoveryInput,
+  ProviderListCommandsResult,
+  ProviderListModelsInput,
+  ProviderListModelsResult,
+  ProviderListSkillsResult,
+} from "./provider.ts";
+import {
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
@@ -152,6 +161,12 @@ export const WS_METHODS = {
   terminalRestart: "terminal.restart",
   terminalClose: "terminal.close",
 
+  // Provider discovery methods
+  providerGetComposerCapabilities: "provider.getComposerCapabilities",
+  providerListModels: "provider.listModels",
+  providerListSkills: "provider.listSkills",
+  providerListCommands: "provider.listCommands",
+
   // Server meta
   serverGetConfig: "server.getConfig",
   serverRefreshProviders: "server.refreshProviders",
@@ -179,6 +194,33 @@ export const WS_METHODS = {
   subscribeServerLifecycle: "subscribeServerLifecycle",
   subscribeAuthAccess: "subscribeAuthAccess",
 } as const;
+
+export const WsProviderGetComposerCapabilitiesRpc = Rpc.make(
+  WS_METHODS.providerGetComposerCapabilities,
+  {
+    payload: ProviderDiscoveryInput,
+    success: ProviderComposerCapabilities,
+    error: Schema.Union([ProviderDiscoveryError, EnvironmentAuthorizationError]),
+  },
+);
+
+export const WsProviderListModelsRpc = Rpc.make(WS_METHODS.providerListModels, {
+  payload: ProviderListModelsInput,
+  success: ProviderListModelsResult,
+  error: Schema.Union([ProviderDiscoveryError, EnvironmentAuthorizationError]),
+});
+
+export const WsProviderListSkillsRpc = Rpc.make(WS_METHODS.providerListSkills, {
+  payload: ProviderDiscoveryInput,
+  success: ProviderListSkillsResult,
+  error: Schema.Union([ProviderDiscoveryError, EnvironmentAuthorizationError]),
+});
+
+export const WsProviderListCommandsRpc = Rpc.make(WS_METHODS.providerListCommands, {
+  payload: ProviderDiscoveryInput,
+  success: ProviderListCommandsResult,
+  error: Schema.Union([ProviderDiscoveryError, EnvironmentAuthorizationError]),
+});
 
 export const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
   payload: ServerUpsertKeybindingInput,
@@ -524,6 +566,10 @@ export const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess,
 });
 
 export const WsRpcGroup = RpcGroup.make(
+  WsProviderGetComposerCapabilitiesRpc,
+  WsProviderListModelsRpc,
+  WsProviderListSkillsRpc,
+  WsProviderListCommandsRpc,
   WsServerGetConfigRpc,
   WsServerRefreshProvidersRpc,
   WsServerUpdateProviderRpc,

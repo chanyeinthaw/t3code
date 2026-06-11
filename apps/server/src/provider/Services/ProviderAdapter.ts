@@ -10,7 +10,13 @@
 import type {
   ApprovalRequestId,
   ProviderApprovalDecision,
+  ProviderComposerCapabilities,
+  ProviderDiscoveryInput,
   ProviderDriverKind,
+  ProviderListCommandsResult,
+  ProviderListModelsInput,
+  ProviderListModelsResult,
+  ProviderListSkillsResult,
   ProviderUserInputAnswers,
   ProviderRuntimeEvent,
   ProviderSendTurnInput,
@@ -30,6 +36,12 @@ export interface ProviderAdapterCapabilities {
    * Declares whether changing the model on an existing session is supported.
    */
   readonly sessionModelSwitch: ProviderSessionModelSwitchMode;
+  readonly supportsSkillMentions?: boolean;
+  readonly supportsSkillDiscovery?: boolean;
+  readonly supportsNativeSlashCommandDiscovery?: boolean;
+  readonly supportsRuntimeModelList?: boolean;
+  readonly supportsThreadCompaction?: boolean;
+  readonly supportsTurnSteering?: boolean;
 }
 
 export interface ProviderThreadTurnSnapshot {
@@ -118,6 +130,32 @@ export interface ProviderAdapterShape<TError> {
    * Stop all sessions owned by this adapter.
    */
   readonly stopAll: () => Effect.Effect<void, TError>;
+
+  /**
+   * Read provider-specific composer capabilities.
+   */
+  readonly getComposerCapabilities?: () => Effect.Effect<ProviderComposerCapabilities, TError>;
+
+  /**
+   * List models available through this provider runtime.
+   */
+  readonly listModels?: (
+    input: ProviderListModelsInput,
+  ) => Effect.Effect<ProviderListModelsResult, TError>;
+
+  /**
+   * List skills available through this provider runtime.
+   */
+  readonly listSkills?: (
+    input: ProviderDiscoveryInput,
+  ) => Effect.Effect<ProviderListSkillsResult, TError>;
+
+  /**
+   * List provider-native slash commands available through this provider runtime.
+   */
+  readonly listCommands?: (
+    input: ProviderDiscoveryInput,
+  ) => Effect.Effect<ProviderListCommandsResult, TError>;
 
   /**
    * Canonical runtime event stream emitted by this adapter.

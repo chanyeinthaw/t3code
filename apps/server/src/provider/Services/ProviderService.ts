@@ -12,8 +12,14 @@
  * @module ProviderService
  */
 import type {
+  ProviderComposerCapabilities,
+  ProviderDiscoveryInput,
   ProviderInterruptTurnInput,
   ProviderInstanceId,
+  ProviderListCommandsResult,
+  ProviderListModelsInput,
+  ProviderListModelsResult,
+  ProviderListSkillsResult,
   ProviderRespondToRequestInput,
   ProviderRespondToUserInputInput,
   ProviderRuntimeEvent,
@@ -96,6 +102,22 @@ export interface ProviderServiceShape {
   readonly getInstanceInfo: (
     instanceId: ProviderInstanceId,
   ) => Effect.Effect<ProviderInstanceRoutingInfo, ProviderServiceError>;
+
+  readonly getComposerCapabilities?: (
+    input: ProviderDiscoveryInput,
+  ) => Effect.Effect<ProviderComposerCapabilities, ProviderServiceError>;
+
+  readonly listModels?: (
+    input: ProviderListModelsInput,
+  ) => Effect.Effect<ProviderListModelsResult, ProviderServiceError>;
+
+  readonly listSkills?: (
+    input: ProviderDiscoveryInput,
+  ) => Effect.Effect<ProviderListSkillsResult, ProviderServiceError>;
+
+  readonly listCommands?: (
+    input: ProviderDiscoveryInput,
+  ) => Effect.Effect<ProviderListCommandsResult, ProviderServiceError>;
 
   /**
    * Roll back provider conversation state by a number of turns.

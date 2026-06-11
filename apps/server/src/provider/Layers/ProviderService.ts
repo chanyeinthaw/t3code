@@ -12,6 +12,8 @@
 import {
   ModelSelection,
   NonNegativeInt,
+  ProviderDiscoveryInput,
+  ProviderListModelsInput,
   ThreadId,
   ProviderInterruptTurnInput,
   ProviderRespondToRequestInput,
@@ -935,6 +937,71 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
   const getInstanceInfo: ProviderServiceShape["getInstanceInfo"] = (instanceId) =>
     registry.getInstanceInfo(instanceId);
 
+  const getComposerCapabilities: NonNullable<ProviderServiceShape["getComposerCapabilities"]> =
+    Effect.fn("getComposerCapabilities")(function* (rawInput) {
+      const input = yield* decodeInputOrValidationError({
+        operation: "ProviderService.getComposerCapabilities",
+        schema: ProviderDiscoveryInput,
+        payload: rawInput,
+      });
+      const instanceInfo = yield* registry.getInstanceInfo(input.instanceId);
+      const adapter = yield* registry.getByInstance(input.instanceId);
+      if (adapter.getComposerCapabilities) {
+        return yield* adapter.getComposerCapabilities();
+      }
+      return {
+        instanceId: input.instanceId,
+        provider: instanceInfo.driverKind,
+        supportsSkillMentions: false,
+        supportsSkillDiscovery: false,
+        supportsNativeSlashCommandDiscovery: false,
+        supportsPluginMentions: false,
+        supportsPluginDiscovery: false,
+        supportsRuntimeModelList: false,
+        supportsThreadCompaction: false,
+        supportsThreadImport: false,
+      };
+    });
+
+  const listModels: NonNullable<ProviderServiceShape["listModels"]> = Effect.fn("listModels")(
+    function* (rawInput) {
+      const input = yield* decodeInputOrValidationError({
+        operation: "ProviderService.listModels",
+        schema: ProviderListModelsInput,
+        payload: rawInput,
+      });
+      const adapter = yield* registry.getByInstance(input.instanceId);
+      if (!adapter.listModels) return { models: [], source: "unsupported", cached: false };
+      return yield* adapter.listModels(input);
+    },
+  );
+
+  const listSkills: NonNullable<ProviderServiceShape["listSkills"]> = Effect.fn("listSkills")(
+    function* (rawInput) {
+      const input = yield* decodeInputOrValidationError({
+        operation: "ProviderService.listSkills",
+        schema: ProviderDiscoveryInput,
+        payload: rawInput,
+      });
+      const adapter = yield* registry.getByInstance(input.instanceId);
+      if (!adapter.listSkills) return { skills: [], source: "unsupported", cached: false };
+      return yield* adapter.listSkills(input);
+    },
+  );
+
+  const listCommands: NonNullable<ProviderServiceShape["listCommands"]> = Effect.fn("listCommands")(
+    function* (rawInput) {
+      const input = yield* decodeInputOrValidationError({
+        operation: "ProviderService.listCommands",
+        schema: ProviderDiscoveryInput,
+        payload: rawInput,
+      });
+      const adapter = yield* registry.getByInstance(input.instanceId);
+      if (!adapter.listCommands) return { commands: [], source: "unsupported", cached: false };
+      return yield* adapter.listCommands(input);
+    },
+  );
+
   const rollbackConversation: ProviderServiceShape["rollbackConversation"] = Effect.fn(
     "rollbackConversation",
   )(function* (rawInput) {
@@ -1042,6 +1109,10 @@ const makeProviderService = Effect.fn("makeProviderService")(function* (
     listSessions,
     getCapabilities,
     getInstanceInfo,
+    getComposerCapabilities,
+    listModels,
+    listSkills,
+    listCommands,
     rollbackConversation,
     // Each access creates a fresh PubSub subscription so that multiple
     // consumers (ProviderRuntimeIngestion, CheckpointReactor, etc.) each

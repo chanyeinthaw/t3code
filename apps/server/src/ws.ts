@@ -37,6 +37,7 @@ import {
   OrchestrationReplayEventsError,
   FilesystemBrowseError,
   EnvironmentAuthorizationError,
+  ProviderDiscoveryError,
   ThreadId,
   type TerminalAttachStreamEvent,
   type TerminalError,
@@ -62,6 +63,7 @@ import {
   observeRpcStreamEffect as instrumentRpcStreamEffect,
 } from "./observability/RpcInstrumentation.ts";
 import { ProviderRegistry } from "./provider/Services/ProviderRegistry.ts";
+import { ProviderService, type ProviderServiceShape } from "./provider/Services/ProviderService.ts";
 import * as ProviderMaintenanceRunner from "./provider/providerMaintenanceRunner.ts";
 import { ServerLifecycleEvents } from "./serverLifecycleEvents.ts";
 import { ServerRuntimeStartup } from "./serverRuntimeStartup.ts";
@@ -133,6 +135,10 @@ const RPC_REQUIRED_SCOPE = new Map<string, AuthEnvironmentScope>([
   [ORCHESTRATION_WS_METHODS.subscribeShell, AuthOrchestrationReadScope],
   [ORCHESTRATION_WS_METHODS.getArchivedShellSnapshot, AuthOrchestrationReadScope],
   [ORCHESTRATION_WS_METHODS.subscribeThread, AuthOrchestrationReadScope],
+  [WS_METHODS.providerGetComposerCapabilities, AuthOrchestrationReadScope],
+  [WS_METHODS.providerListModels, AuthOrchestrationReadScope],
+  [WS_METHODS.providerListSkills, AuthOrchestrationReadScope],
+  [WS_METHODS.providerListCommands, AuthOrchestrationReadScope],
   [WS_METHODS.serverGetConfig, AuthOrchestrationReadScope],
   [WS_METHODS.serverRefreshProviders, AuthOrchestrationOperateScope],
   [WS_METHODS.serverUpdateProvider, AuthOrchestrationOperateScope],
@@ -235,6 +241,18 @@ const makeWsRpcLayer = (currentSession: AuthenticatedSession) =>
       const vcsStatusBroadcaster = yield* VcsStatusBroadcaster;
       const terminalManager = yield* TerminalManager;
       const providerRegistry = yield* ProviderRegistry;
+      const providerServiceOption = yield* Effect.serviceOption(ProviderService);
+      const requireProviderService = (
+        operation: string,
+      ): Effect.Effect<ProviderServiceShape, ProviderDiscoveryError> =>
+        Option.isSome(providerServiceOption)
+          ? Effect.succeed(providerServiceOption.value)
+          : Effect.fail(
+              new ProviderDiscoveryError({
+                operation,
+                detail: "Provider discovery is unavailable in this server runtime.",
+              }),
+            );
       const providerMaintenanceRunner = yield* ProviderMaintenanceRunner.ProviderMaintenanceRunner;
       const config = yield* ServerConfig;
       const lifecycleEvents = yield* ServerLifecycleEvents;
@@ -979,6 +997,70 @@ const makeWsRpcLayer = (currentSession: AuthenticatedSession) =>
               );
             }),
             { "rpc.aggregate": "orchestration" },
+          ),
+        [WS_METHODS.providerGetComposerCapabilities]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.providerGetComposerCapabilities,
+            requireProviderService("provider.getComposerCapabilities").pipe(
+              Effect.flatMap((providerService) => providerService.getComposerCapabilities!(input)),
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDiscoveryError({
+                    operation: "provider.getComposerCapabilities",
+                    detail: cause instanceof Error ? cause.message : String(cause),
+                    cause,
+                  }),
+              ),
+            ),
+            { "rpc.aggregate": "provider" },
+          ),
+        [WS_METHODS.providerListModels]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.providerListModels,
+            requireProviderService("provider.listModels").pipe(
+              Effect.flatMap((providerService) => providerService.listModels!(input)),
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDiscoveryError({
+                    operation: "provider.listModels",
+                    detail: cause instanceof Error ? cause.message : String(cause),
+                    cause,
+                  }),
+              ),
+            ),
+            { "rpc.aggregate": "provider" },
+          ),
+        [WS_METHODS.providerListSkills]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.providerListSkills,
+            requireProviderService("provider.listSkills").pipe(
+              Effect.flatMap((providerService) => providerService.listSkills!(input)),
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDiscoveryError({
+                    operation: "provider.listSkills",
+                    detail: cause instanceof Error ? cause.message : String(cause),
+                    cause,
+                  }),
+              ),
+            ),
+            { "rpc.aggregate": "provider" },
+          ),
+        [WS_METHODS.providerListCommands]: (input) =>
+          observeRpcEffect(
+            WS_METHODS.providerListCommands,
+            requireProviderService("provider.listCommands").pipe(
+              Effect.flatMap((providerService) => providerService.listCommands!(input)),
+              Effect.mapError(
+                (cause) =>
+                  new ProviderDiscoveryError({
+                    operation: "provider.listCommands",
+                    detail: cause instanceof Error ? cause.message : String(cause),
+                    cause,
+                  }),
+              ),
+            ),
+            { "rpc.aggregate": "provider" },
           ),
         [WS_METHODS.serverGetConfig]: (_input) =>
           observeRpcEffect(WS_METHODS.serverGetConfig, loadServerConfig, {

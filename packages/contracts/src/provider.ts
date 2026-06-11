@@ -84,6 +84,101 @@ export const ProviderTurnStartResult = Schema.Struct({
 });
 export type ProviderTurnStartResult = typeof ProviderTurnStartResult.Type;
 
+export const ProviderDiscoveryInput = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  cwd: Schema.optional(TrimmedNonEmptyString),
+  threadId: Schema.optional(ThreadId),
+  forceReload: Schema.optional(Schema.Boolean),
+});
+export type ProviderDiscoveryInput = typeof ProviderDiscoveryInput.Type;
+
+export const ProviderListModelsInput = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  forceReload: Schema.optional(Schema.Boolean),
+});
+export type ProviderListModelsInput = typeof ProviderListModelsInput.Type;
+
+export const ProviderReasoningEffortDescriptor = Schema.Struct({
+  value: TrimmedNonEmptyString,
+  label: TrimmedNonEmptyString,
+  description: Schema.optional(TrimmedNonEmptyString),
+});
+export type ProviderReasoningEffortDescriptor = typeof ProviderReasoningEffortDescriptor.Type;
+
+export const ProviderModelDescriptor = Schema.Struct({
+  slug: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+  upstreamProviderId: Schema.optional(TrimmedNonEmptyString),
+  upstreamProviderName: Schema.optional(TrimmedNonEmptyString),
+  supportedReasoningEfforts: Schema.optional(Schema.Array(ProviderReasoningEffortDescriptor)),
+  defaultReasoningEffort: Schema.optional(TrimmedNonEmptyString),
+});
+export type ProviderModelDescriptor = typeof ProviderModelDescriptor.Type;
+
+export const ProviderListModelsResult = Schema.Struct({
+  models: Schema.Array(ProviderModelDescriptor),
+  source: TrimmedNonEmptyString,
+  cached: Schema.Boolean,
+});
+export type ProviderListModelsResult = typeof ProviderListModelsResult.Type;
+
+export const ProviderSkillDescriptor = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  description: Schema.optional(TrimmedNonEmptyString),
+  path: Schema.optional(TrimmedNonEmptyString),
+  enabled: Schema.optional(Schema.Boolean),
+  scope: Schema.optional(TrimmedNonEmptyString),
+});
+export type ProviderSkillDescriptor = typeof ProviderSkillDescriptor.Type;
+
+export const ProviderListSkillsResult = Schema.Struct({
+  skills: Schema.Array(ProviderSkillDescriptor),
+  source: TrimmedNonEmptyString,
+  cached: Schema.Boolean,
+});
+export type ProviderListSkillsResult = typeof ProviderListSkillsResult.Type;
+
+export const ProviderCommandDescriptor = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  description: Schema.optional(TrimmedNonEmptyString),
+});
+export type ProviderCommandDescriptor = typeof ProviderCommandDescriptor.Type;
+
+export const ProviderListCommandsResult = Schema.Struct({
+  commands: Schema.Array(ProviderCommandDescriptor),
+  source: TrimmedNonEmptyString,
+  cached: Schema.Boolean,
+});
+export type ProviderListCommandsResult = typeof ProviderListCommandsResult.Type;
+
+export const ProviderComposerCapabilities = Schema.Struct({
+  instanceId: ProviderInstanceId,
+  provider: ProviderDriverKind,
+  supportsSkillMentions: Schema.Boolean,
+  supportsSkillDiscovery: Schema.Boolean,
+  supportsNativeSlashCommandDiscovery: Schema.Boolean,
+  supportsPluginMentions: Schema.Boolean,
+  supportsPluginDiscovery: Schema.Boolean,
+  supportsRuntimeModelList: Schema.Boolean,
+  supportsThreadCompaction: Schema.Boolean,
+  supportsThreadImport: Schema.Boolean,
+  supportsTurnSteering: Schema.optional(Schema.Boolean),
+});
+export type ProviderComposerCapabilities = typeof ProviderComposerCapabilities.Type;
+
+export class ProviderDiscoveryError extends Schema.TaggedErrorClass<ProviderDiscoveryError>()(
+  "ProviderDiscoveryError",
+  {
+    operation: Schema.String,
+    detail: Schema.String,
+    cause: Schema.optional(Schema.Defect),
+  },
+) {
+  override get message(): string {
+    return `Provider discovery failed in ${this.operation}: ${this.detail}`;
+  }
+}
+
 export const ProviderInterruptTurnInput = Schema.Struct({
   threadId: ThreadId,
   turnId: Schema.optional(TurnId),
