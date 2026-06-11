@@ -2,11 +2,13 @@ import {
   EventId,
   ProviderDriverKind,
   ProviderInstanceId,
+  ProviderItemId,
   type ProviderRuntimeEvent,
   type ProviderSendTurnInput,
   type ProviderSession,
   RuntimeItemId,
   ThreadId,
+  type ThreadTokenUsageSnapshot,
   TurnId,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
@@ -48,10 +50,20 @@ interface PiResumeCursor {
   readonly sessionId?: string;
 }
 
-function isPiResumeCursor(value: unknown): value is PiResumeCursor {
-  if (!value || typeof value !== "object") return false;
-  const record = value as { readonly sessionFile?: unknown };
-  return typeof record.sessionFile === "string" && record.sessionFile.trim().length > 0;
+function extractResumeSessionFile(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  for (const key of ["sessionFile", "sessionFilePath", "nativeHandle", "path"]) {
+    const candidate = record[key];
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate;
+    }
+  }
+  return undefined;
 }
 
 function buildPiResumeCursor(sessionManager: SessionManager): PiResumeCursor | undefined {
@@ -66,6 +78,7 @@ function buildPiResumeCursor(sessionManager: SessionManager): PiResumeCursor | u
 interface PiTurnSnapshot {
   readonly id: TurnId;
   readonly items: Array<unknown>;
+  leafId?: string | null;
 }
 
 interface PiQueuedDuringCompactionInput {
@@ -92,12 +105,18 @@ interface PiSessionContext {
   readonly queuedDuringCompaction: Array<PiQueuedDuringCompactionInput>;
   readonly activeToolsByCallId: Map<
     string,
-    { readonly turnId: TurnId | undefined; readonly toolName: string; readonly args: unknown }
+    {
+      readonly turnId: TurnId | undefined;
+      readonly toolName: string;
+      readonly args: unknown;
+      readonly itemType: "command_execution" | "file_change" | "dynamic_tool_call" | "web_search";
+    }
   >;
   activeTurnId: TurnId | undefined;
   activeCompactionTurnId: TurnId | undefined;
   activePromptFiber: Fiber.Fiber<void, never> | undefined;
   activeAssistantItemId: string | undefined;
+  activeReasoningItemId: string | undefined;
   activeTurnFailure: PiTurnFailure | undefined;
   nextAssistantMessageIndex: number;
 }
@@ -245,6 +264,13 @@ function ensureAssistantItemId(context: PiSessionContext, turnId: TurnId | undef
   return itemId;
 }
 
+function ensureReasoningItemId(context: PiSessionContext, turnId: TurnId | undefined): string {
+  if (context.activeReasoningItemId) return context.activeReasoningItemId;
+  const itemId = `pi-reasoning-${turnId ?? "session"}`;
+  context.activeReasoningItemId = itemId;
+  return itemId;
+}
+
 function takeDeferredUserMessageText(context: PiSessionContext, text: string): boolean {
   const exactIndex = context.deferredUserMessageTexts.indexOf(text);
   if (exactIndex !== -1) {
@@ -281,6 +307,12 @@ function drainQueuedDuringCompaction(
   return queued;
 }
 
+function ensureTurnSnapshot(context: PiSessionContext, turnId: TurnId | undefined): void {
+  if (!turnId) return;
+  if (context.turns.some((turn) => turn.id === turnId)) return;
+  context.turns.push({ id: turnId, items: [] });
+}
+
 function appendTurnItem(
   context: PiSessionContext,
   turnId: TurnId | undefined,
@@ -295,6 +327,92 @@ function appendTurnItem(
   context.turns.push({ id: turnId, items: [item] });
 }
 
+function recordTurnLeaf(context: PiSessionContext, turnId: TurnId | undefined): void {
+  if (!turnId) return;
+  const turn = context.turns.find((candidate) => candidate.id === turnId);
+  if (!turn) return;
+  turn.leafId = context.piSession.sessionManager.getLeafId();
+}
+
+function mapPiMessageHistory(session: AgentSession): Array<unknown> {
+  const items: Array<unknown> = [];
+  const pendingTools = new Map<string, { toolName: string; args: unknown }>();
+  for (const message of session.messages) {
+    const role = getPiMessageRole(message);
+    if (role === "user") {
+      const text = getPiMessageText(message);
+      if (text) items.push({ type: "user_message", text });
+      continue;
+    }
+    if (role === "assistant") {
+      const content = recordFromUnknown(message)?.content;
+      if (!Array.isArray(content)) continue;
+      for (const block of content) {
+        const record = recordFromUnknown(block);
+        if (record?.type === "text" && typeof record.text === "string" && record.text.length > 0) {
+          items.push({ type: "assistant_message", text: record.text });
+        } else if (
+          record?.type === "thinking" &&
+          typeof record.thinking === "string" &&
+          record.thinking.length > 0
+        ) {
+          items.push({ type: "reasoning", text: record.thinking });
+        } else if (
+          record?.type === "toolCall" &&
+          typeof record.id === "string" &&
+          typeof record.name === "string"
+        ) {
+          pendingTools.set(record.id, { toolName: record.name, args: record.arguments });
+          items.push({
+            type: "tool_call",
+            status: "started",
+            callId: record.id,
+            toolName: record.name,
+            itemType: toToolItemType(record.name),
+            title: buildPiToolTitle(record.name, record.arguments),
+            args: record.arguments,
+            data: buildPiToolData({
+              toolCallId: record.id,
+              toolName: record.name,
+              args: record.arguments,
+            }),
+          });
+        }
+      }
+      continue;
+    }
+    if (role === "toolResult") {
+      const record = recordFromUnknown(message);
+      const toolCallId = typeof record?.toolCallId === "string" ? record.toolCallId : undefined;
+      if (!toolCallId) continue;
+      const pending = pendingTools.get(toolCallId);
+      pendingTools.delete(toolCallId);
+      const toolName =
+        pending?.toolName ?? (typeof record?.toolName === "string" ? record.toolName : "tool");
+      const result = { content: record?.content };
+      const isError = record?.isError === true;
+      items.push({
+        type: "tool_call",
+        status: isError ? "failed" : "completed",
+        callId: toolCallId,
+        toolName,
+        itemType: toToolItemType(toolName),
+        title: buildPiToolTitle(toolName, pending?.args),
+        output: readPiToolTextOutput(result),
+        isError,
+        data: buildPiToolData({
+          toolCallId,
+          toolName,
+          args: pending?.args,
+          result,
+          isError,
+        }),
+      });
+    }
+  }
+  return items;
+}
+
 function ensureSessionContext(
   sessions: ReadonlyMap<ThreadId, PiSessionContext>,
   threadId: ThreadId,
@@ -306,27 +424,85 @@ function ensureSessionContext(
   return session;
 }
 
+function recordFromUnknown(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+function firstStringValue(
+  record: Record<string, unknown> | undefined,
+  keys: ReadonlyArray<string>,
+): string | undefined {
+  if (!record) return undefined;
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim().length > 0) return value;
+  }
+  return undefined;
+}
+
 function toToolItemType(
   toolName: string,
-): "command_execution" | "file_change" | "dynamic_tool_call" {
+): "command_execution" | "file_change" | "dynamic_tool_call" | "web_search" {
   const normalized = toolName.toLowerCase();
-  if (normalized.includes("bash") || normalized.includes("command")) return "command_execution";
-  if (normalized.includes("edit") || normalized.includes("write") || normalized.includes("patch")) {
+  if (normalized === "bash" || normalized.includes("bash") || normalized.includes("command")) {
+    return "command_execution";
+  }
+  if (
+    normalized === "edit" ||
+    normalized === "write" ||
+    normalized.includes("edit") ||
+    normalized.includes("write") ||
+    normalized.includes("patch")
+  ) {
     return "file_change";
+  }
+  if (normalized === "grep" || normalized === "find" || normalized.includes("search")) {
+    return "web_search";
   }
   return "dynamic_tool_call";
 }
 
 function readPiToolCommand(toolName: string, args: unknown): string | undefined {
   const normalized = toolName.toLowerCase();
-  if (!normalized.includes("bash") && !normalized.includes("command")) {
-    return undefined;
+  if (!normalized.includes("bash") && !normalized.includes("command")) return undefined;
+  return firstStringValue(recordFromUnknown(args), ["command", "cmd"]);
+}
+
+function readPiToolPath(args: unknown): string | undefined {
+  return firstStringValue(recordFromUnknown(args), ["path", "filePath", "file", "relativePath"]);
+}
+
+function readPiToolSearchQuery(toolName: string, args: unknown): string | undefined {
+  const record = recordFromUnknown(args);
+  if (!record) return undefined;
+  if (toolName === "grep" || toolName === "find")
+    return firstStringValue(record, ["pattern", "query"]);
+  return firstStringValue(record, ["query", "pattern"]);
+}
+
+function readPiToolEditEntries(args: unknown): ReadonlyArray<Record<string, unknown>> | undefined {
+  const record = recordFromUnknown(args);
+  if (!record) return undefined;
+  if (Array.isArray(record.edits)) {
+    const edits = record.edits.flatMap((entry) => {
+      const edit = recordFromUnknown(entry);
+      return edit ? [edit] : [];
+    });
+    return edits.length > 0 ? edits : undefined;
   }
-  if (!args || typeof args !== "object") {
-    return undefined;
+  const oldText = firstStringValue(record, ["oldText", "old_string", "oldString"]);
+  const newText = firstStringValue(record, ["newText", "new_string", "newString"]);
+  if (oldText !== undefined || newText !== undefined) {
+    return [
+      {
+        ...(oldText !== undefined ? { oldText } : {}),
+        ...(newText !== undefined ? { newText } : {}),
+      },
+    ];
   }
-  const command = (args as { readonly command?: unknown }).command;
-  return typeof command === "string" && command.trim().length > 0 ? command : undefined;
+  return undefined;
 }
 
 function readPiToolTextOutput(result: unknown): string | undefined {
@@ -334,22 +510,61 @@ function readPiToolTextOutput(result: unknown): string | undefined {
     const trimmed = result.trim();
     return trimmed.length > 0 ? trimmed : undefined;
   }
-  if (!result || typeof result !== "object") {
-    return undefined;
-  }
-  const content = (result as { readonly content?: unknown }).content;
-  if (!Array.isArray(content)) {
-    return undefined;
-  }
+  const record = recordFromUnknown(result);
+  const direct = firstStringValue(record, [
+    "output",
+    "stdout",
+    "stderr",
+    "text",
+    "summary",
+    "message",
+    "error",
+  ]);
+  if (direct) return direct;
+  const content = Array.isArray(record?.content) ? record.content : [];
   const text = content
     .flatMap((entry) => {
-      if (!entry || typeof entry !== "object") return [];
-      const block = entry as { readonly type?: unknown; readonly text?: unknown };
-      return block.type === "text" && typeof block.text === "string" ? [block.text] : [];
+      const block = recordFromUnknown(entry);
+      return block?.type === "text" && typeof block.text === "string" ? [block.text] : [];
     })
     .join("\n")
     .trim();
   return text.length > 0 ? text : undefined;
+}
+
+function readPiToolExitCode(result: unknown): number | null | undefined {
+  const record = recordFromUnknown(result);
+  if (!record) return undefined;
+  for (const key of ["exitCode", "code"]) {
+    const value = record[key];
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function buildPiToolRawOutput(result: unknown): Record<string, unknown> | undefined {
+  if (result === undefined) return undefined;
+  const text = readPiToolTextOutput(result);
+  const exitCode = readPiToolExitCode(result);
+  if (typeof result === "string") return { stdout: result, content: result };
+  if (result === null) return {};
+  const record = recordFromUnknown(result);
+  if (!record) return text ? { stdout: text, content: text } : undefined;
+  return {
+    ...record,
+    ...(text ? { stdout: text, content: text } : {}),
+    ...(exitCode !== undefined ? { exitCode } : {}),
+  };
+}
+
+function buildPiToolTitle(toolName: string, args: unknown): string {
+  const command = readPiToolCommand(toolName, args);
+  if (command) return command;
+  const path = readPiToolPath(args);
+  if (path && ["read", "edit", "write", "ls"].includes(toolName)) return `${toolName} ${path}`;
+  const query = readPiToolSearchQuery(toolName, args);
+  if (query && ["find", "grep"].includes(toolName)) return `${toolName} ${query}`;
+  return toolName;
 }
 
 function buildPiToolData(input: {
@@ -360,15 +575,88 @@ function buildPiToolData(input: {
   readonly result?: unknown;
   readonly isError?: boolean;
 }): Record<string, unknown> {
+  const rawOutput = buildPiToolRawOutput(input.result ?? input.partialResult);
   const command = readPiToolCommand(input.toolName, input.args);
-  return {
+  const path = readPiToolPath(input.args);
+  const query = readPiToolSearchQuery(input.toolName, input.args);
+  const edits = readPiToolEditEntries(input.args);
+  const content = recordFromUnknown(input.args)?.content;
+  const diff = firstStringValue(recordFromUnknown(recordFromUnknown(rawOutput)?.details), ["diff"]);
+  const base: Record<string, unknown> = {
     toolCallId: input.toolCallId,
+    callId: input.toolCallId,
+    toolName: input.toolName,
+    name: input.toolName,
+    tool: input.toolName,
+    kind: input.toolName,
     args: input.args,
-    ...(command !== undefined ? { command } : {}),
+    input: input.args,
+    rawInput: input.args,
+    ...(rawOutput ? { rawOutput } : {}),
     ...(input.partialResult !== undefined ? { partialResult: input.partialResult } : {}),
     ...(input.result !== undefined ? { result: input.result } : {}),
     ...(input.isError !== undefined ? { isError: input.isError } : {}),
   };
+
+  switch (input.toolName) {
+    case "bash":
+      return {
+        ...base,
+        kind: "execute",
+        ...(command ? { command } : {}),
+        ...(rawOutput?.exitCode !== undefined ? { exitCode: rawOutput.exitCode } : {}),
+      };
+    case "read":
+      return {
+        ...base,
+        kind: "read",
+        ...(path
+          ? {
+              path,
+              filePath: path,
+              files: [{ path }],
+              commandActions: [{ type: "read", name: "read", path }],
+            }
+          : {}),
+      };
+    case "edit":
+      return {
+        ...base,
+        kind: "edit",
+        ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
+        ...(edits ? { edits: edits.map((edit) => ({ ...edit, ...(path ? { path } : {}) })) } : {}),
+        ...(diff ? { unifiedDiff: diff } : {}),
+      };
+    case "write":
+      return {
+        ...base,
+        kind: "write",
+        ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
+        ...(typeof content === "string" ? { content } : {}),
+      };
+    case "find":
+    case "grep":
+      return {
+        ...base,
+        kind: "search",
+        searchKind: input.toolName,
+        ...(query ? { query } : {}),
+        ...(path ? { path } : {}),
+        ...(query || path
+          ? { commandActions: [{ type: "search", name: input.toolName, query, path }] }
+          : {}),
+      };
+    case "ls":
+      return {
+        ...base,
+        kind: "listFiles",
+        ...(path
+          ? { path, query: path, commandActions: [{ type: "listFiles", name: "ls", path }] }
+          : {}),
+      };
+    default:
+      return base;
+  }
 }
 
 function piCompactionDetail(
@@ -384,6 +672,85 @@ function piCompactionDetail(
     return undefined;
   }
   return "Context compaction completed.";
+}
+
+function classifyPiRuntimeError(
+  message: string,
+): "provider_error" | "transport_error" | "permission_error" | "validation_error" | "unknown" {
+  const normalized = message.toLowerCase();
+  if (
+    normalized.includes("network") ||
+    normalized.includes("connection") ||
+    normalized.includes("timeout") ||
+    normalized.includes("econn") ||
+    normalized.includes("fetch failed")
+  ) {
+    return "transport_error";
+  }
+  if (
+    normalized.includes("api key") ||
+    normalized.includes("auth") ||
+    normalized.includes("unauthorized") ||
+    normalized.includes("forbidden") ||
+    normalized.includes("permission")
+  ) {
+    return "permission_error";
+  }
+  if (
+    normalized.includes("invalid") ||
+    normalized.includes("validation") ||
+    normalized.includes("not available")
+  ) {
+    return "validation_error";
+  }
+  if (
+    normalized.includes("rate limit") ||
+    normalized.includes("quota") ||
+    normalized.includes("usage limit") ||
+    normalized.includes("overloaded") ||
+    normalized.includes("provider")
+  ) {
+    return "provider_error";
+  }
+  return "unknown";
+}
+
+function normalizePiTokenUsage(
+  stats: ReturnType<AgentSession["getSessionStats"]>,
+  fallbackContextWindow?: number | null,
+): ThreadTokenUsageSnapshot | undefined {
+  const inputTokens = Math.max(0, Math.round(stats.tokens.input));
+  const cachedInputTokens = Math.max(0, Math.round(stats.tokens.cacheRead));
+  const outputTokens = Math.max(0, Math.round(stats.tokens.output));
+  const totalProcessedTokens = Math.max(0, Math.round(stats.tokens.total));
+  const contextWindow =
+    typeof stats.contextUsage?.contextWindow === "number" && stats.contextUsage.contextWindow > 0
+      ? Math.round(stats.contextUsage.contextWindow)
+      : typeof fallbackContextWindow === "number" && fallbackContextWindow > 0
+        ? Math.round(fallbackContextWindow)
+        : undefined;
+  const contextUsageTokens =
+    typeof stats.contextUsage?.tokens === "number" && stats.contextUsage.tokens >= 0
+      ? Math.round(stats.contextUsage.tokens)
+      : undefined;
+  const usedTokens =
+    contextUsageTokens ??
+    (contextWindow ? Math.min(totalProcessedTokens, contextWindow) : totalProcessedTokens);
+  if (usedTokens <= 0 && totalProcessedTokens <= 0 && contextWindow === undefined) return undefined;
+  return {
+    usedTokens,
+    ...(totalProcessedTokens > usedTokens ? { totalProcessedTokens } : {}),
+    ...(contextWindow !== undefined ? { maxTokens: contextWindow } : {}),
+    inputTokens,
+    cachedInputTokens,
+    outputTokens,
+    lastUsedTokens: usedTokens,
+    lastInputTokens: inputTokens,
+    lastCachedInputTokens: cachedInputTokens,
+    lastOutputTokens: outputTokens,
+    toolUses: stats.toolCalls,
+    compactsAutomatically: true,
+  };
 }
 
 export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
@@ -459,28 +826,16 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     context: PiSessionContext,
     turnId: TurnId,
   ) {
-    const usage = context.piSession.getContextUsage();
-    if (!usage || typeof usage.tokens !== "number" || usage.tokens <= 0) {
-      return;
-    }
-
-    const usedTokens = Math.max(0, Math.round(usage.tokens));
-    const maxTokens = Math.max(0, Math.round(usage.contextWindow));
-    if (usedTokens <= 0) {
-      return;
-    }
+    const usage = normalizePiTokenUsage(
+      context.piSession.getSessionStats(),
+      context.piSession.model?.contextWindow,
+    );
+    if (!usage) return;
 
     yield* emit({
       ...(yield* buildEventBase({ threadId: context.session.threadId, turnId })),
       type: "thread.token-usage.updated",
-      payload: {
-        usage: {
-          usedTokens,
-          lastUsedTokens: usedTokens,
-          ...(maxTokens > 0 ? { maxTokens } : {}),
-          compactsAutomatically: true,
-        },
-      },
+      payload: { usage },
     });
   });
 
@@ -506,8 +861,10 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     if (queued.length === 0) return;
 
     const queuedTurnId = TurnId.make(`pi-turn-${yield* randomUUIDv4}`);
+    ensureTurnSnapshot(context, queuedTurnId);
     context.activeTurnId = queuedTurnId;
     context.activeAssistantItemId = undefined;
+    context.activeReasoningItemId = undefined;
     context.activeTurnFailure = undefined;
     context.nextAssistantMessageIndex = 0;
     yield* updateProviderSession(
@@ -569,6 +926,8 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     const turnFailure = context.activeTurnFailure as PiTurnFailure | undefined;
     context.activeTurnId = undefined;
     context.activePromptFiber = undefined;
+    context.activeAssistantItemId = undefined;
+    context.activeReasoningItemId = undefined;
     context.activeTurnFailure = undefined;
     if (Exit.isSuccess(continueExit)) {
       yield* updateProviderSession(
@@ -604,7 +963,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       yield* emit({
         ...(yield* buildEventBase({ threadId: context.session.threadId, turnId: queuedTurnId })),
         type: "runtime.error",
-        payload: { message: detail, class: "provider_error", detail: continueExit.cause },
+        payload: {
+          message: detail,
+          class: classifyPiRuntimeError(detail),
+          detail: continueExit.cause,
+        },
       });
     }
   });
@@ -634,8 +997,21 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         case "message_start": {
           const role = getPiMessageRole(event.message);
           if (role === "assistant") {
-            context.activeAssistantItemId = `pi-assistant-${turnId ?? "session"}-${context.nextAssistantMessageIndex}`;
-            context.nextAssistantMessageIndex += 1;
+            const itemId = ensureAssistantItemId(context, turnId);
+            yield* emit({
+              ...(yield* buildEventBase({
+                threadId: context.session.threadId,
+                turnId,
+                itemId,
+                raw: event,
+              })),
+              type: "item.started",
+              payload: {
+                itemType: "assistant_message",
+                status: "inProgress",
+                title: "Assistant message",
+              },
+            });
             return;
           }
 
@@ -660,7 +1036,27 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           const assistantEvent = event.assistantMessageEvent;
           if (assistantEvent.type === "text_delta" || assistantEvent.type === "thinking_delta") {
             if (assistantEvent.delta.length === 0) return;
-            const itemId = ensureAssistantItemId(context, turnId);
+            const isReasoning = assistantEvent.type === "thinking_delta";
+            const hadReasoningItem = context.activeReasoningItemId !== undefined;
+            const itemId = isReasoning
+              ? ensureReasoningItemId(context, turnId)
+              : ensureAssistantItemId(context, turnId);
+            if (isReasoning && !hadReasoningItem) {
+              yield* emit({
+                ...(yield* buildEventBase({
+                  threadId: context.session.threadId,
+                  turnId,
+                  itemId,
+                  raw: event,
+                })),
+                type: "item.started",
+                payload: {
+                  itemType: "reasoning",
+                  status: "inProgress",
+                  title: "Reasoning",
+                },
+              });
+            }
             yield* emit({
               ...(yield* buildEventBase({
                 threadId: context.session.threadId,
@@ -670,8 +1066,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               })),
               type: "content.delta",
               payload: {
-                streamKind:
-                  assistantEvent.type === "thinking_delta" ? "reasoning_text" : "assistant_text",
+                streamKind: isReasoning ? "reasoning_text" : "assistant_text",
                 delta: assistantEvent.delta,
                 contentIndex: assistantEvent.contentIndex,
               },
@@ -696,8 +1091,26 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             };
           }
           const itemId = ensureAssistantItemId(context, turnId);
+          const reasoningItemId = context.activeReasoningItemId;
           context.activeAssistantItemId = undefined;
+          context.activeReasoningItemId = undefined;
           const detail = getPiMessageText(event.message) ?? assistantErrorMessage;
+          if (reasoningItemId) {
+            yield* emit({
+              ...(yield* buildEventBase({
+                threadId: context.session.threadId,
+                turnId,
+                itemId: reasoningItemId,
+                raw: event,
+              })),
+              type: "item.completed",
+              payload: {
+                itemType: "reasoning",
+                status: stopReason === "error" ? "failed" : "completed",
+                title: "Reasoning",
+              },
+            });
+          }
           yield* emit({
             ...(yield* buildEventBase({
               threadId: context.session.threadId,
@@ -721,10 +1134,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           break;
         }
         case "tool_execution_start": {
+          const itemType = toToolItemType(event.toolName);
           context.activeToolsByCallId.set(event.toolCallId, {
             turnId,
             toolName: event.toolName,
             args: event.args,
+            itemType,
           });
           appendTurnItem(context, turnId, event);
           yield* emit({
@@ -734,11 +1149,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemId: event.toolCallId,
               raw: event,
             })),
+            providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
             type: "item.started",
             payload: {
-              itemType: toToolItemType(event.toolName),
+              itemType,
               status: "inProgress",
-              title: event.toolName,
+              title: buildPiToolTitle(event.toolName, event.args),
               data: buildPiToolData({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
@@ -758,11 +1174,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemId: event.toolCallId,
               raw: event,
             })),
+            providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
             type: "item.updated",
             payload: {
-              itemType: toToolItemType(event.toolName),
+              itemType: activeTool?.itemType ?? toToolItemType(event.toolName),
               status: "inProgress",
-              title: event.toolName,
+              title: buildPiToolTitle(event.toolName, activeTool?.args ?? event.args),
               detail: readPiToolTextOutput(event.partialResult),
               data: buildPiToolData({
                 toolCallId: event.toolCallId,
@@ -786,11 +1203,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemId: event.toolCallId,
               raw: event,
             })),
+            providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
             type: "item.completed",
             payload: {
-              itemType: toToolItemType(event.toolName),
+              itemType: activeTool?.itemType ?? toToolItemType(event.toolName),
               status: event.isError ? "failed" : "completed",
-              title: event.toolName,
+              title: buildPiToolTitle(event.toolName, activeTool?.args),
               detail: readPiToolTextOutput(event.result),
               data: buildPiToolData({
                 toolCallId: event.toolCallId,
@@ -910,7 +1328,9 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             type: "runtime.error",
             payload: {
               message: event.finalError ?? `Pi retry attempt ${event.attempt} failed.`,
-              class: "provider_error",
+              class: classifyPiRuntimeError(
+                event.finalError ?? `Pi retry attempt ${event.attempt} failed.`,
+              ),
               detail: {
                 success: event.success,
                 attempt: event.attempt,
@@ -964,8 +1384,9 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       });
     }
 
-    const sessionManager = isPiResumeCursor(input.resumeCursor)
-      ? SessionManager.open(input.resumeCursor.sessionFile, undefined, cwd)
+    const resumeSessionFile = extractResumeSessionFile(input.resumeCursor);
+    const sessionManager = resumeSessionFile
+      ? SessionManager.open(resumeSessionFile, undefined, cwd)
       : undefined;
     const sessionScope = yield* Scope.make();
     const created = yield* Effect.tryPromise({
@@ -1041,6 +1462,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       activeCompactionTurnId: undefined,
       activePromptFiber: undefined,
       activeAssistantItemId: undefined,
+      activeReasoningItemId: undefined,
       activeTurnFailure: undefined,
       nextAssistantMessageIndex: 0,
     };
@@ -1057,6 +1479,17 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       type: "thread.started",
       payload: { providerThreadId: created.session.sessionId },
     });
+    const initialUsage = normalizePiTokenUsage(
+      created.session.getSessionStats(),
+      created.session.model?.contextWindow,
+    );
+    if (initialUsage) {
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: input.threadId })),
+        type: "thread.token-usage.updated",
+        payload: { usage: initialUsage },
+      });
+    }
 
     return session;
   });
@@ -1083,11 +1516,18 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       input.attachments ?? [],
       (attachment) =>
         Effect.gen(function* () {
+          if (attachment.type !== "image") return null;
           const attachmentPath = resolveAttachmentPath({
             attachmentsDir: serverConfig.attachmentsDir,
             attachment,
           });
-          if (!attachmentPath) return null;
+          if (!attachmentPath) {
+            return yield* new ProviderAdapterValidationError({
+              provider: PROVIDER,
+              operation: "sendTurn",
+              issue: `Invalid image attachment id '${attachment.id}'.`,
+            });
+          }
           const bytes = yield* fileSystem.readFile(attachmentPath).pipe(
             Effect.mapError(
               (cause) =>
@@ -1115,6 +1555,80 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       });
     }
 
+    if (text === "/reload" && images.length === 0) {
+      ensureTurnSnapshot(context, turnId);
+      context.activeTurnId = turnId;
+      context.activeAssistantItemId = undefined;
+      context.activeReasoningItemId = undefined;
+      context.activeTurnFailure = undefined;
+      yield* updateProviderSession(
+        context,
+        { status: "running", activeTurnId: turnId, model: `${model.provider}/${model.id}` },
+        { clearLastError: true },
+      );
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: input.threadId, turnId, raw: { method: "reload" } })),
+        type: "turn.started",
+        payload: { model: `${model.provider}/${model.id}` },
+      });
+      yield* Effect.tryPromise({
+        try: () => context.piSession.reload(),
+        catch: (cause) =>
+          new ProviderAdapterRequestError({
+            provider: PROVIDER,
+            method: "reload",
+            detail: errorDetail(cause),
+            cause,
+          }),
+      }).pipe(
+        Effect.catch((error) =>
+          Effect.gen(function* () {
+            context.activeTurnId = undefined;
+            context.activePromptFiber = undefined;
+            context.activeAssistantItemId = undefined;
+            context.activeReasoningItemId = undefined;
+            yield* updateProviderSession(
+              context,
+              { status: "error", lastError: error.detail },
+              { clearActiveTurnId: true },
+            );
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId, raw: error })),
+              type: "turn.completed",
+              payload: { state: "failed", errorMessage: error.detail },
+            });
+            yield* emit({
+              ...(yield* buildEventBase({ threadId: input.threadId, turnId, raw: error })),
+              type: "runtime.error",
+              payload: {
+                message: error.detail,
+                class: classifyPiRuntimeError(error.detail),
+                detail: error,
+              },
+            });
+            return yield* error;
+          }),
+        ),
+      );
+      context.activeTurnId = undefined;
+      context.activePromptFiber = undefined;
+      context.activeAssistantItemId = undefined;
+      context.activeReasoningItemId = undefined;
+      yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
+      yield* emit({
+        ...(yield* buildEventBase({ threadId: input.threadId, turnId, raw: { method: "reload" } })),
+        type: "turn.completed",
+        payload: { state: "completed" },
+      });
+      return {
+        threadId: input.threadId,
+        turnId,
+        ...(context.session.resumeCursor !== undefined
+          ? { resumeCursor: context.session.resumeCursor }
+          : {}),
+      };
+    }
+
     if (context.activeCompactionTurnId && text !== undefined) {
       const compactionTurnId = context.activeCompactionTurnId;
       const mode = piSettings.midTurnInputMode;
@@ -1128,9 +1642,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     const compactMatch = text?.match(/^\/compact(?:\s+(.+))?$/);
     if (compactMatch) {
       const customInstructions = compactMatch[1]?.trim();
+      ensureTurnSnapshot(context, turnId);
       context.activeTurnId = turnId;
       context.activeCompactionTurnId = turnId;
       context.activeAssistantItemId = undefined;
+      context.activeReasoningItemId = undefined;
       context.activeTurnFailure = undefined;
       yield* updateProviderSession(
         context,
@@ -1157,9 +1673,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           Effect.gen(function* () {
             const stopped = yield* Ref.get(context.stopped);
             if (stopped || context.activeTurnId !== turnId) return;
+            recordTurnLeaf(context, turnId);
             context.activeTurnId = undefined;
             context.activeCompactionTurnId = undefined;
             context.activePromptFiber = undefined;
+            context.activeAssistantItemId = undefined;
+            context.activeReasoningItemId = undefined;
             context.activeTurnFailure = undefined;
             yield* emitContextWindowUsage(context, turnId).pipe(Effect.ignore);
             yield* updateProviderSession(context, { status: "ready" }, { clearActiveTurnId: true });
@@ -1188,6 +1707,8 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             context.activeTurnId = undefined;
             context.activeCompactionTurnId = undefined;
             context.activePromptFiber = undefined;
+            context.activeAssistantItemId = undefined;
+            context.activeReasoningItemId = undefined;
             const detail = error.detail;
             yield* updateProviderSession(
               context,
@@ -1202,7 +1723,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             yield* emit({
               ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
               type: "runtime.error",
-              payload: { message: detail, class: "provider_error", detail: error },
+              payload: { message: detail, class: classifyPiRuntimeError(detail), detail: error },
             });
           }),
         ),
@@ -1260,8 +1781,10 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         }),
     });
 
+    ensureTurnSnapshot(context, turnId);
     context.activeTurnId = turnId;
     context.activeAssistantItemId = undefined;
+    context.activeReasoningItemId = undefined;
     context.activeTurnFailure = undefined;
     context.nextAssistantMessageIndex = 0;
     yield* updateProviderSession(
@@ -1293,8 +1816,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           const stopped = yield* Ref.get(context.stopped);
           if (stopped || context.activeTurnId !== turnId) return;
           const turnFailure = context.activeTurnFailure;
+          recordTurnLeaf(context, turnId);
           context.activeTurnId = undefined;
           context.activePromptFiber = undefined;
+          context.activeAssistantItemId = undefined;
+          context.activeReasoningItemId = undefined;
           context.activeTurnFailure = undefined;
           yield* updateProviderSession(
             context,
@@ -1322,6 +1848,8 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           if (stopped || context.activeTurnId !== turnId) return;
           context.activeTurnId = undefined;
           context.activePromptFiber = undefined;
+          context.activeAssistantItemId = undefined;
+          context.activeReasoningItemId = undefined;
           yield* updateProviderSession(
             context,
             { status: "error", lastError: error.detail },
@@ -1335,7 +1863,11 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           yield* emit({
             ...(yield* buildEventBase({ threadId: input.threadId, turnId })),
             type: "runtime.error",
-            payload: { message: error.detail, class: "provider_error", detail: error },
+            payload: {
+              message: error.detail,
+              class: classifyPiRuntimeError(error.detail),
+              detail: error,
+            },
           });
         }),
       ),
@@ -1364,6 +1896,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       context.activeTurnId = undefined;
       context.activePromptFiber = undefined;
       context.activeAssistantItemId = undefined;
+      context.activeReasoningItemId = undefined;
       context.activeTurnFailure = undefined;
       context.deferredUserMessageTexts.splice(0);
 
@@ -1441,17 +1974,44 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   const hasSession: PiAdapterShape["hasSession"] = (threadId) =>
     Effect.sync(() => sessions.has(threadId));
 
+  const snapshotThread = (context: PiSessionContext) => {
+    const historyItems = mapPiMessageHistory(context.piSession);
+    const activeTurn = context.activeTurnId
+      ? context.turns.find((turn) => turn.id === context.activeTurnId)
+      : undefined;
+    const turns = [
+      ...(historyItems.length > 0
+        ? [{ id: TurnId.make(`pi-history-${context.piSession.sessionId}`), items: historyItems }]
+        : []),
+      ...(activeTurn ? [{ id: activeTurn.id, items: [...activeTurn.items] }] : []),
+    ];
+    return {
+      threadId: context.session.threadId,
+      ...(context.session.cwd ? { cwd: context.session.cwd } : {}),
+      turns:
+        turns.length > 0
+          ? turns
+          : context.turns.map((turn) => ({ id: turn.id, items: [...turn.items] })),
+    };
+  };
+
   const readThread: PiAdapterShape["readThread"] = (threadId) =>
-    Effect.sync(() => {
-      const context = ensureSessionContext(sessions, threadId);
-      return { threadId, turns: context.turns };
-    });
+    Effect.sync(() => snapshotThread(ensureSessionContext(sessions, threadId)));
 
   const rollbackThread: PiAdapterShape["rollbackThread"] = (threadId, numTurns) =>
     Effect.sync(() => {
       const context = ensureSessionContext(sessions, threadId);
-      context.turns.splice(Math.max(0, context.turns.length - numTurns));
-      return { threadId, turns: context.turns };
+      const nextLength = Math.max(0, context.turns.length - Math.max(0, numTurns));
+      context.turns.splice(nextLength);
+      const leafId = context.turns.at(-1)?.leafId;
+      if (leafId) {
+        context.piSession.sessionManager.branch(leafId);
+      } else if (nextLength === 0) {
+        context.piSession.sessionManager.resetLeaf();
+      }
+      context.piSession.agent.state.messages =
+        context.piSession.sessionManager.buildSessionContext().messages;
+      return snapshotThread(context);
     });
 
   const stopAll: PiAdapterShape["stopAll"] = () =>
