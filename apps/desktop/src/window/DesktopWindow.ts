@@ -185,6 +185,7 @@ const make = Effect.gen(function* () {
     backendHttpUrl: URL,
     route?: string,
   ): Effect.fn.Return<Electron.BrowserWindow, DesktopWindowError> {
+    previewViewManager.getBrowserSession();
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
