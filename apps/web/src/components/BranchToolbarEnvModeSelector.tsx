@@ -29,7 +29,6 @@ interface BranchToolbarEnvModeSelectorProps {
   envLocked: boolean;
   effectiveEnvMode: EnvMode;
   activeWorktreePath: string | null;
-  activeThreadBranch: string | null;
   projectCwd: string | null;
   environmentId: EnvironmentId;
   onEnvModeChange: (mode: EnvMode) => void;
@@ -63,7 +62,6 @@ export const BranchToolbarEnvModeSelector = memo(function BranchToolbarEnvModeSe
   envLocked,
   effectiveEnvMode,
   activeWorktreePath,
-  activeThreadBranch,
   projectCwd,
   environmentId,
   onEnvModeChange,

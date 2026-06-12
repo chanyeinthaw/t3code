@@ -205,7 +205,9 @@ code {
 .drag-region input,
 .drag-region textarea,
 .drag-region select,
-.drag-region a {
+.drag-region a,
+.no-drag-region,
+.no-drag-region * {
   -webkit-app-region: no-drag;
 }
 

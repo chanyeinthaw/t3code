@@ -10,7 +10,7 @@ import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
-import { SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
+
 import { readEnvironmentApi } from "../environmentApi";
 import { projectTerminalThreadId } from "../lib/projectTerminal";
 import { selectProjectByRef, useStore } from "../store";
@@ -28,29 +28,17 @@ interface ProjectTerminalViewProps {
 const PROJECT_TERMINAL_HEIGHT = 10_000;
 
 const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { title: string }) {
-  const { open } = useSidebar();
-
   return (
     <header
       className={cn(
-        "border-b border-border",
-        isElectron
-          ? cn(
-              "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
-              !open &&
-                "pl-[90px] electron-full-screen:pl-3 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3 sm:pl-[90px] sm:electron-full-screen:pl-5 sm:wco:pl-[calc(env(titlebar-area-x)+1em)] sm:electron-full-screen:wco:pl-5",
-            )
-          : "flex h-[52px] shrink-0 items-center pl-[calc(env(safe-area-inset-left)+0.75rem)] pr-[calc(env(safe-area-inset-right)+0.75rem)] sm:pl-[calc(env(safe-area-inset-left)+1.25rem)] sm:pr-[calc(env(safe-area-inset-right)+1.25rem)]",
+        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5",
+        isElectron && "drag-region wco:h-[env(titlebar-area-height)]",
       )}
     >
-      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
-        <SidebarTrigger className="shrink-0 md:hidden" />
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-medium text-foreground" title={title}>
-            Terminal: {title}
-          </h2>
-        </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-sm font-medium text-foreground" title={title}>
+          Terminal: {title}
+        </h2>
       </div>
     </header>
   );
@@ -199,53 +187,49 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
 
   if (!project) {
     return (
-      <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-        <div className="flex min-h-0 flex-1 flex-col">
-          <ProjectTerminalHeader title="Project terminal" />
-          <Empty className="flex-1">
-            <EmptyHeader>
-              <EmptyTitle>Project not found</EmptyTitle>
-              <EmptyDescription>
-                This project is no longer available in this environment.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </div>
-      </SidebarInset>
+      <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+        <ProjectTerminalHeader title="Project terminal" />
+        <Empty className="flex-1">
+          <EmptyHeader>
+            <EmptyTitle>Project not found</EmptyTitle>
+            <EmptyDescription>
+              This project is no longer available in this environment.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
 
   return (
-    <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground">
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
-        <ProjectTerminalHeader title={project.name} />
-        <div className="min-h-0 flex-1 [&_.thread-terminal-drawer]:h-full! [&_.thread-terminal-drawer]:border-t-0">
-          <ThreadTerminalDrawer
-            threadRef={terminalThreadRef}
-            threadId={terminalThreadId}
-            cwd={project.cwd}
-            worktreePath={null}
-            runtimeEnv={runtimeEnv}
-            visible
-            height={PROJECT_TERMINAL_HEIGHT}
-            terminalIds={terminalUiState.terminalIds}
-            activeTerminalId={terminalUiState.activeTerminalId}
-            terminalGroups={terminalUiState.terminalGroups}
-            activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
-            focusRequestId={focusRequestId}
-            onSplitTerminal={splitTerminal}
-            onNewTerminal={createNewTerminal}
-            onActiveTerminalChange={activateTerminal}
-            onCloseTerminal={closeTerminal}
-            onHeightChange={() => undefined}
-            onAddTerminalContext={() => undefined}
-            keybindings={keybindings}
-            canCloseLastTerminal={false}
-            terminalLabelsById={terminalLabelsById}
-          />
-        </div>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
+      <ProjectTerminalHeader title={project.name} />
+      <div className="min-h-0 flex-1 [&_.thread-terminal-drawer]:h-full! [&_.thread-terminal-drawer]:border-t-0">
+        <ThreadTerminalDrawer
+          threadRef={terminalThreadRef}
+          threadId={terminalThreadId}
+          cwd={project.cwd}
+          worktreePath={null}
+          runtimeEnv={runtimeEnv}
+          visible
+          height={PROJECT_TERMINAL_HEIGHT}
+          terminalIds={terminalUiState.terminalIds}
+          activeTerminalId={terminalUiState.activeTerminalId}
+          terminalGroups={terminalUiState.terminalGroups}
+          activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
+          focusRequestId={focusRequestId}
+          onSplitTerminal={splitTerminal}
+          onNewTerminal={createNewTerminal}
+          onActiveTerminalChange={activateTerminal}
+          onCloseTerminal={closeTerminal}
+          onHeightChange={() => undefined}
+          onAddTerminalContext={() => undefined}
+          keybindings={keybindings}
+          canCloseLastTerminal={false}
+          terminalLabelsById={terminalLabelsById}
+        />
       </div>
-    </SidebarInset>
+    </div>
   );
 });
 

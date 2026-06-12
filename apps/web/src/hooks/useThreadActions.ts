@@ -18,13 +18,14 @@ import {
   useStore,
 } from "../store";
 import { useTerminalUiStateStore } from "../terminalUiStateStore";
-import { buildThreadRouteParams, resolveThreadRouteRef } from "../threadRoutes";
+import { resolveThreadRouteRef } from "../threadRoutes";
+import { navigateToProjectThread, navigateToProjectThreads } from "../projectRouteNavigation";
 import { formatWorktreePathForDisplay, getOrphanedWorktreePathForThread } from "../worktreeCleanup";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { useSettings } from "./useSettings";
 
 export function useThreadActions() {
-  const sidebarThreadSortOrder = useSettings((settings) => settings.sidebarThreadSortOrder);
+  const threadSortOrder = useSettings((settings) => settings.threadSortOrder);
   const confirmThreadDelete = useSettings((settings) => settings.confirmThreadDelete);
   const clearComposerDraftForThread = useComposerDraftStore((store) => store.clearDraftThread);
   const clearProjectDraftThreadById = useComposerDraftStore(
@@ -180,7 +181,7 @@ export function useThreadActions() {
         threads,
         deletedThreadId: threadRef.threadId,
         deletedThreadIds,
-        sortOrder: sidebarThreadSortOrder,
+        sortOrder: threadSortOrder,
       });
       await api.orchestration.dispatchCommand({
         type: "thread.delete",
@@ -202,18 +203,24 @@ export function useThreadActions() {
             scopeThreadRef(threadRef.environmentId, fallbackThreadId),
           );
           if (fallbackThread) {
-            await router.navigate({
-              to: "/$environmentId/$threadId",
-              params: buildThreadRouteParams(
-                scopeThreadRef(fallbackThread.environmentId, fallbackThread.id),
-              ),
-              replace: true,
-            });
+            await navigateToProjectThread(
+              router.navigate,
+              scopeThreadRef(fallbackThread.environmentId, fallbackThread.id),
+              { replace: true },
+            );
           } else {
-            await router.navigate({ to: "/", replace: true });
+            await navigateToProjectThreads(
+              router.navigate,
+              { environmentId: threadRef.environmentId, projectId: thread.projectId },
+              { replace: true },
+            );
           }
         } else {
-          await router.navigate({ to: "/", replace: true });
+          await navigateToProjectThreads(
+            router.navigate,
+            { environmentId: threadRef.environmentId, projectId: thread.projectId },
+            { replace: true },
+          );
         }
       }
 
@@ -254,7 +261,7 @@ export function useThreadActions() {
       getCurrentRouteThreadRef,
       router,
       resolveThreadTarget,
-      sidebarThreadSortOrder,
+      threadSortOrder,
     ],
   );
 

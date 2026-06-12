@@ -17,7 +17,6 @@ import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeS
 import {
   type EnvMode,
   type EnvironmentOption,
-  resolveCurrentWorkspaceLabel,
   resolveEnvModeLabel,
   resolveEffectiveEnvMode,
   resolveLockedWorkspaceLabel,
@@ -291,7 +290,6 @@ export const BranchToolbar = memo(function BranchToolbar({
             envLocked={envModeLocked}
             effectiveEnvMode={effectiveEnvMode}
             activeWorktreePath={activeWorktreePath}
-            activeThreadBranch={serverThread?.branch ?? draftThread?.branch ?? null}
             projectCwd={activeProject?.cwd ?? null}
             environmentId={environmentId}
             onEnvModeChange={onEnvModeChange}

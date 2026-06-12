@@ -640,13 +640,13 @@ describe("wsApi", () => {
       diffWordWrap: true,
       favorites: [],
       providerModelPreferences: {},
-      sidebarProjectGroupingMode: "repository_path" as const,
-      sidebarProjectGroupingOverrides: {
+      projectGroupingMode: "repository_path" as const,
+      projectGroupingOverrides: {
         "environment-local:/tmp/project": "separate" as const,
       },
-      sidebarProjectSortOrder: "manual" as const,
-      sidebarThreadSortOrder: "created_at" as const,
-      sidebarThreadPreviewCount: 6,
+      projectSortOrder: "manual" as const,
+      threadSortOrder: "created_at" as const,
+      threadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
     };
     const getClientSettings = vi.fn().mockResolvedValue({
@@ -703,13 +703,13 @@ describe("wsApi", () => {
       diffWordWrap: true,
       favorites: [],
       providerModelPreferences: {},
-      sidebarProjectGroupingMode: "repository_path" as const,
-      sidebarProjectGroupingOverrides: {
+      projectGroupingMode: "repository_path" as const,
+      projectGroupingOverrides: {
         "environment-local:/tmp/project": "separate" as const,
       },
-      sidebarProjectSortOrder: "manual" as const,
-      sidebarThreadSortOrder: "created_at" as const,
-      sidebarThreadPreviewCount: 6,
+      projectSortOrder: "manual" as const,
+      threadSortOrder: "created_at" as const,
+      threadPreviewCount: 6,
       timestampFormat: "24-hour" as const,
     };
 

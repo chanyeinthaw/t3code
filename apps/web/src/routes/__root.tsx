@@ -11,6 +11,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
+import { navigateToProjectThread } from "../projectRouteNavigation";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { SettingsSidebarLayout } from "../components/SettingsSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
@@ -335,14 +336,21 @@ function EventRouter() {
       if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
         return;
       }
-      await navigate({
-        to: "/$environmentId/$threadId",
-        params: {
+      const navigated = await navigateToProjectThread(
+        navigate,
+        {
           environmentId: payload.environment.environmentId,
           threadId: payload.bootstrapThreadId,
         },
-        replace: true,
-      });
+        { replace: true },
+      );
+      if (!navigated) {
+        await navigate({
+          to: "/$environmentId/projects",
+          params: { environmentId: payload.environment.environmentId },
+          replace: true,
+        });
+      }
       handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
     })().catch(() => undefined);
   });

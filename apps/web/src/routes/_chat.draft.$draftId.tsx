@@ -2,11 +2,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import ChatView from "../components/ChatView";
 import { threadHasStarted } from "../components/ChatView.logic";
+import { ProjectShell } from "../components/ProjectShell";
 import { useComposerDraftStore, DraftId } from "../composerDraftStore";
-import { SidebarInset } from "../components/ui/sidebar";
 import { createThreadSelectorAcrossEnvironments } from "../storeSelectors";
 import { useStore } from "../store";
-import { buildThreadRouteParams } from "../threadRoutes";
+import { buildProjectThreadRouteParams } from "../projectTabs";
+import { useProjectShellUiStateStore } from "../projectShellUiStateStore";
+import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
 
 function DraftChatThreadRouteView() {
   const navigate = useNavigate();
@@ -39,12 +41,26 @@ function DraftChatThreadRouteView() {
     if (!canonicalThreadRef) {
       return;
     }
+    const projectId = serverThread?.projectId ?? draftSession?.projectId;
+    if (!projectId) {
+      return;
+    }
+    useProjectShellUiStateStore
+      .getState()
+      .openThreadTab(
+        scopeProjectRef(canonicalThreadRef.environmentId, projectId),
+        scopeThreadRef(canonicalThreadRef.environmentId, canonicalThreadRef.threadId),
+      );
     void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(canonicalThreadRef),
+      to: "/$environmentId/projects/$projectId/threads/$threadId",
+      params: buildProjectThreadRouteParams({
+        environmentId: canonicalThreadRef.environmentId,
+        projectId,
+        threadId: canonicalThreadRef.threadId,
+      }),
       replace: true,
     });
-  }, [canonicalThreadRef, navigate]);
+  }, [canonicalThreadRef, draftSession?.projectId, navigate, serverThread?.projectId]);
 
   useEffect(() => {
     if (draftSession || canonicalThreadRef) {
@@ -53,31 +69,27 @@ function DraftChatThreadRouteView() {
     void navigate({ to: "/", replace: true });
   }, [canonicalThreadRef, draftSession, navigate]);
 
-  if (canonicalThreadRef) {
-    return (
-      <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground md:h-dvh">
-        <ChatView
-          environmentId={canonicalThreadRef.environmentId}
-          threadId={canonicalThreadRef.threadId}
-          routeKind="server"
-        />
-      </SidebarInset>
-    );
-  }
-
-  if (!draftSession) {
+  if (!draftSession || canonicalThreadRef) {
     return null;
   }
 
   return (
-    <SidebarInset className="h-svh min-h-0 overflow-hidden overscroll-y-none bg-background text-foreground md:h-dvh">
+    <ProjectShell
+      context={{
+        environmentId: draftSession.environmentId,
+        projectId: draftSession.projectId,
+        activeThreadId: null,
+        activeView: "draft",
+      }}
+    >
       <ChatView
         draftId={draftId}
         environmentId={draftSession.environmentId}
         threadId={draftSession.threadId}
+        reserveTitleBarControlInset={false}
         routeKind="draft"
       />
-    </SidebarInset>
+    </ProjectShell>
   );
 }
 

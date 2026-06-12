@@ -37,7 +37,8 @@ import {
 import { useTurnDiffSummaries } from "../hooks/useTurnDiffSummaries";
 import { selectProjectByRef, useStore } from "../store";
 import { createThreadSelectorByRef } from "../storeSelectors";
-import { buildThreadRouteParams, resolveThreadRouteRef } from "../threadRoutes";
+import { resolveThreadRouteRef } from "../threadRoutes";
+import { navigateToProjectThread } from "../projectRouteNavigation";
 import { useSettings } from "../hooks/useSettings";
 import { formatShortTimestamp } from "../timestampFormat";
 import { DiffPanelLoadingState, DiffPanelShell, type DiffPanelMode } from "./DiffPanelShell";
@@ -318,25 +319,29 @@ export default function DiffPanel({ mode = "inline" }: DiffPanelProps) {
 
   const selectTurn = (turnId: TurnId) => {
     if (!activeThread) return;
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(scopeThreadRef(activeThread.environmentId, activeThread.id)),
-      search: (previous) => {
-        const rest = stripDiffSearchParams(previous);
-        return { ...rest, diff: "1", diffTurnId: turnId };
+    void navigateToProjectThread(
+      navigate,
+      scopeThreadRef(activeThread.environmentId, activeThread.id),
+      {
+        search: (previous: Record<string, unknown>) => {
+          const rest = stripDiffSearchParams(previous);
+          return { ...rest, diff: "1", diffTurnId: turnId };
+        },
       },
-    });
+    );
   };
   const selectWholeConversation = () => {
     if (!activeThread) return;
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(scopeThreadRef(activeThread.environmentId, activeThread.id)),
-      search: (previous) => {
-        const rest = stripDiffSearchParams(previous);
-        return { ...rest, diff: "1" };
+    void navigateToProjectThread(
+      navigate,
+      scopeThreadRef(activeThread.environmentId, activeThread.id),
+      {
+        search: (previous: Record<string, unknown>) => {
+          const rest = stripDiffSearchParams(previous);
+          return { ...rest, diff: "1" };
+        },
       },
-    });
+    );
   };
   const updateTurnStripScrollState = useCallback(() => {
     const element = turnStripRef.current;

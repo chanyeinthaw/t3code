@@ -13,31 +13,41 @@ export const TimestampFormat = Schema.Literals(["locale", "12-hour", "24-hour"])
 export type TimestampFormat = typeof TimestampFormat.Type;
 export const DEFAULT_TIMESTAMP_FORMAT: TimestampFormat = "locale";
 
-export const SidebarProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
-export type SidebarProjectSortOrder = typeof SidebarProjectSortOrder.Type;
-export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER: SidebarProjectSortOrder = "updated_at";
+export const ProjectSortOrder = Schema.Literals(["updated_at", "created_at", "manual"]);
+export type ProjectSortOrder = typeof ProjectSortOrder.Type;
+export const DEFAULT_PROJECT_SORT_ORDER: ProjectSortOrder = "updated_at";
+export const SidebarProjectSortOrder = ProjectSortOrder;
+export type SidebarProjectSortOrder = ProjectSortOrder;
+export const DEFAULT_SIDEBAR_PROJECT_SORT_ORDER = DEFAULT_PROJECT_SORT_ORDER;
 
-export const SidebarThreadSortOrder = Schema.Literals(["updated_at", "created_at"]);
-export type SidebarThreadSortOrder = typeof SidebarThreadSortOrder.Type;
-export const DEFAULT_SIDEBAR_THREAD_SORT_ORDER: SidebarThreadSortOrder = "updated_at";
+export const ThreadSortOrder = Schema.Literals(["updated_at", "created_at"]);
+export type ThreadSortOrder = typeof ThreadSortOrder.Type;
+export const DEFAULT_THREAD_SORT_ORDER: ThreadSortOrder = "updated_at";
+export const SidebarThreadSortOrder = ThreadSortOrder;
+export type SidebarThreadSortOrder = ThreadSortOrder;
+export const DEFAULT_SIDEBAR_THREAD_SORT_ORDER = DEFAULT_THREAD_SORT_ORDER;
 
-export const SidebarProjectGroupingMode = Schema.Literals([
-  "repository",
-  "repository_path",
-  "separate",
-]);
-export type SidebarProjectGroupingMode = typeof SidebarProjectGroupingMode.Type;
-export const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE: SidebarProjectGroupingMode = "repository";
-export const MIN_SIDEBAR_THREAD_PREVIEW_COUNT = 1;
-export const MAX_SIDEBAR_THREAD_PREVIEW_COUNT = 15;
-export const SidebarThreadPreviewCount = Schema.Int.check(
+export const ProjectGroupingMode = Schema.Literals(["repository", "repository_path", "separate"]);
+export type ProjectGroupingMode = typeof ProjectGroupingMode.Type;
+export const DEFAULT_PROJECT_GROUPING_MODE: ProjectGroupingMode = "repository";
+export const SidebarProjectGroupingMode = ProjectGroupingMode;
+export type SidebarProjectGroupingMode = ProjectGroupingMode;
+export const DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE = DEFAULT_PROJECT_GROUPING_MODE;
+export const MIN_THREAD_PREVIEW_COUNT = 1;
+export const MAX_THREAD_PREVIEW_COUNT = 15;
+export const MIN_SIDEBAR_THREAD_PREVIEW_COUNT = MIN_THREAD_PREVIEW_COUNT;
+export const MAX_SIDEBAR_THREAD_PREVIEW_COUNT = MAX_THREAD_PREVIEW_COUNT;
+export const ThreadPreviewCount = Schema.Int.check(
   Schema.isBetween({
-    minimum: MIN_SIDEBAR_THREAD_PREVIEW_COUNT,
-    maximum: MAX_SIDEBAR_THREAD_PREVIEW_COUNT,
+    minimum: MIN_THREAD_PREVIEW_COUNT,
+    maximum: MAX_THREAD_PREVIEW_COUNT,
   }),
 );
-export type SidebarThreadPreviewCount = typeof SidebarThreadPreviewCount.Type;
-export const DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT: SidebarThreadPreviewCount = 6;
+export type ThreadPreviewCount = typeof ThreadPreviewCount.Type;
+export const DEFAULT_THREAD_PREVIEW_COUNT: ThreadPreviewCount = 6;
+export const SidebarThreadPreviewCount = ThreadPreviewCount;
+export type SidebarThreadPreviewCount = ThreadPreviewCount;
+export const DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT = DEFAULT_THREAD_PREVIEW_COUNT;
 
 export const ClientSettingsSchema = Schema.Struct({
   autoOpenPlanSidebar: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -73,21 +83,20 @@ export const ClientSettingsSchema = Schema.Struct({
       modelOrder: Schema.Array(Schema.String).pipe(Schema.withDecodingDefault(Effect.succeed([]))),
     }),
   ).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
-  sidebarProjectGroupingMode: SidebarProjectGroupingMode.pipe(
-    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_PROJECT_GROUPING_MODE)),
+  projectGroupingMode: ProjectGroupingMode.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROJECT_GROUPING_MODE)),
   ),
-  sidebarProjectGroupingOverrides: Schema.Record(
-    TrimmedNonEmptyString,
-    SidebarProjectGroupingMode,
-  ).pipe(Schema.withDecodingDefault(Effect.succeed({}))),
-  sidebarProjectSortOrder: SidebarProjectSortOrder.pipe(
-    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_PROJECT_SORT_ORDER)),
+  projectGroupingOverrides: Schema.Record(TrimmedNonEmptyString, ProjectGroupingMode).pipe(
+    Schema.withDecodingDefault(Effect.succeed({})),
   ),
-  sidebarThreadSortOrder: SidebarThreadSortOrder.pipe(
-    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_THREAD_SORT_ORDER)),
+  projectSortOrder: ProjectSortOrder.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_PROJECT_SORT_ORDER)),
   ),
-  sidebarThreadPreviewCount: SidebarThreadPreviewCount.pipe(
-    Schema.withDecodingDefault(Effect.succeed(DEFAULT_SIDEBAR_THREAD_PREVIEW_COUNT)),
+  threadSortOrder: ThreadSortOrder.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_THREAD_SORT_ORDER)),
+  ),
+  threadPreviewCount: ThreadPreviewCount.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_THREAD_PREVIEW_COUNT)),
   ),
   timestampFormat: TimestampFormat.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_TIMESTAMP_FORMAT)),
@@ -472,13 +481,13 @@ export const ClientSettingsPatch = Schema.Struct({
       }),
     ),
   ),
-  sidebarProjectGroupingMode: Schema.optionalKey(SidebarProjectGroupingMode),
-  sidebarProjectGroupingOverrides: Schema.optionalKey(
-    Schema.Record(TrimmedNonEmptyString, SidebarProjectGroupingMode),
+  projectGroupingMode: Schema.optionalKey(ProjectGroupingMode),
+  projectGroupingOverrides: Schema.optionalKey(
+    Schema.Record(TrimmedNonEmptyString, ProjectGroupingMode),
   ),
-  sidebarProjectSortOrder: Schema.optionalKey(SidebarProjectSortOrder),
-  sidebarThreadSortOrder: Schema.optionalKey(SidebarThreadSortOrder),
-  sidebarThreadPreviewCount: Schema.optionalKey(SidebarThreadPreviewCount),
+  projectSortOrder: Schema.optionalKey(ProjectSortOrder),
+  threadSortOrder: Schema.optionalKey(ThreadSortOrder),
+  threadPreviewCount: Schema.optionalKey(ThreadPreviewCount),
   timestampFormat: Schema.optionalKey(TimestampFormat),
 });
 export type ClientSettingsPatch = typeof ClientSettingsPatch.Type;

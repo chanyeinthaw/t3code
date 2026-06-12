@@ -9,12 +9,13 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
-import { DiffIcon, TerminalSquareIcon } from "lucide-react";
+import { DiffIcon, ListIcon, TerminalSquareIcon } from "lucide-react";
 import { Badge } from "../ui/badge";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
 import { Toggle } from "../ui/toggle";
-import { SidebarTrigger, useSidebar } from "../ui/sidebar";
+import { Button } from "../ui/button";
+import { useProjectShellNavigation } from "../ProjectShell";
 import { OpenInPicker } from "./OpenInPicker";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
 
@@ -81,7 +82,7 @@ export const ChatHeader = memo(function ChatHeader({
   onToggleTerminal,
   onToggleDiff,
 }: ChatHeaderProps) {
-  const { open } = useSidebar();
+  const projectShellNavigation = useProjectShellNavigation();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const showOpenInPicker = shouldShowOpenInPicker({
     activeProjectName,
@@ -92,8 +93,17 @@ export const ChatHeader = memo(function ChatHeader({
   return (
     <div className="@container/header-actions flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-hidden sm:flex-1 sm:flex-nowrap sm:gap-3">
-        {!open && <SidebarTrigger className="hidden shrink-0 md:inline-flex" />}
-        <SidebarTrigger className="shrink-0 md:hidden" />
+        {projectShellNavigation ? (
+          <Button
+            aria-label="Open project navigation"
+            className="shrink-0 md:hidden"
+            onClick={projectShellNavigation.openMobileNavigation}
+            size="icon"
+            variant="ghost"
+          >
+            <ListIcon className="size-4" />
+          </Button>
+        ) : null}
         <h2
           className="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-foreground"
           title={activeThreadTitle}

@@ -93,11 +93,8 @@ import { useNewThreadHandler } from "../hooks/useHandleNewThread";
 import { retainThreadDetailSubscription } from "../environments/runtime/service";
 
 import { useThreadActions } from "../hooks/useThreadActions";
-import {
-  buildThreadRouteParams,
-  resolveThreadRouteRef,
-  resolveThreadRouteTarget,
-} from "../threadRoutes";
+import { navigateToProjectThread } from "../projectRouteNavigation";
+import { resolveThreadRouteRef, resolveThreadRouteTarget } from "../threadRoutes";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { formatRelativeTimeLabel } from "../timestampFormat";
 import { Kbd } from "./ui/kbd";
@@ -931,7 +928,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     dragHandleProps,
   } = props;
   const threadSortOrder = useSettings<SidebarThreadSortOrder>(
-    (settings) => settings.sidebarThreadSortOrder,
+    (settings) => settings.threadSortOrder,
   );
   const appSettingsConfirmThreadDelete = useSettings<boolean>(
     (settings) => settings.confirmThreadDelete,
@@ -944,8 +941,8 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
   );
   const projectGroupingSettings = useSettings(selectProjectGroupingSettings);
   const { updateSettings } = useUpdateSettings();
-  const sidebarThreadPreviewCount = useSettings<SidebarThreadPreviewCount>(
-    (settings) => settings.sidebarThreadPreviewCount,
+  const threadPreviewCount = useSettings<SidebarThreadPreviewCount>(
+    (settings) => settings.threadPreviewCount,
   );
   const router = useRouter();
   const navigate = useNavigate();
@@ -1170,11 +1167,11 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         },
       });
     };
-    const hasOverflowingThreads = visibleProjectThreads.length > sidebarThreadPreviewCount;
+    const hasOverflowingThreads = visibleProjectThreads.length > threadPreviewCount;
     const previewThreads =
       isThreadListExpanded || !hasOverflowingThreads
         ? visibleProjectThreads
-        : visibleProjectThreads.slice(0, sidebarThreadPreviewCount);
+        : visibleProjectThreads.slice(0, threadPreviewCount);
     const visibleThreadKeys = new Set(
       [...previewThreads, ...(pinnedCollapsedThread ? [pinnedCollapsedThread] : [])].map((thread) =>
         scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
@@ -1203,7 +1200,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     pinnedCollapsedThread,
     projectExpanded,
     projectThreads,
-    sidebarThreadPreviewCount,
+    threadPreviewCount,
     threadLastVisitedAts,
     visibleProjectThreads,
   ]);
@@ -1282,10 +1279,10 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       const overrideKey = deriveProjectGroupingOverrideKey(member);
       setProjectGroupingTarget(member);
       setProjectGroupingSelection(
-        projectGroupingSettings.sidebarProjectGroupingOverrides?.[overrideKey] ?? "inherit",
+        projectGroupingSettings.projectGroupingOverrides?.[overrideKey] ?? "inherit",
       );
     },
-    [projectGroupingSettings.sidebarProjectGroupingOverrides],
+    [projectGroupingSettings.projectGroupingOverrides],
   );
 
   const removeProject = useCallback(
@@ -1540,12 +1537,9 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       if (isMobile) {
         setOpenMobile(false);
       }
-      void router.navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(threadRef),
-      });
+      void navigateToProjectThread(router.navigate, threadRef);
     },
-    [clearSelection, isMobile, router, setOpenMobile, setSelectionAnchor],
+    [clearSelection, isMobile, router.navigate, setOpenMobile, setSelectionAnchor],
   );
 
   const handleThreadClick = useCallback(
@@ -1579,16 +1573,13 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       if (isMobile) {
         setOpenMobile(false);
       }
-      void router.navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(threadRef),
-      });
+      void navigateToProjectThread(router.navigate, threadRef);
     },
     [
       clearSelection,
       isMobile,
       rangeSelectTo,
-      router,
+      router.navigate,
       setOpenMobile,
       setSelectionAnchor,
       toggleThreadSelection,
@@ -1712,7 +1703,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         setOpenMobile(false);
       }
       void navigate({
-        to: "/$environmentId/project/$projectId/terminal",
+        to: "/$environmentId/projects/$projectId/terminal",
         params: {
           environmentId: project.environmentId,
           projectId: project.id,
@@ -1901,7 +1892,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
 
     const overrideKey = deriveProjectGroupingOverrideKey(projectGroupingTarget);
     const nextOverrides = {
-      ...projectGroupingSettings.sidebarProjectGroupingOverrides,
+      ...projectGroupingSettings.projectGroupingOverrides,
     };
     if (projectGroupingSelection === "inherit") {
       delete nextOverrides[overrideKey];
@@ -1909,13 +1900,13 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
       nextOverrides[overrideKey] = projectGroupingSelection;
     }
     updateSettings({
-      sidebarProjectGroupingOverrides: nextOverrides,
+      projectGroupingOverrides: nextOverrides,
     });
     closeProjectGroupingDialog();
   }, [
     closeProjectGroupingDialog,
     projectGroupingSelection,
-    projectGroupingSettings.sidebarProjectGroupingOverrides,
+    projectGroupingSettings.projectGroupingOverrides,
     projectGroupingTarget,
     updateSettings,
   ]);
@@ -2224,7 +2215,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
                 <SelectTrigger className="w-full" aria-label="Project grouping rule">
                   <SelectValue>
                     {projectGroupingSelection === "inherit"
-                      ? `Use global default (${PROJECT_GROUPING_MODE_LABELS[projectGroupingSettings.sidebarProjectGroupingMode]})`
+                      ? `Use global default (${PROJECT_GROUPING_MODE_LABELS[projectGroupingSettings.projectGroupingMode]})`
                       : PROJECT_GROUPING_MODE_LABELS[projectGroupingSelection]}
                   </SelectValue>
                 </SelectTrigger>
@@ -2246,7 +2237,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
             </div>
             <p className="text-xs text-muted-foreground">
               {projectGroupingSelection === "inherit"
-                ? projectGroupingModeDescription(projectGroupingSettings.sidebarProjectGroupingMode)
+                ? projectGroupingModeDescription(projectGroupingSettings.projectGroupingMode)
                 : projectGroupingModeDescription(projectGroupingSelection)}
             </p>
           </DialogPanel>
@@ -2634,25 +2625,25 @@ const SidebarProjectsContent = memo(function SidebarProjectsContent(
 
   const handleProjectSortOrderChange = useCallback(
     (sortOrder: SidebarProjectSortOrder) => {
-      updateSettings({ sidebarProjectSortOrder: sortOrder });
+      updateSettings({ projectSortOrder: sortOrder });
     },
     [updateSettings],
   );
   const handleThreadSortOrderChange = useCallback(
     (sortOrder: SidebarThreadSortOrder) => {
-      updateSettings({ sidebarThreadSortOrder: sortOrder });
+      updateSettings({ threadSortOrder: sortOrder });
     },
     [updateSettings],
   );
   const handleProjectGroupingModeChange = useCallback(
     (groupingMode: SidebarProjectGroupingMode) => {
-      updateSettings({ sidebarProjectGroupingMode: groupingMode });
+      updateSettings({ projectGroupingMode: groupingMode });
     },
     [updateSettings],
   );
   const handleThreadPreviewCountChange = useCallback(
     (count: SidebarThreadPreviewCount) => {
-      updateSettings({ sidebarThreadPreviewCount: count });
+      updateSettings({ threadPreviewCount: count });
     },
     [updateSettings],
   );
@@ -2830,11 +2821,11 @@ export default function Sidebar() {
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const reorderProjects = useUiStateStore((store) => store.reorderProjects);
   const navigate = useNavigate();
-  const sidebarThreadSortOrder = useSettings((s) => s.sidebarThreadSortOrder);
-  const sidebarProjectSortOrder = useSettings((s) => s.sidebarProjectSortOrder);
-  const sidebarProjectGroupingMode = useSettings((s) => s.sidebarProjectGroupingMode);
+  const threadSortOrder = useSettings((s) => s.threadSortOrder);
+  const projectSortOrder = useSettings((s) => s.projectSortOrder);
+  const projectGroupingMode = useSettings((s) => s.projectGroupingMode);
   const projectGroupingSettings = useSettings(selectProjectGroupingSettings);
-  const sidebarThreadPreviewCount = useSettings((s) => s.sidebarThreadPreviewCount);
+  const threadPreviewCount = useSettings((s) => s.threadPreviewCount);
   const { updateSettings } = useUpdateSettings();
   const { handleNewThread } = useNewThreadHandler();
   const { archiveThread, deleteThread } = useThreadActions();
@@ -2993,10 +2984,7 @@ export default function Sidebar() {
       if (isMobile) {
         setOpenMobile(false);
       }
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: buildThreadRouteParams(threadRef),
-      });
+      void navigateToProjectThread(navigate, threadRef);
     },
     [clearSelection, isMobile, navigate, setOpenMobile, setSelectionAnchor],
   );
@@ -3017,7 +3005,7 @@ export default function Sidebar() {
 
   const handleProjectDragEnd = useCallback(
     (event: DragEndEvent) => {
-      if (sidebarProjectSortOrder !== "manual") {
+      if (projectSortOrder !== "manual") {
         dragInProgressRef.current = false;
         return;
       }
@@ -3033,18 +3021,18 @@ export default function Sidebar() {
       const overMemberKeys = overProject.memberProjects.map((member) => member.physicalProjectKey);
       reorderProjects(activeMemberKeys, overMemberKeys);
     },
-    [sidebarProjectSortOrder, reorderProjects, sidebarProjects],
+    [projectSortOrder, reorderProjects, sidebarProjects],
   );
 
   const handleProjectDragStart = useCallback(
     (_event: DragStartEvent) => {
-      if (sidebarProjectSortOrder !== "manual") {
+      if (projectSortOrder !== "manual") {
         return;
       }
       dragInProgressRef.current = true;
       suppressProjectClickAfterDragRef.current = true;
     },
-    [sidebarProjectSortOrder],
+    [projectSortOrder],
   );
 
   const handleProjectDragCancel = useCallback((_event: DragCancelEvent) => {
@@ -3088,23 +3076,21 @@ export default function Sidebar() {
         projectId: (physicalToLogicalKey.get(physicalKey) ?? physicalKey) as ProjectId,
       };
     });
-    return sortProjectsForSidebar(
-      sortableProjects,
-      sortableThreads,
-      sidebarProjectSortOrder,
-    ).flatMap((project) => {
-      const resolvedProject = sidebarProjectByKey.get(project.id);
-      return resolvedProject ? [resolvedProject] : [];
-    });
+    return sortProjectsForSidebar(sortableProjects, sortableThreads, projectSortOrder).flatMap(
+      (project) => {
+        const resolvedProject = sidebarProjectByKey.get(project.id);
+        return resolvedProject ? [resolvedProject] : [];
+      },
+    );
   }, [
-    sidebarProjectSortOrder,
+    projectSortOrder,
     physicalToLogicalKey,
     projectPhysicalKeyByScopedRef,
     sidebarProjectByKey,
     sidebarProjects,
     visibleThreads,
   ]);
-  const isManualProjectSorting = sidebarProjectSortOrder === "manual";
+  const isManualProjectSorting = projectSortOrder === "manual";
   const visibleSidebarThreadKeys = useMemo(
     () =>
       sortedProjects.flatMap((project) => {
@@ -3112,7 +3098,7 @@ export default function Sidebar() {
           (threadsByProjectKey.get(project.projectKey) ?? []).filter(
             (thread) => thread.archivedAt === null,
           ),
-          sidebarThreadSortOrder,
+          threadSortOrder,
         );
         const projectExpanded = projectExpandedById[project.projectKey] ?? true;
         const activeThreadKey = routeThreadKey ?? undefined;
@@ -3129,19 +3115,19 @@ export default function Sidebar() {
           return [];
         }
         const isThreadListExpanded = expandedThreadListsByProject.has(project.projectKey);
-        const hasOverflowingThreads = projectThreads.length > sidebarThreadPreviewCount;
+        const hasOverflowingThreads = projectThreads.length > threadPreviewCount;
         const previewThreads =
           isThreadListExpanded || !hasOverflowingThreads
             ? projectThreads
-            : projectThreads.slice(0, sidebarThreadPreviewCount);
+            : projectThreads.slice(0, threadPreviewCount);
         const renderedThreads = pinnedCollapsedThread ? [pinnedCollapsedThread] : previewThreads;
         return renderedThreads.map((thread) =>
           scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
         );
       }),
     [
-      sidebarThreadSortOrder,
-      sidebarThreadPreviewCount,
+      threadSortOrder,
+      threadPreviewCount,
       expandedThreadListsByProject,
       projectExpandedById,
       routeThreadKey,
@@ -3457,10 +3443,10 @@ export default function Sidebar() {
         desktopUpdateButtonAction={desktopUpdateButtonAction}
         desktopUpdateButtonDisabled={desktopUpdateButtonDisabled}
         handleDesktopUpdateButtonClick={handleDesktopUpdateButtonClick}
-        projectSortOrder={sidebarProjectSortOrder}
-        threadSortOrder={sidebarThreadSortOrder}
-        projectGroupingMode={sidebarProjectGroupingMode}
-        threadPreviewCount={sidebarThreadPreviewCount}
+        projectSortOrder={projectSortOrder}
+        threadSortOrder={threadSortOrder}
+        projectGroupingMode={projectGroupingMode}
+        threadPreviewCount={threadPreviewCount}
         updateSettings={updateSettings}
         openAddProject={openAddProjectCommandPalette}
         isManualProjectSorting={isManualProjectSorting}

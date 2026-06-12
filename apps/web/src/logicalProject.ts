@@ -5,16 +5,16 @@ import { normalizeProjectPathForComparison } from "./lib/projectPaths";
 import type { Project } from "./types";
 
 export interface ProjectGroupingSettings {
-  sidebarProjectGroupingMode: SidebarProjectGroupingMode;
-  sidebarProjectGroupingOverrides: Record<string, SidebarProjectGroupingMode>;
+  projectGroupingMode: SidebarProjectGroupingMode;
+  projectGroupingOverrides: Record<string, SidebarProjectGroupingMode>;
 }
 
 export type ProjectGroupingMode = SidebarProjectGroupingMode;
 
 export function selectProjectGroupingSettings(settings: UnifiedSettings): ProjectGroupingSettings {
   return {
-    sidebarProjectGroupingMode: settings.sidebarProjectGroupingMode,
-    sidebarProjectGroupingOverrides: settings.sidebarProjectGroupingOverrides,
+    projectGroupingMode: settings.projectGroupingMode,
+    projectGroupingOverrides: settings.projectGroupingOverrides,
   };
 }
 
@@ -85,8 +85,8 @@ export function resolveProjectGroupingMode(
   settings: ProjectGroupingSettings,
 ): SidebarProjectGroupingMode {
   return (
-    settings.sidebarProjectGroupingOverrides?.[deriveProjectGroupingOverrideKey(project)] ??
-    settings.sidebarProjectGroupingMode
+    settings.projectGroupingOverrides?.[deriveProjectGroupingOverrideKey(project)] ??
+    settings.projectGroupingMode
   );
 }
 

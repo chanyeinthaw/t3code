@@ -37,8 +37,8 @@ const threadRO1 = ThreadId.make("thread-remote-only-1");
 
 const SHARED_REPO_CANONICAL_KEY = "github.com/example/shared-repo";
 const DEFAULT_GROUPING_SETTINGS = {
-  sidebarProjectGroupingMode: "repository" as const,
-  sidebarProjectGroupingOverrides: {},
+  projectGroupingMode: "repository" as const,
+  projectGroupingOverrides: {},
 };
 
 // ── Factory Helpers ──────────────────────────────────────────────────
@@ -441,7 +441,7 @@ describe("environment grouping", () => {
       expect(
         deriveLogicalProjectKeyFromSettings(project, {
           ...DEFAULT_GROUPING_SETTINGS,
-          sidebarProjectGroupingOverrides: {
+          projectGroupingOverrides: {
             [derivePhysicalProjectKey(project)]: "separate",
           },
         }),

@@ -134,6 +134,7 @@ import {
   useSavedEnvironmentRegistryStore,
   useSavedEnvironmentRuntimeStore,
 } from "../environments/runtime";
+import { navigateToProjectThread, threadRef } from "../projectRouteNavigation";
 import { buildDraftThreadRouteParams } from "../threadRoutes";
 import {
   type ComposerImageAttachment,
@@ -2007,14 +2008,9 @@ export default function ChatView(props: ChatViewProps) {
     if (!diffOpen) {
       onDiffPanelOpen?.();
     }
-    void navigate({
-      to: "/$environmentId/$threadId",
-      params: {
-        environmentId,
-        threadId,
-      },
+    void navigateToProjectThread(navigate, threadRef(environmentId, threadId), {
       replace: true,
-      search: (previous) => {
+      search: (previous: Record<string, unknown>) => {
         const rest = stripDiffSearchParams(previous);
         return diffOpen ? { ...rest, diff: undefined } : { ...rest, diff: "1" };
       },
@@ -3670,13 +3666,10 @@ export default function ChatView(props: ChatViewProps) {
       .then(() => {
         // Signal that the plan sidebar should open on the new thread when enabled.
         planSidebarOpenOnNextThreadRef.current = autoOpenPlanSidebar;
-        return navigate({
-          to: "/$environmentId/$threadId",
-          params: {
-            environmentId: activeThread.environmentId,
-            threadId: nextThreadId,
-          },
-        });
+        return navigateToProjectThread(
+          navigate,
+          threadRef(activeThread.environmentId, nextThreadId),
+        );
       })
       .catch(async (err: unknown) => {
         await api.orchestration
@@ -3841,13 +3834,8 @@ export default function ChatView(props: ChatViewProps) {
         return;
       }
       onDiffPanelOpen?.();
-      void navigate({
-        to: "/$environmentId/$threadId",
-        params: {
-          environmentId,
-          threadId,
-        },
-        search: (previous) => {
+      void navigateToProjectThread(navigate, threadRef(environmentId, threadId), {
+        search: (previous: Record<string, unknown>) => {
           const rest = stripDiffSearchParams(previous);
           return filePath
             ? { ...rest, diff: "1", diffTurnId: turnId, diffFilePath: filePath }

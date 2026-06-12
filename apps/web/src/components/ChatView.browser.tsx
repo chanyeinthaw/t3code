@@ -126,8 +126,8 @@ const PROJECT_LOGICAL_KEY = deriveLogicalProjectKeyFromSettings(
     repositoryIdentity: null,
   },
   {
-    sidebarProjectGroupingMode: DEFAULT_CLIENT_SETTINGS.sidebarProjectGroupingMode,
-    sidebarProjectGroupingOverrides: DEFAULT_CLIENT_SETTINGS.sidebarProjectGroupingOverrides,
+    projectGroupingMode: DEFAULT_CLIENT_SETTINGS.projectGroupingMode,
+    projectGroupingOverrides: DEFAULT_CLIENT_SETTINGS.projectGroupingOverrides,
   },
 );
 const NOW_ISO = "2026-03-04T12:00:00.000Z";
@@ -617,8 +617,8 @@ function draftThreadIdFor(draftId: ReturnType<typeof draftIdFromPath>): ThreadId
   return draftSession.threadId;
 }
 
-function serverThreadPath(threadId: ThreadId): string {
-  return `/${LOCAL_ENVIRONMENT_ID}/${threadId}`;
+function serverThreadPath(threadId: ThreadId, projectId: ProjectId = PROJECT_ID): string {
+  return `/${LOCAL_ENVIRONMENT_ID}/projects/${projectId}/threads/${threadId}`;
 }
 
 async function waitForAppBootstrap(): Promise<void> {
@@ -3042,9 +3042,10 @@ describe("ChatView timeline estimator parity (full app)", () => {
       );
 
       await mounted.router.navigate({
-        to: "/$environmentId/$threadId",
+        to: "/$environmentId/projects/$projectId/threads/$threadId",
         params: {
           environmentId: LOCAL_ENVIRONMENT_ID,
+          projectId: PROJECT_ID,
           threadId: secondThreadId,
         },
       });

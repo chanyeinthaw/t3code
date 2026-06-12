@@ -80,7 +80,8 @@ import {
   useStore,
 } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { buildThreadRouteParams, resolveThreadRouteTarget } from "../threadRoutes";
+import { resolveThreadRouteTarget } from "../threadRoutes";
+import { navigateToProjectThread } from "../projectRouteNavigation";
 import {
   ADDON_ICON_CLASS,
   buildBrowseGroups,
@@ -614,15 +615,13 @@ function OpenCommandPaletteDialog() {
       const latestThread = getLatestThreadForProject(
         threads.filter((thread) => thread.environmentId === project.environmentId),
         project.id,
-        settings.sidebarThreadSortOrder,
+        settings.threadSortOrder,
       );
       if (latestThread) {
-        await navigate({
-          to: "/$environmentId/$threadId",
-          params: buildThreadRouteParams(
-            scopeThreadRef(latestThread.environmentId, latestThread.id),
-          ),
-        });
+        await navigateToProjectThread(
+          navigate,
+          scopeThreadRef(latestThread.environmentId, latestThread.id),
+        );
         return;
       }
 
@@ -630,13 +629,7 @@ function OpenCommandPaletteDialog() {
         envMode: settings.defaultThreadEnvMode,
       });
     },
-    [
-      handleNewThread,
-      navigate,
-      settings.defaultThreadEnvMode,
-      settings.sidebarThreadSortOrder,
-      threads,
-    ],
+    [handleNewThread, navigate, settings.defaultThreadEnvMode, settings.threadSortOrder, threads],
   );
 
   const projectSearchItems = useMemo(
@@ -697,18 +690,15 @@ function OpenCommandPaletteDialog() {
         threads,
         ...(activeThreadId ? { activeThreadId } : {}),
         projectTitleById,
-        sortOrder: settings.sidebarThreadSortOrder,
+        sortOrder: settings.threadSortOrder,
         icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
         renderLeadingContent: (thread) => <ThreadRowLeadingStatus thread={thread} />,
         renderTrailingContent: (thread) => <ThreadRowTrailingStatus thread={thread} />,
         runThread: async (thread) => {
-          await navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(scopeThreadRef(thread.environmentId, thread.id)),
-          });
+          await navigateToProjectThread(navigate, scopeThreadRef(thread.environmentId, thread.id));
         },
       }),
-    [activeThreadId, navigate, projectTitleById, settings.sidebarThreadSortOrder, threads],
+    [activeThreadId, navigate, projectTitleById, settings.threadSortOrder, threads],
   );
   const recentThreadItems = allThreadItems.slice(0, RECENT_THREAD_LIMIT);
 
@@ -1111,15 +1101,13 @@ function OpenCommandPaletteDialog() {
         const latestThread = getLatestThreadForProject(
           threads.filter((thread) => thread.environmentId === existing.environmentId),
           existing.id,
-          settings.sidebarThreadSortOrder,
+          settings.threadSortOrder,
         );
         if (latestThread) {
-          await navigate({
-            to: "/$environmentId/$threadId",
-            params: buildThreadRouteParams(
-              scopeThreadRef(latestThread.environmentId, latestThread.id),
-            ),
-          });
+          await navigateToProjectThread(
+            navigate,
+            scopeThreadRef(latestThread.environmentId, latestThread.id),
+          );
         } else {
           await handleNewThread(scopeProjectRef(existing.environmentId, existing.id), {
             envMode: settings.defaultThreadEnvMode,
@@ -1167,7 +1155,7 @@ function OpenCommandPaletteDialog() {
       projects,
       setOpen,
       settings.defaultThreadEnvMode,
-      settings.sidebarThreadSortOrder,
+      settings.threadSortOrder,
       threads,
     ],
   );
