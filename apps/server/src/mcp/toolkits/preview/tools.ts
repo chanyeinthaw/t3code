@@ -14,7 +14,13 @@ import {
 import * as Schema from "effect/Schema";
 import { Tool, Toolkit } from "effect/unstable/ai";
 
-import { McpInvocationContext } from "../../Services/McpInvocationContext.ts";
+import * as McpInvocationContext from "../../McpInvocationContext.ts";
+import * as PreviewAutomationBroker from "../../PreviewAutomationBroker.ts";
+
+const dependencies = [
+  McpInvocationContext.McpInvocationContext,
+  PreviewAutomationBroker.PreviewAutomationBroker,
+];
 
 const browserTool = <T extends Tool.Any>(tool: T): T =>
   tool.annotate(Tool.Destructive, false).annotate(Tool.OpenWorld, true) as T;
@@ -24,7 +30,7 @@ export const PreviewStatusTool = Tool.make("preview_status", {
     "Report whether the scoped thread has an automation-capable desktop preview, including its active tab, URL, title, visibility, and loading state.",
   success: PreviewAutomationStatus,
   failure: PreviewAutomationError,
-  dependencies: [McpInvocationContext],
+  dependencies,
 })
   .annotate(Tool.Title, "Get preview status")
   .annotate(Tool.Readonly, true)
@@ -38,8 +44,15 @@ export const PreviewOpenTool = browserTool(
     parameters: PreviewAutomationOpenInput,
     success: PreviewAutomationStatus,
     failure: PreviewAutomationError,
+<<<<<<< HEAD
     dependencies: [McpInvocationContext],
   }).annotate(Tool.Title, "Open browser preview"),
+=======
+    dependencies,
+  })
+    .annotate(Tool.Title, "Open browser preview")
+    .annotate(Tool.Destructive, false),
+>>>>>>> f7c422d58 (Refactor MCP services into top-level modules)
 );
 
 export const PreviewNavigateTool = browserTool(
@@ -49,10 +62,11 @@ export const PreviewNavigateTool = browserTool(
     parameters: PreviewAutomationNavigateInput,
     success: PreviewAutomationStatus,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Navigate browser preview"),
 );
 
+<<<<<<< HEAD
 export const PreviewSnapshotTool = Tool.make("preview_snapshot", {
   description:
     "Capture bounded page metadata, visible text, interactive elements, accessibility data, and a PNG screenshot from the scoped preview tab.",
@@ -63,6 +77,17 @@ export const PreviewSnapshotTool = Tool.make("preview_snapshot", {
   .annotate(Tool.Title, "Capture preview snapshot")
   .annotate(Tool.Readonly, true)
   .annotate(Tool.Destructive, false);
+=======
+export const PreviewSnapshotTool = readonlyBrowserTool(
+  Tool.make("preview_snapshot", {
+    description:
+      "Inspect the current page before interacting. Returns URL/title/loading state, visible text, semantic interactive elements with reusable selectors and coordinates, accessibility data, recent console/network failures, action history, and a PNG screenshot.",
+    success: PreviewAutomationSnapshot,
+    failure: PreviewAutomationError,
+    dependencies,
+  }).annotate(Tool.Title, "Inspect browser page"),
+);
+>>>>>>> f7c422d58 (Refactor MCP services into top-level modules)
 
 export const PreviewClickTool = browserTool(
   Tool.make("preview_click", {
@@ -70,7 +95,7 @@ export const PreviewClickTool = browserTool(
       "Click an element selected by CSS selector or click viewport coordinates in the scoped preview tab.",
     parameters: PreviewAutomationClickInput,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Click preview page"),
 );
 
@@ -80,7 +105,7 @@ export const PreviewTypeTool = browserTool(
       "Type text into the focused element or a CSS-selected element, optionally clearing its existing value first.",
     parameters: PreviewAutomationTypeInput,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Type into preview page"),
 );
 
@@ -89,7 +114,7 @@ export const PreviewPressTool = browserTool(
     description: "Dispatch a keyboard key with optional modifiers to the scoped preview tab.",
     parameters: PreviewAutomationPressInput,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Press key in preview page"),
 );
 
@@ -99,7 +124,7 @@ export const PreviewScrollTool = browserTool(
       "Scroll the preview viewport or a CSS-selected scroll container by the requested deltas.",
     parameters: PreviewAutomationScrollInput,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Scroll preview page"),
 );
 
@@ -110,7 +135,7 @@ export const PreviewEvaluateTool = browserTool(
     parameters: PreviewAutomationEvaluateInput,
     success: Schema.Unknown,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Evaluate JavaScript in preview"),
 );
 
@@ -120,10 +145,32 @@ export const PreviewWaitForTool = browserTool(
       "Wait until a CSS selector, visible-text substring, or URL substring appears in the scoped preview tab.",
     parameters: PreviewAutomationWaitForInput,
     failure: PreviewAutomationError,
-    dependencies: [McpInvocationContext],
+    dependencies,
   }).annotate(Tool.Title, "Wait for preview page condition"),
 );
 
+<<<<<<< HEAD
+=======
+export const PreviewRecordingStartTool = safeBrowserTool(
+  Tool.make("preview_recording_start", {
+    description:
+      "Start recording the active collaborative browser tab while keeping it interactive for both agent and human use.",
+    success: PreviewAutomationRecordingStatus,
+    failure: PreviewAutomationError,
+    dependencies,
+  }).annotate(Tool.Title, "Start browser recording"),
+);
+
+export const PreviewRecordingStopTool = safeBrowserTool(
+  Tool.make("preview_recording_stop", {
+    description: "Stop the active browser recording and save it as a local evidence artifact.",
+    success: PreviewAutomationRecordingArtifact,
+    failure: PreviewAutomationError,
+    dependencies,
+  }).annotate(Tool.Title, "Stop browser recording"),
+);
+
+>>>>>>> f7c422d58 (Refactor MCP services into top-level modules)
 export const PreviewToolkit = Toolkit.make(
   PreviewStatusTool,
   PreviewOpenTool,
