@@ -13,6 +13,7 @@ import {
 } from "~/lib/previewAnnotation";
 import { ensureLocalApi } from "~/localApi";
 import { selectThreadPreviewState, usePreviewStateStore } from "~/previewStateStore";
+import { resolveDiscoveredServerUrl } from "~/browser/browserTargetResolver";
 
 import { previewBridge } from "./previewBridge";
 import { subscribePreviewAction } from "./previewActionBus";
@@ -21,13 +22,23 @@ import { PreviewChromeRow } from "./PreviewChromeRow";
 import { PreviewEmptyState } from "./PreviewEmptyState";
 import { PreviewMoreMenu } from "./PreviewMoreMenu";
 import { PreviewUnreachable } from "./PreviewUnreachable";
-import { PreviewWebview } from "./PreviewWebview";
+import { revealInFileExplorerLabel } from "./fileExplorerLabel";
+import { shouldShowPreviewEmptyState } from "./previewEmptyStateLogic";
+import { BrowserSurfaceSlot } from "~/browser/BrowserSurfaceSlot";
 import { useLoadingProgress } from "./useLoadingProgress";
 import { usePreviewSession } from "./usePreviewSession";
 import { ZoomIndicator } from "./ZoomIndicator";
+import { AgentBrowserCursor } from "./AgentBrowserCursor";
+import {
+  startBrowserRecording,
+  stopBrowserRecording,
+  useBrowserRecordingStore,
+} from "~/browser/browserRecording";
+import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 
 interface Props {
   threadRef: ScopedThreadRef;
+  tabId?: string | null;
   configuredUrls?: ReadonlyArray<string> | undefined;
   visible: boolean;
 }
@@ -38,9 +49,10 @@ const localApi = typeof window === "undefined" ? null : ensureLocalApi();
  * Single-tab preview surface: chrome row on top, one webview below, empty
  * state when no session exists for the thread.
  */
-export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
-  const [focusUrlNonce, setFocusUrlNonce] = useState(0);
+export function PreviewView({ threadRef, tabId: requestedTabId, configuredUrls, visible }: Props) {
+  const [focusUrlNonce, setFocusUrlNonce] = useState<number | undefined>(undefined);
   const [pickActive, setPickActive] = useState(false);
+  const activeRecordingTabId = useBrowserRecordingStore((state) => state.activeTabId);
   const pickActiveRef = useRef(false);
   const isMountedRef = useRef(true);
   const previewState = usePreviewStateStore((state) =>
@@ -62,8 +74,9 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
     };
   }, []);
 
-  const { snapshot, desktopOverlay } = previewState;
-  const tabId = snapshot?.tabId ?? null;
+  const tabId = requestedTabId ?? previewState.activeTabId;
+  const snapshot = tabId ? (previewState.sessions[tabId] ?? null) : null;
+  const desktopOverlay = tabId ? (previewState.desktopByTabId[tabId] ?? null) : null;
   const navStatus = snapshot?.navStatus ?? { _tag: "Idle" as const };
   const url = navStatus._tag === "Idle" ? "" : navStatus.url;
   const loading = desktopOverlay?.loading ?? navStatus._tag === "Loading";
@@ -71,22 +84,25 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
   const canGoForward = desktopOverlay?.canGoForward ?? snapshot?.canGoForward ?? false;
   const refreshDisabled = navStatus._tag === "Idle";
   const isUnreachable = navStatus._tag === "LoadFailed";
+  const showEmptyState = shouldShowPreviewEmptyState(snapshot);
+  const controller = desktopOverlay?.controller ?? "none";
   const loadProgress = useLoadingProgress(loading);
 
   const handleSubmitUrl = useCallback(
     async (next: string) => {
       const api = ensureEnvironmentApi(threadRef.environmentId);
       try {
+        const resolvedUrl = resolveDiscoveredServerUrl(threadRef.environmentId, next);
         if (tabId && previewBridge) {
           // Drive the webview imperatively; `usePreviewBridge` mirrors the
           // resolved URL back to the server so other clients stay in sync.
-          await previewBridge.navigate(tabId, next);
-          rememberUrl(threadRef, next);
+          await previewBridge.navigate(tabId, resolvedUrl);
+          rememberUrl(threadRef, resolvedUrl);
         } else {
           await openPreviewSession({
             previewApi: api.preview,
             threadRef,
-            url: next,
+            url: resolvedUrl,
             applyServerSnapshot,
             rememberUrl,
           });
@@ -126,6 +142,254 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
     if (!localApi || !url) return;
     void localApi.shell.openExternal(url).catch(() => undefined);
   }, [url]);
+
+  const handleCapture = useCallback(
+    (record: boolean) => {
+      if (!previewBridge || !tabId) return;
+      const bridge = previewBridge;
+      const recordingThisTab = activeRecordingTabId === tabId;
+      if (recordingThisTab) {
+        void stopBrowserRecording(tabId).then(
+          (artifact) => {
+            if (!artifact) return;
+            let pathCopied = false;
+            let toastId: ReturnType<typeof toastManager.add>;
+
+            const copyPath = () => {
+              if (!navigator.clipboard?.writeText) {
+                toastManager.update(
+                  toastId,
+                  stackedThreadToast({
+                    type: "error",
+                    title: "Unable to copy recording path",
+                    description: "Clipboard API unavailable.",
+                    actionProps: revealAction,
+                  }),
+                );
+                return;
+              }
+
+              void navigator.clipboard.writeText(artifact.path).then(
+                () => {
+                  pathCopied = true;
+                  updateRecordingToast();
+                  window.setTimeout(() => {
+                    pathCopied = false;
+                    updateRecordingToast();
+                  }, 2_000);
+                },
+                (error) => {
+                  toastManager.update(
+                    toastId,
+                    stackedThreadToast({
+                      type: "error",
+                      title: "Unable to copy recording path",
+                      description: error instanceof Error ? error.message : "An error occurred.",
+                      actionProps: revealAction,
+                    }),
+                  );
+                },
+              );
+            };
+
+            const revealAction = {
+              children: revealInFileExplorerLabel(navigator.platform),
+              onClick: () => void bridge.revealArtifact(artifact.path),
+            };
+            const updateRecordingToast = () => {
+              toastManager.update(
+                toastId,
+                stackedThreadToast({
+                  type: "success",
+                  title: "Recording saved",
+                  actionProps: revealAction,
+                  data: {
+                    secondaryActionProps: {
+                      children: pathCopied ? "Copied!" : "Copy path",
+                      disabled: pathCopied,
+                      onClick: copyPath,
+                    },
+                    secondaryActionVariant: "outline",
+                  },
+                }),
+              );
+            };
+
+            toastId = toastManager.add(
+              stackedThreadToast({
+                type: "success",
+                title: "Recording saved",
+                actionProps: revealAction,
+                data: {
+                  secondaryActionProps: {
+                    children: "Copy path",
+                    onClick: copyPath,
+                  },
+                  secondaryActionVariant: "outline",
+                },
+              }),
+            );
+          },
+          (error) => {
+            toastManager.add({
+              type: "error",
+              title: "Unable to stop recording",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            });
+          },
+        );
+        return;
+      }
+      if (record) {
+        if (activeRecordingTabId !== null) {
+          toastManager.add({
+            type: "warning",
+            title: "Another preview is recording",
+            description: "Stop the active recording before starting a new one.",
+          });
+          return;
+        }
+        void startBrowserRecording(tabId).catch((error) => {
+          toastManager.add({
+            type: "error",
+            title: "Unable to start recording",
+            description: error instanceof Error ? error.message : "An error occurred.",
+          });
+        });
+        return;
+      }
+      void bridge.captureScreenshot(tabId).then(
+        (artifact) => {
+          const revealAction = {
+            children: revealInFileExplorerLabel(navigator.platform),
+            onClick: () => void bridge.revealArtifact(artifact.path),
+          };
+          let pathCopied = false;
+          let imageCopied = false;
+          let toastId: ReturnType<typeof toastManager.add>;
+
+          const updateScreenshotToast = (
+            type: "success" | "error" = "success",
+            title = "Screenshot saved",
+            description?: string,
+          ) => {
+            toastManager.update(
+              toastId,
+              stackedThreadToast({
+                type,
+                title,
+                description,
+                actionProps: {
+                  children: imageCopied ? "Copied!" : "Copy image",
+                  disabled: imageCopied,
+                  onClick: copyImage,
+                },
+                data: {
+                  additionalActions: [
+                    {
+                      id: "copy-path",
+                      props: {
+                        children: pathCopied ? "Copied!" : "Copy path",
+                        disabled: pathCopied,
+                        onClick: copyPath,
+                      },
+                    },
+                  ],
+                  secondaryActionProps: {
+                    ...revealAction,
+                  },
+                  secondaryActionVariant: "outline",
+                },
+              }),
+            );
+          };
+
+          const copyPath = () => {
+            if (!navigator.clipboard?.writeText) {
+              updateScreenshotToast(
+                "error",
+                "Unable to copy screenshot path",
+                "Clipboard API unavailable.",
+              );
+              return;
+            }
+
+            void navigator.clipboard.writeText(artifact.path).then(
+              () => {
+                pathCopied = true;
+                updateScreenshotToast();
+                window.setTimeout(() => {
+                  pathCopied = false;
+                  updateScreenshotToast();
+                }, 2_000);
+              },
+              (error) => {
+                updateScreenshotToast(
+                  "error",
+                  "Unable to copy screenshot path",
+                  error instanceof Error ? error.message : "An error occurred.",
+                );
+              },
+            );
+          };
+
+          const copyImage = () => {
+            void bridge.copyArtifactToClipboard(artifact.path).then(
+              () => {
+                imageCopied = true;
+                updateScreenshotToast();
+                window.setTimeout(() => {
+                  imageCopied = false;
+                  updateScreenshotToast();
+                }, 2_000);
+              },
+              (error) => {
+                updateScreenshotToast(
+                  "error",
+                  "Unable to copy screenshot",
+                  error instanceof Error ? error.message : "An error occurred.",
+                );
+              },
+            );
+          };
+
+          toastId = toastManager.add(
+            stackedThreadToast({
+              type: "success",
+              title: "Screenshot saved",
+              actionProps: {
+                children: "Copy image",
+                onClick: copyImage,
+              },
+              data: {
+                additionalActions: [
+                  {
+                    id: "copy-path",
+                    props: {
+                      children: "Copy path",
+                      onClick: copyPath,
+                    },
+                  },
+                ],
+                secondaryActionProps: {
+                  ...revealAction,
+                },
+                secondaryActionVariant: "outline",
+              },
+            }),
+          );
+        },
+        (error) => {
+          toastManager.add({
+            type: "error",
+            title: "Unable to capture screenshot",
+            description: error instanceof Error ? error.message : "An error occurred.",
+          });
+        },
+      );
+    },
+    [activeRecordingTabId, tabId],
+  );
 
   const handlePickElement = useCallback(() => {
     if (!previewBridge || !tabId) return;
@@ -213,7 +477,7 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
           handleRefresh();
           return;
         case "focus-url":
-          setFocusUrlNonce((value) => value + 1);
+          setFocusUrlNonce((value) => (value ?? 0) + 1);
           return;
         case "zoom-in":
           handleZoomIn();
@@ -232,7 +496,7 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col bg-background"
+      className="flex min-h-0 flex-1 flex-col bg-background"
       data-thread-key={scopedThreadKey(threadRef)}
     >
       <PreviewChromeRow
@@ -248,6 +512,9 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
         onRefresh={handleRefresh}
         onSubmit={(next) => void handleSubmitUrl(next)}
         onOpenInBrowser={tabId ? handleOpenInBrowser : undefined}
+        onCapture={previewBridge && tabId ? handleCapture : undefined}
+        captureDisabled={!desktopOverlay || isUnreachable}
+        recording={tabId !== null && activeRecordingTabId === tabId}
         onPickElement={previewBridge && tabId ? handlePickElement : undefined}
         pickActive={pickActive}
         // Disable when there's no tab (nothing to pick on) OR the page
@@ -268,25 +535,37 @@ export function PreviewView({ threadRef, configuredUrls, visible }: Props) {
         }
       />
 
-      <div className="relative flex-1 overflow-hidden">
-        {tabId && snapshot ? (
-          <PreviewWebview
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        {tabId && snapshot && !showEmptyState ? (
+          <BrowserSurfaceSlot
             key={tabId}
-            threadRef={threadRef}
             tabId={tabId}
-            initialUrl={url || null}
+            visible={visible && !isUnreachable}
             className="absolute inset-0 h-full w-full"
           />
-        ) : (
+        ) : null}
+        {showEmptyState ? (
           <PreviewEmptyState
             environmentId={threadRef.environmentId}
             configuredUrls={configuredUrls}
             recentlySeenUrls={previewState.recentlySeenUrls}
             onOpenUrl={(next) => void handleSubmitUrl(next)}
           />
-        )}
+        ) : null}
         {snapshot && desktopOverlay ? (
           <ZoomIndicator zoomFactor={desktopOverlay.zoomFactor} />
+        ) : null}
+        {tabId && desktopOverlay && !showEmptyState && !isUnreachable ? (
+          <AgentBrowserCursor
+            tabId={tabId}
+            zoomFactor={desktopOverlay.zoomFactor}
+            controller={controller}
+          />
+        ) : null}
+        {controller !== "none" ? (
+          <div className="pointer-events-none absolute left-3 top-3 z-40 rounded-full border border-border/70 bg-background/90 px-2.5 py-1 text-[11px] font-medium shadow-sm backdrop-blur">
+            {controller === "agent" ? "Agent controlling browser" : "Human control"}
+          </div>
         ) : null}
         {navStatus._tag === "LoadFailed" ? (
           <div className="absolute inset-0 z-10 bg-background">

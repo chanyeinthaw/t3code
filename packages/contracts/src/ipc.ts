@@ -28,14 +28,6 @@ import type {
 } from "./project.ts";
 import type { ProviderInstanceId } from "./providerInstance.ts";
 import type {
-  ProviderComposerCapabilities,
-  ProviderDiscoveryInput,
-  ProviderListCommandsResult,
-  ProviderListModelsInput,
-  ProviderListModelsResult,
-  ProviderListSkillsResult,
-} from "./provider.ts";
-import type {
   ServerConfig,
   ServerProcessDiagnosticsResult,
   ServerProcessResourceHistoryInput,
@@ -98,7 +90,7 @@ import type {
   OrchestrationSubscribeThreadInput,
   OrchestrationThreadStreamItem,
 } from "./orchestration.ts";
-import { EnvironmentId, ThreadId } from "./baseSchemas.ts";
+import { EnvironmentId } from "./baseSchemas.ts";
 import { AuthAccessTokenResult, AuthSessionState, AuthWebSocketTicketResult } from "./auth.ts";
 import { AdvertisedEndpoint } from "./remoteAccess.ts";
 import { EditorId } from "./editor.ts";
@@ -119,6 +111,10 @@ export interface ContextMenuItem<T extends string = string> {
   label: string;
   destructive?: boolean;
   disabled?: boolean;
+  /** Renders as a non-interactive section header label. Web fallback only — stripped on desktop native menus. */
+  header?: boolean;
+  /** Icon keyword resolved by the web fallback. Stripped on desktop native menus. */
+  icon?: string;
   children?: readonly ContextMenuItem<T>[];
 }
 
@@ -127,6 +123,8 @@ export interface ContextMenuItemSchemaType {
   readonly label: string;
   readonly destructive?: boolean;
   readonly disabled?: boolean;
+  readonly header?: boolean;
+  readonly icon?: string;
   readonly children?: readonly ContextMenuItemSchemaType[];
 }
 
@@ -135,6 +133,8 @@ export const ContextMenuItemSchema: Schema.Codec<ContextMenuItemSchemaType> = Sc
   label: Schema.String,
   destructive: Schema.optionalKey(Schema.Boolean),
   disabled: Schema.optionalKey(Schema.Boolean),
+  header: Schema.optionalKey(Schema.Boolean),
+  icon: Schema.optionalKey(Schema.String),
   children: Schema.optionalKey(
     Schema.Array(
       Schema.suspend((): Schema.Codec<ContextMenuItemSchemaType> => ContextMenuItemSchema),
@@ -371,6 +371,11 @@ export const PersistedSavedEnvironmentRecordSchema = Schema.Struct({
   createdAt: Schema.String,
   lastConnectedAt: Schema.NullOr(Schema.String),
   desktopSsh: Schema.optionalKey(DesktopSshEnvironmentTargetSchema),
+  relayManaged: Schema.optionalKey(
+    Schema.Struct({
+      relayUrl: Schema.String,
+    }),
+  ),
 });
 export type PersistedSavedEnvironmentRecord = typeof PersistedSavedEnvironmentRecordSchema.Type;
 
@@ -405,15 +410,22 @@ export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
 
-export interface DesktopOpenThreadWindowInput {
-  environmentId: EnvironmentId;
-  threadId: ThreadId;
-}
-
-export const DesktopOpenThreadWindowInputSchema = Schema.Struct({
-  environmentId: EnvironmentId,
-  threadId: ThreadId,
+export const DesktopCloudAuthFetchInputSchema = Schema.Struct({
+  url: Schema.String,
+  method: Schema.optionalKey(Schema.String),
+  headers: Schema.Record(Schema.String, Schema.String),
+  body: Schema.optionalKey(Schema.String),
 });
+export type DesktopCloudAuthFetchInput = typeof DesktopCloudAuthFetchInputSchema.Type;
+
+export const DesktopCloudAuthFetchResultSchema = Schema.Struct({
+  ok: Schema.Boolean,
+  status: Schema.Number,
+  statusText: Schema.String,
+  headers: Schema.Record(Schema.String, Schema.String),
+  body: Schema.String,
+});
+export type DesktopCloudAuthFetchResult = typeof DesktopCloudAuthFetchResultSchema.Type;
 
 /**
  * Renderer-facing snapshot of a desktop preview tab. Mirrors the main-process
@@ -439,7 +451,17 @@ export interface DesktopPreviewTabState {
   canGoForward: boolean;
   /** Current zoom factor (1.0 = 100%). */
   zoomFactor: number;
+  controller: "human" | "agent" | "none";
   updatedAt: string;
+}
+
+export interface DesktopPreviewPointerEvent {
+  tabId: string;
+  phase: "move" | "click";
+  x: number;
+  y: number;
+  sequence: number;
+  createdAt: string;
 }
 
 /**
@@ -463,6 +485,52 @@ export interface DesktopPreviewWebviewConfig {
    * renderer must then disable element-pick affordances.
    */
   preloadUrl: string | null;
+}
+
+export interface DesktopPreviewAnnotationTheme {
+  colorScheme: "light" | "dark";
+  radius: string;
+  background: string;
+  foreground: string;
+  popover: string;
+  popoverForeground: string;
+  primary: string;
+  primaryForeground: string;
+  muted: string;
+  mutedForeground: string;
+  accent: string;
+  accentForeground: string;
+  border: string;
+  input: string;
+  ring: string;
+  fontSans: string;
+  fontMono: string;
+}
+
+export interface DesktopPreviewRecordingFrame {
+  tabId: string;
+  data: string;
+  width: number;
+  height: number;
+  receivedAt: string;
+}
+
+export interface DesktopPreviewRecordingArtifact {
+  id: string;
+  tabId: string;
+  path: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface DesktopPreviewScreenshotArtifact {
+  id: string;
+  tabId: string;
+  path: string;
+  mimeType: "image/png";
+  sizeBytes: number;
+  createdAt: string;
 }
 
 /**
@@ -615,9 +683,12 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
-  openThreadWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
-  getWindowFullScreenState: () => boolean;
-  onWindowFullScreenChange: (listener: (isFullScreen: boolean) => void) => () => void;
+  createCloudAuthRequest: () => Promise<string>;
+  getCloudAuthToken: () => Promise<string | null>;
+  setCloudAuthToken: (token: string) => Promise<boolean>;
+  clearCloudAuthToken: () => Promise<void>;
+  fetchCloudAuth: (input: DesktopCloudAuthFetchInput) => Promise<DesktopCloudAuthFetchResult>;
+  onCloudAuthCallback: (listener: (rawUrl: string) => void) => () => void;
   onMenuAction: (listener: (action: string) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
@@ -657,7 +728,8 @@ export interface DesktopPreviewBridge {
    * `getPickPreloadPath`) so adding a new field here only requires touching
    * the contract + main, not the renderer's mount logic.
    */
-  getPreviewConfig: () => Promise<DesktopPreviewWebviewConfig>;
+  getPreviewConfig: (environmentId: EnvironmentId) => Promise<DesktopPreviewWebviewConfig>;
+  setAnnotationTheme: (theme: DesktopPreviewAnnotationTheme) => Promise<void>;
   /**
    * Activate the in-page element picker for the given tab. Resolves with
    * the picked payload, or `null` when the user cancels (Escape / nav). The
@@ -666,6 +738,19 @@ export interface DesktopPreviewBridge {
   pickElement: (tabId: string) => Promise<PreviewAnnotationPayload | null>;
   /** Cancel an in-flight preview annotation session. */
   cancelPickElement: (tabId: string) => Promise<void>;
+  captureScreenshot: (tabId: string) => Promise<DesktopPreviewScreenshotArtifact>;
+  revealArtifact: (path: string) => Promise<void>;
+  copyArtifactToClipboard: (path: string) => Promise<void>;
+  recording: {
+    startScreencast: (tabId: string) => Promise<void>;
+    stopScreencast: (tabId: string) => Promise<void>;
+    save: (
+      tabId: string,
+      mimeType: string,
+      data: Uint8Array,
+    ) => Promise<DesktopPreviewRecordingArtifact>;
+    onFrame: (listener: (frame: DesktopPreviewRecordingFrame) => void) => () => void;
+  };
   automation: {
     status: (tabId: string) => Promise<PreviewAutomationStatus>;
     snapshot: (tabId: string) => Promise<PreviewAutomationSnapshot>;
@@ -677,6 +762,7 @@ export interface DesktopPreviewBridge {
     waitFor: (tabId: string, input: PreviewAutomationWaitForInput) => Promise<void>;
   };
   onStateChange: (listener: (tabId: string, state: DesktopPreviewTabState) => void) => () => void;
+  onPointerEvent: (listener: (event: DesktopPreviewPointerEvent) => void) => () => void;
 }
 
 /**
@@ -697,7 +783,6 @@ export interface LocalApi {
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
-    openThreadInNewWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   };
   contextMenu: {
     show: <T extends string>(
@@ -815,14 +900,6 @@ export interface EnvironmentApi {
   };
   review: {
     getDiffPreview: (input: ReviewDiffPreviewInput) => Promise<ReviewDiffPreviewResult>;
-  };
-  provider: {
-    getComposerCapabilities: (
-      input: ProviderDiscoveryInput,
-    ) => Promise<ProviderComposerCapabilities>;
-    listModels: (input: ProviderListModelsInput) => Promise<ProviderListModelsResult>;
-    listSkills: (input: ProviderDiscoveryInput) => Promise<ProviderListSkillsResult>;
-    listCommands: (input: ProviderDiscoveryInput) => Promise<ProviderListCommandsResult>;
   };
   orchestration: {
     dispatchCommand: (command: ClientOrchestrationCommand) => Promise<{ sequence: number }>;

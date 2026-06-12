@@ -1,5 +1,7 @@
 import * as Effect from "effect/Effect";
 
+import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
+import { previewViewManager } from "../preview-view-manager.ts";
 import * as DesktopIpc from "./DesktopIpc.ts";
 import { getClientSettings, setClientSettings } from "./methods/clientSettings.ts";
 import {
@@ -47,6 +49,8 @@ import { previewMethods } from "./methods/preview.ts";
 
 export const installDesktopIpcHandlers = Effect.gen(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
+  const environment = yield* DesktopEnvironment.DesktopEnvironment;
+  previewViewManager.configureArtifactDirectory(environment.browserArtifactsDir);
 
   yield* ipc.handleSync(getAppBranding);
   yield* ipc.handleSync(getLocalEnvironmentBootstrap);

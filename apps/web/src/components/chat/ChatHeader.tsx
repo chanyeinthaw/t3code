@@ -9,15 +9,14 @@ import { scopeThreadRef } from "@t3tools/client-runtime";
 import { memo } from "react";
 import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
-import { DiffIcon, Globe, ListIcon, TerminalSquareIcon } from "lucide-react";
-import { Badge } from "../ui/badge";
+import { PanelRightIcon } from "lucide-react";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
 import { Toggle } from "../ui/toggle";
-import { Button } from "../ui/button";
-import { useProjectShellNavigation } from "../ProjectShell";
+import { SidebarTrigger } from "../ui/sidebar";
 import { OpenInPicker } from "./OpenInPicker";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
+import { shortcutLabelForCommand } from "../../keybindings";
 
 interface ChatHeaderProps {
   activeThreadEnvironmentId: EnvironmentId;
@@ -25,29 +24,19 @@ interface ChatHeaderProps {
   draftId?: DraftId;
   activeThreadTitle: string;
   activeProjectName: string | undefined;
-  isGitRepo: boolean;
   openInCwd: string | null;
   activeProjectScripts: ProjectScript[] | undefined;
   preferredScriptId: string | null;
   keybindings: ResolvedKeybindingsConfig;
   availableEditors: ReadonlyArray<EditorId>;
-  terminalAvailable: boolean;
-  terminalOpen: boolean;
-  terminalToggleShortcutLabel: string | null;
-  diffToggleShortcutLabel: string | null;
-  /** False on the web build; true only when the desktop preview bridge is present. */
-  previewAvailable: boolean;
-  previewOpen: boolean;
-  previewToggleShortcutLabel: string | null;
+  rightPanelAvailable: boolean;
+  rightPanelOpen: boolean;
   gitCwd: string | null;
-  diffOpen: boolean;
   onRunProjectScript: (script: ProjectScript) => void;
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<void>;
   onUpdateProjectScript: (scriptId: string, input: NewProjectScriptInput) => Promise<void>;
   onDeleteProjectScript: (scriptId: string) => Promise<void>;
-  onToggleTerminal: () => void;
-  onTogglePreview: () => void;
-  onToggleDiff: () => void;
+  onToggleRightPanel: () => void;
 }
 
 export function shouldShowOpenInPicker(input: {
@@ -68,70 +57,45 @@ export const ChatHeader = memo(function ChatHeader({
   draftId,
   activeThreadTitle,
   activeProjectName,
-  isGitRepo,
   openInCwd,
   activeProjectScripts,
   preferredScriptId,
   keybindings,
   availableEditors,
-  terminalAvailable,
-  terminalOpen,
-  terminalToggleShortcutLabel,
-  diffToggleShortcutLabel,
-  previewAvailable,
-  previewOpen,
-  previewToggleShortcutLabel,
+  rightPanelAvailable,
+  rightPanelOpen,
   gitCwd,
-  diffOpen,
   onRunProjectScript,
   onAddProjectScript,
   onUpdateProjectScript,
   onDeleteProjectScript,
-  onToggleTerminal,
-  onTogglePreview,
-  onToggleDiff,
+  onToggleRightPanel,
 }: ChatHeaderProps) {
-  const projectShellNavigation = useProjectShellNavigation();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const showOpenInPicker = shouldShowOpenInPicker({
     activeProjectName,
     activeThreadEnvironmentId,
     primaryEnvironmentId,
   });
+  const rightPanelShortcutLabel = shortcutLabelForCommand(keybindings, "rightPanel.toggle");
 
   return (
-    <div className="no-drag-region @container/header-actions flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="@container/header-actions flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-hidden sm:flex-1 sm:flex-nowrap sm:gap-3">
-        {projectShellNavigation ? (
-          <Button
-            aria-label="Open project navigation"
-            className="shrink-0 md:hidden"
-            onClick={projectShellNavigation.openMobileNavigation}
-            size="icon"
-            variant="ghost"
-          >
-            <ListIcon className="size-4" />
-          </Button>
-        ) : null}
-        <h2
-          className="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-foreground"
-          title={activeThreadTitle}
-        >
-          {activeThreadTitle}
-        </h2>
-        {activeProjectName && (
-          <Badge
-            variant="outline"
-            className="min-w-0 max-w-full shrink overflow-hidden sm:max-w-56 md:h-6 px-2"
-          >
-            <span className="min-w-0 truncate">{activeProjectName}</span>
-          </Badge>
-        )}
-        {activeProjectName && !isGitRepo && (
-          <Badge variant="outline" className="shrink-0 text-[10px] text-amber-700">
-            No Git
-          </Badge>
-        )}
+        <SidebarTrigger className="size-7 shrink-0 md:hidden" />
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <h2
+                aria-label={activeThreadTitle}
+                className="min-w-0 flex-1 basis-40 truncate text-sm font-medium text-foreground"
+              >
+                {activeThreadTitle}
+              </h2>
+            }
+          />
+          <TooltipPopup side="top">{activeThreadTitle}</TooltipPopup>
+        </Tooltip>
       </div>
       <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:shrink-0 sm:justify-end @3xl/header-actions:gap-3">
         {activeProjectScripts && (
@@ -164,70 +128,21 @@ export const ChatHeader = memo(function ChatHeader({
             render={
               <Toggle
                 className="shrink-0"
-                pressed={terminalOpen}
-                onPressedChange={onToggleTerminal}
-                aria-label="Toggle terminal drawer"
-                variant="outline"
+                pressed={rightPanelOpen}
+                onPressedChange={onToggleRightPanel}
+                aria-label="Toggle right panel"
+                variant="ghost"
                 size="xs"
-                disabled={!terminalAvailable}
+                disabled={!rightPanelAvailable}
               >
-                <TerminalSquareIcon className="size-3" />
+                <PanelRightIcon className="size-3.5" />
               </Toggle>
             }
           />
           <TooltipPopup side="bottom">
-            {!terminalAvailable
-              ? "Terminal is unavailable until this thread has an active project."
-              : terminalToggleShortcutLabel
-                ? `Toggle terminal drawer (${terminalToggleShortcutLabel})`
-                : "Toggle terminal drawer"}
-          </TooltipPopup>
-        </Tooltip>
-        {previewAvailable ? (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Toggle
-                  className="shrink-0"
-                  pressed={previewOpen}
-                  onPressedChange={onTogglePreview}
-                  aria-label="Toggle preview browser"
-                  variant="outline"
-                  size="xs"
-                >
-                  <Globe className="size-3" />
-                </Toggle>
-              }
-            />
-            <TooltipPopup side="bottom">
-              {previewToggleShortcutLabel
-                ? `Toggle preview browser (${previewToggleShortcutLabel})`
-                : "Toggle preview browser"}
-            </TooltipPopup>
-          </Tooltip>
-        ) : null}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                className="shrink-0"
-                pressed={diffOpen}
-                onPressedChange={onToggleDiff}
-                aria-label="Toggle diff panel"
-                variant="outline"
-                size="xs"
-                disabled={!isGitRepo && !diffOpen}
-              >
-                <DiffIcon className="size-3" />
-              </Toggle>
-            }
-          />
-          <TooltipPopup side="bottom">
-            {!isGitRepo && !diffOpen
-              ? "Diff panel is unavailable because this project is not a git repository."
-              : diffToggleShortcutLabel
-                ? `Toggle diff panel (${diffToggleShortcutLabel})`
-                : "Toggle diff panel"}
+            {rightPanelAvailable
+              ? `Toggle right panel${rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""}`
+              : "Right panel is unavailable"}
           </TooltipPopup>
         </Tooltip>
       </div>
