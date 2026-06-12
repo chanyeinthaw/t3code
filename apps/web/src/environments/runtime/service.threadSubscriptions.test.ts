@@ -104,6 +104,12 @@ vi.mock("@t3tools/client-runtime", async (importOriginal) => {
       close: vi.fn(),
       list: vi.fn(),
       reportStatus: vi.fn(),
+      automation: {
+        connect: vi.fn(() => () => undefined),
+        respond: vi.fn(),
+        reportOwner: vi.fn(),
+        clearOwner: vi.fn(),
+      },
       onEvent: vi.fn(() => () => undefined),
       subscribePorts: vi.fn(() => () => undefined),
     },
