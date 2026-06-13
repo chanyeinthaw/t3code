@@ -11,7 +11,7 @@ import * as DesktopAssets from "../app/DesktopAssets.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as DesktopObservability from "../app/DesktopObservability.ts";
 import * as DesktopState from "../app/DesktopState.ts";
-import { previewViewManager } from "../preview-view-manager.ts";
+import * as PreviewManager from "../preview/Manager.ts";
 import * as ElectronMenu from "../electron/ElectronMenu.ts";
 import * as ElectronShell from "../electron/ElectronShell.ts";
 import * as ElectronTheme from "../electron/ElectronTheme.ts";
@@ -37,7 +37,8 @@ type DesktopWindowRuntimeServices =
   | ElectronMenu.ElectronMenu
   | ElectronShell.ElectronShell
   | ElectronTheme.ElectronTheme
-  | ElectronWindow.ElectronWindow;
+  | ElectronWindow.ElectronWindow
+  | PreviewManager.PreviewManager;
 
 export class DesktopWindowDevServerUrlMissingError extends Data.TaggedError(
   "DesktopWindowDevServerUrlMissingError",
@@ -49,11 +50,11 @@ export class DesktopWindowDevServerUrlMissingError extends Data.TaggedError(
 
 export type DesktopWindowError =
   | DesktopWindowDevServerUrlMissingError
-  | ElectronWindow.ElectronWindowCreateError;
+  | ElectronWindow.ElectronWindowCreateError
+  | PreviewManager.PreviewManagerError;
 
 export interface DesktopWindowShape {
   readonly createMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
-  readonly createNew: (route?: string) => Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly ensureMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly revealOrCreateMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly activate: Effect.Effect<void, DesktopWindowError>;
@@ -69,15 +70,6 @@ export class DesktopWindow extends Context.Service<DesktopWindow, DesktopWindowS
 
 const { logInfo: logWindowInfo, logWarning: logWindowWarning } =
   DesktopObservability.makeComponentLogger("desktop-window");
-
-function appendHashRoute(baseUrl: string, route: string | undefined): string {
-  if (route === undefined || route.length === 0 || route === "/") {
-    return baseUrl;
-  }
-
-  const normalizedRoute = route.startsWith("/") ? route : `/${route}`;
-  return `${baseUrl.replace(/#.*$/, "")}#${normalizedRoute}`;
-}
 
 function resolveDesktopDevServerUrl(
   environment: DesktopEnvironment.DesktopEnvironmentShape,
@@ -100,21 +92,18 @@ function getIconOption(
 }
 
 function getInitialWindowBackgroundColor(shouldUseDarkColors: boolean): string {
-  if (process.platform === "darwin") return "#00000000";
   return shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
 }
 
-function getWindowTransparencyOptions(): Pick<
-  Electron.BrowserWindowConstructorOptions,
-  "transparent" | "vibrancy" | "visualEffectState"
-> {
-  if (process.platform !== "darwin") return {};
-
-  return {
-    transparent: true,
-    vibrancy: "fullscreen-ui",
-    visualEffectState: "active",
-  };
+export function isSameOriginRendererNavigation(input: {
+  readonly applicationUrl: string;
+  readonly navigationUrl: string;
+}): boolean {
+  try {
+    return new URL(input.applicationUrl).origin === new URL(input.navigationUrl).origin;
+  } catch {
+    return false;
+  }
 }
 
 function getWindowTitleBarOptions(shouldUseDarkColors: boolean): WindowTitleBarOptions {
@@ -176,6 +165,7 @@ const make = Effect.gen(function* () {
   const electronShell = yield* ElectronShell.ElectronShell;
   const electronTheme = yield* ElectronTheme.ElectronTheme;
   const electronWindow = yield* ElectronWindow.ElectronWindow;
+  const previewManager = yield* PreviewManager.PreviewManager;
   const serverExposure = yield* DesktopServerExposure.DesktopServerExposure;
   const state = yield* DesktopState.DesktopState;
   const context = yield* Effect.context<DesktopWindowRuntimeServices>();
@@ -183,9 +173,11 @@ const make = Effect.gen(function* () {
 
   const createWindow = Effect.fn("desktop.window.createWindow")(function* (
     backendHttpUrl: URL,
-    route?: string,
   ): Effect.fn.Return<Electron.BrowserWindow, DesktopWindowError> {
-    previewViewManager.getBrowserSession();
+    yield* previewManager.getBrowserSession();
+    const applicationUrl = environment.isDevelopment
+      ? yield* resolveDesktopDevServerUrl(environment)
+      : backendHttpUrl.href;
     const iconPaths = yield* assets.iconPaths;
     const iconOption = getIconOption(iconPaths);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
@@ -197,7 +189,6 @@ const make = Effect.gen(function* () {
       show: false,
       autoHideMenuBar: true,
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
-      ...getWindowTransparencyOptions(),
       ...iconOption,
       title: environment.displayName,
       ...getWindowTitleBarOptions(shouldUseDarkColors),
@@ -210,9 +201,12 @@ const make = Effect.gen(function* () {
       },
     });
 
-    previewViewManager.setMainWindow(window);
+    yield* previewManager.setMainWindow(window);
     window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
-      if (params.partition !== previewViewManager.getBrowserPartition()) {
+      if (
+        typeof params.partition !== "string" ||
+        !previewManager.isBrowserPartition(params.partition)
+      ) {
         event.preventDefault();
         return;
       }
@@ -276,19 +270,28 @@ const make = Effect.gen(function* () {
       }
       return { action: "deny" };
     });
+    window.webContents.on("will-navigate", (event, url) => {
+      if (
+        isSameOriginRendererNavigation({
+          applicationUrl,
+          navigationUrl: url,
+        })
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      if (Option.isSome(ElectronShell.parseSafeExternalUrl(url))) {
+        void runPromise(electronShell.openExternal(url));
+      }
+    });
 
     window.on("page-title-updated", (event) => {
       event.preventDefault();
       window.setTitle(environment.displayName);
     });
-    const sendFullScreenState = () => {
-      window.webContents.send(IpcChannels.WINDOW_FULL_SCREEN_CHANGE_CHANNEL, window.isFullScreen());
-    };
-    window.on("enter-full-screen", sendFullScreenState);
-    window.on("leave-full-screen", sendFullScreenState);
     window.webContents.on("did-finish-load", () => {
       window.setTitle(environment.displayName);
-      sendFullScreenState();
     });
     window.webContents.on(
       "did-fail-load",
@@ -323,11 +326,10 @@ const make = Effect.gen(function* () {
     });
 
     if (environment.isDevelopment) {
-      const devServerUrl = yield* resolveDesktopDevServerUrl(environment);
-      void window.loadURL(appendHashRoute(devServerUrl, route));
+      void window.loadURL(applicationUrl);
       window.webContents.openDevTools({ mode: "detach" });
     } else {
-      void window.loadURL(appendHashRoute(backendHttpUrl.href, route));
+      void window.loadURL(applicationUrl);
     }
 
     window.on("closed", () => {
@@ -344,13 +346,6 @@ const make = Effect.gen(function* () {
     yield* logWindowInfo("main window created");
     return window;
   }).pipe(Effect.withSpan("desktop.window.createMain"));
-
-  const createNew = Effect.fn("desktop.window.createNew")(function* (route?: string) {
-    const backendConfig = yield* serverExposure.backendConfig;
-    const window = yield* createWindow(backendConfig.httpBaseUrl, route);
-    yield* logWindowInfo("window created", route === undefined ? {} : { route });
-    return window;
-  });
 
   const ensureMain = Effect.gen(function* () {
     const existingWindow = yield* electronWindow.currentMainOrFirst;
@@ -376,7 +371,6 @@ const make = Effect.gen(function* () {
 
   return DesktopWindow.of({
     createMain,
-    createNew,
     ensureMain,
     revealOrCreateMain,
     activate: Effect.gen(function* () {

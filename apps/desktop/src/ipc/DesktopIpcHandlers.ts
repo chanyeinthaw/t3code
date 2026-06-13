@@ -1,7 +1,5 @@
 import * as Effect from "effect/Effect";
 
-import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
-import { previewViewManager } from "../preview-view-manager.ts";
 import * as DesktopIpc from "./DesktopIpc.ts";
 import { getClientSettings, setClientSettings } from "./methods/clientSettings.ts";
 import {
@@ -45,12 +43,11 @@ import {
   setTheme,
   showContextMenu,
 } from "./methods/window.ts";
-import { previewMethods } from "./methods/preview.ts";
+import * as PreviewIpc from "./methods/preview.ts";
 
-export const installDesktopIpcHandlers = Effect.gen(function* () {
+export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers")(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
-  const environment = yield* DesktopEnvironment.DesktopEnvironment;
-  previewViewManager.configureArtifactDirectory(environment.browserArtifactsDir);
+  yield* PreviewIpc.installPreviewEventForwarding();
 
   yield* ipc.handleSync(getAppBranding);
   yield* ipc.handleSync(getLocalEnvironmentBootstrap);
@@ -90,7 +87,7 @@ export const installDesktopIpcHandlers = Effect.gen(function* () {
   yield* ipc.handle(downloadUpdate);
   yield* ipc.handle(installUpdate);
   yield* ipc.handle(checkForUpdate);
-  for (const previewMethod of previewMethods) {
+  for (const previewMethod of PreviewIpc.methods) {
     yield* ipc.handle(previewMethod);
   }
-}).pipe(Effect.withSpan("desktop.ipc.installHandlers"));
+});

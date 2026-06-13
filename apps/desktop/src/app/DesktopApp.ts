@@ -175,7 +175,7 @@ const bootstrap = Effect.gen(function* () {
     );
   }
 
-  yield* installDesktopIpcHandlers;
+  yield* installDesktopIpcHandlers();
   yield* logBootstrapInfo("bootstrap ipc handlers registered");
 
   if (!(yield* Ref.get(state.quitting))) {
