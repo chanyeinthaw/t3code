@@ -8,7 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { ProjectShell, ProjectShellPage } from "../components/ProjectShell";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Toggle, ToggleGroup } from "../components/ui/toggle-group";
+
 import { readEnvironmentApi } from "../environmentApi";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
@@ -25,8 +25,6 @@ import { formatRelativeTimeLabel } from "../timestampFormat";
 import { useUiStateStore } from "../uiStateStore";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import type { SidebarThreadSummary } from "../types";
-
-type ThreadFilter = "active" | "archived" | "all";
 
 function threadStatusDotClassName(thread: SidebarThreadSummary): string | null {
   if (thread.session?.status === "error") return "bg-destructive";
@@ -53,7 +51,6 @@ function ProjectThreadsIndexRouteView() {
     useShallow((state) => selectSidebarThreadsForProjectRef(state, projectRef)),
   );
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<ThreadFilter>("active");
   const [renamingThreadKey, setRenamingThreadKey] = useState<string | null>(null);
   const [renamingTitle, setRenamingTitle] = useState("");
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
@@ -95,8 +92,8 @@ function ProjectThreadsIndexRouteView() {
   const normalizedQuery = normalizeSearchText(query);
   const visibleThreads = useMemo(() => {
     const filtered = threads.filter((thread) => {
-      if (filter === "active" && thread.archivedAt !== null) return false;
-      if (filter === "archived" && thread.archivedAt === null) return false;
+      // Only show non-archived threads
+      if (thread.archivedAt !== null) return false;
       if (normalizedQuery.length > 0) {
         const haystack = normalizeSearchText(
           `${thread.title} ${thread.branch ?? ""} ${thread.worktreePath ?? ""}`,
@@ -106,7 +103,7 @@ function ProjectThreadsIndexRouteView() {
       return true;
     });
     return sortThreads(filtered, sortOrder);
-  }, [filter, normalizedQuery, sortOrder, threads]);
+  }, [normalizedQuery, sortOrder, threads]);
 
   const openThread = (thread: SidebarThreadSummary) => {
     const threadRef = scopeThreadRef(thread.environmentId, thread.id);
@@ -167,6 +164,7 @@ function ProjectThreadsIndexRouteView() {
         { id: "mark-unread", label: "Mark unread" },
         { id: "copy-path", label: "Copy Path" },
         { id: "copy-thread-id", label: "Copy Thread ID" },
+        { id: "archive", label: "Archive" },
         { id: "delete", label: "Delete", destructive: true },
       ],
       position,
@@ -195,6 +193,26 @@ function ProjectThreadsIndexRouteView() {
     }
     if (clicked === "copy-thread-id") {
       copyThreadIdToClipboard(thread.id, { threadId: thread.id });
+      return;
+    }
+    if (clicked === "archive") {
+      const api = readEnvironmentApi(threadRef.environmentId);
+      if (!api) return;
+      try {
+        await api.orchestration.dispatchCommand({
+          type: "thread.archive",
+          commandId: newCommandId(),
+          threadId: threadRef.threadId,
+        });
+      } catch (error) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "error",
+            title: "Failed to archive thread",
+            description: error instanceof Error ? error.message : "An error occurred.",
+          }),
+        );
+      }
       return;
     }
     if (clicked === "delete") {
@@ -242,29 +260,6 @@ function ProjectThreadsIndexRouteView() {
                 className="[&_[data-slot=input]]:pl-9"
               />
             </div>
-            <ToggleGroup
-              aria-label="Thread filter"
-              className="w-full sm:w-auto *:h-full!"
-              variant="outline"
-              size="sm"
-              value={[filter]}
-              onValueChange={(value) => {
-                const next = value[0];
-                if (next === "active" || next === "archived" || next === "all") {
-                  setFilter(next);
-                }
-              }}
-            >
-              <Toggle className="flex-1 sm:flex-none" value="all">
-                All
-              </Toggle>
-              <Toggle className="flex-1 sm:flex-none" value="active">
-                Active
-              </Toggle>
-              <Toggle className="flex-1 sm:flex-none" value="archived">
-                Archived
-              </Toggle>
-            </ToggleGroup>
           </div>
           <div className="grid gap-2">
             {visibleThreads.map((thread) => {
@@ -275,7 +270,7 @@ function ProjectThreadsIndexRouteView() {
               return (
                 <div
                   key={thread.id}
-                  className="group/thread-row flex min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/35 p-3 text-left transition-all hover:-translate-y-px hover:border-border hover:bg-accent/35 hover:shadow-sm focus-within:ring-2 focus-within:ring-ring"
+                  className="group/thread-row flex min-w-0 items-center gap-3 rounded-2xl border border-border/70 bg-card/35 p-3 text-left transition-all hover:-translate-y-px hover:border-border hover:bg-accent/35 hover:shadow-xs focus-within:ring-2 focus-within:ring-ring"
                   onContextMenu={(event) => {
                     event.preventDefault();
                     void showThreadContextMenu(thread, {

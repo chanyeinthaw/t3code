@@ -49,6 +49,12 @@ import { selectProjectByRef, selectSidebarThreadsForProjectRef, useStore } from 
 import { sortThreads } from "../lib/threadSort";
 import { cn } from "../lib/utils";
 import { useSettings } from "../hooks/useSettings";
+import { useUiStateStore } from "../uiStateStore";
+import { readLocalApi } from "../localApi";
+import { readEnvironmentApi } from "../environmentApi";
+import { newCommandId } from "../lib/utils";
+import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
+import { stackedThreadToast, toastManager } from "./ui/toast";
 import type { Project, SidebarThreadSummary } from "../types";
 
 const EMPTY_THREAD_KEYS: readonly string[] = [];
@@ -229,20 +235,8 @@ function ProjectSwitcher({
             })
           }
         >
-          View all projects…
+          All projects
         </MenuItem>
-        {projectRef ? (
-          <MenuItem
-            onClick={() =>
-              void navigate({
-                to: "/$environmentId/projects/$projectId/threads",
-                params: buildProjectThreadsRouteParams(projectRef),
-              })
-            }
-          >
-            Current project threads
-          </MenuItem>
-        ) : null}
       </MenuPopup>
     </Menu>
   );
@@ -252,12 +246,14 @@ function ProjectThreadTab({
   active,
   onClose,
   onSelect,
+  onContextMenu,
   thread,
   mobile = false,
 }: {
   active: boolean;
   onClose: () => void;
   onSelect: () => void;
+  onContextMenu: (event: React.MouseEvent) => void;
   thread: SidebarThreadSummary;
   mobile?: boolean;
 }) {
@@ -266,12 +262,13 @@ function ProjectThreadTab({
       type="button"
       className={cn(
         "group/tab no-drag-region flex min-w-0 items-center gap-2 rounded-md border border-transparent text-left text-sm transition-colors",
-        mobile ? "h-9 w-full px-2" : "h-8 max-w-56 shrink-0 px-2.5",
+        mobile ? "h-9 w-full px-2 pr-1" : "h-8 max-w-56 shrink-0 px-2.5 pr-1",
         active
           ? "bg-accent text-accent-foreground"
           : "text-muted-foreground hover:bg-accent/70 hover:text-foreground",
       )}
       onClick={active ? undefined : onSelect}
+      onContextMenu={onContextMenu}
     >
       <span className={cn("size-2 shrink-0 rounded-full", threadStatusDotClassName(thread))} />
       <span className="min-w-0 flex-1 truncate">{thread.title}</span>
@@ -280,8 +277,8 @@ function ProjectThreadTab({
         tabIndex={0}
         aria-label={`Close ${thread.title}`}
         className={cn(
-          "inline-flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-background/80 hover:text-foreground",
-          mobile ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+          "rounded-full inline-flex size-5 shrink-0 items-center justify-center text-muted-foreground hover:bg-background/50 hover:text-foreground",
+          active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
         )}
         onClick={(event) => {
           event.preventDefault();
@@ -328,6 +325,161 @@ function ProjectShellChrome({
   );
   const closeThreadTab = useProjectShellUiStateStore((state) => state.closeThreadTab);
   const markProjectAccessed = useProjectShellUiStateStore((state) => state.markProjectAccessed);
+  const markThreadUnread = useUiStateStore((state) => state.markThreadUnread);
+  const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
+    threadId: string;
+  }>({
+    onCopy: (ctx) =>
+      toastManager.add({
+        type: "success",
+        title: "Thread ID copied",
+        description: ctx.threadId,
+      }),
+    onError: (error) =>
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: "Failed to copy thread ID",
+          description: error instanceof Error ? error.message : "An error occurred.",
+        }),
+      ),
+  });
+  const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{
+    path: string;
+  }>({
+    onCopy: (ctx) =>
+      toastManager.add({
+        type: "success",
+        title: "Path copied",
+        description: ctx.path,
+      }),
+    onError: (error) =>
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: "Failed to copy path",
+          description: error instanceof Error ? error.message : "An error occurred.",
+        }),
+      ),
+  });
+
+  const showThreadContextMenu = useCallback(
+    async (thread: SidebarThreadSummary, position: { x: number; y: number }) => {
+      const api = readLocalApi();
+      if (!api) return;
+      const threadRef = scopeThreadRef(thread.environmentId, thread.id);
+      const threadKey = `${thread.environmentId}:${thread.id}`;
+      const threadWorkspacePath = thread.worktreePath ?? currentProject?.cwd ?? null;
+      const clicked = await api.contextMenu.show(
+        [
+          { id: "open-new-window", label: "Open in New Window" },
+          { id: "rename", label: "Rename thread" },
+          { id: "mark-unread", label: "Mark unread" },
+          { id: "copy-path", label: "Copy Path" },
+          { id: "copy-thread-id", label: "Copy Thread ID" },
+          { id: "archive", label: "Archive" },
+          { id: "delete", label: "Delete", destructive: true },
+        ],
+        position,
+      );
+
+      if (clicked === "open-new-window") {
+        await api.shell.openThreadInNewWindow(threadRef);
+        return;
+      }
+      if (clicked === "rename") {
+        const newTitle = window.prompt("Rename thread", thread.title);
+        if (!newTitle || newTitle.trim() === "" || newTitle.trim() === thread.title) {
+          return;
+        }
+        const envApi = readEnvironmentApi(threadRef.environmentId);
+        if (!envApi) return;
+        try {
+          await envApi.orchestration.dispatchCommand({
+            type: "thread.meta.update",
+            commandId: newCommandId(),
+            threadId: threadRef.threadId,
+            title: newTitle.trim(),
+          });
+        } catch (error) {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to rename thread",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        }
+        return;
+      }
+      if (clicked === "mark-unread") {
+        markThreadUnread(threadKey, thread.latestTurn?.completedAt);
+        return;
+      }
+      if (clicked === "copy-path") {
+        if (!threadWorkspacePath) {
+          toastManager.add({ type: "error", title: "Path unavailable" });
+          return;
+        }
+        copyPathToClipboard(threadWorkspacePath, { path: threadWorkspacePath });
+        return;
+      }
+      if (clicked === "copy-thread-id") {
+        copyThreadIdToClipboard(thread.id, { threadId: thread.id });
+        return;
+      }
+      if (clicked === "archive") {
+        const envApi = readEnvironmentApi(threadRef.environmentId);
+        if (!envApi) return;
+        try {
+          await envApi.orchestration.dispatchCommand({
+            type: "thread.archive",
+            commandId: newCommandId(),
+            threadId: threadRef.threadId,
+          });
+        } catch (error) {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to archive thread",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        }
+        return;
+      }
+      if (clicked === "delete") {
+        if (
+          !window.confirm(
+            `Delete thread "${thread.title}"? This permanently clears conversation history for this thread.`,
+          )
+        ) {
+          return;
+        }
+        const envApi = readEnvironmentApi(threadRef.environmentId);
+        if (!envApi) return;
+        await envApi.orchestration.dispatchCommand({
+          type: "thread.delete",
+          commandId: newCommandId(),
+          threadId: threadRef.threadId,
+        });
+      }
+    },
+    [copyPathToClipboard, copyThreadIdToClipboard, currentProject, markThreadUnread],
+  );
+
+  const handleTabContextMenu = useCallback(
+    (event: React.MouseEvent, thread: SidebarThreadSummary) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void showThreadContextMenu(thread, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+    },
+    [showThreadContextMenu],
+  );
+
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
 
   useEffect(() => {
@@ -423,15 +575,22 @@ function ProjectShellChrome({
   const actionButtons = (
     <>
       {showProjectScopedActions ? (
-        <>
-          <ProjectShellIconButton
-            active={context.activeView === "threads"}
-            label="Threads"
-            onClick={() => void navigateToThreads()}
-          >
-            <ListIcon className="size-4" />
-          </ProjectShellIconButton>
-        </>
+        <ProjectShellIconButton
+          active={context.activeView === "terminal"}
+          label="Terminal"
+          onClick={() => void navigateToTerminal()}
+        >
+          <TerminalIcon className="size-4" />
+        </ProjectShellIconButton>
+      ) : null}
+      {showProjectScopedActions ? (
+        <ProjectShellIconButton
+          active={context.activeView === "threads"}
+          label="Threads"
+          onClick={() => void navigateToThreads()}
+        >
+          <ListIcon className="size-4" />
+        </ProjectShellIconButton>
       ) : null}
       {!isMobile ? (
         <ProjectShellIconButton
@@ -439,15 +598,6 @@ function ProjectShellChrome({
           onClick={() => useCommandPaletteStore.getState().setOpen(true)}
         >
           <SearchIcon className="size-4" />
-        </ProjectShellIconButton>
-      ) : null}
-      {showProjectScopedActions ? (
-        <ProjectShellIconButton
-          active={context.activeView === "terminal"}
-          label="Terminal"
-          onClick={() => void navigateToTerminal()}
-        >
-          <TerminalIcon className="size-4" />
         </ProjectShellIconButton>
       ) : null}
     </>
@@ -547,6 +697,7 @@ function ProjectShellChrome({
                       mobile
                       onSelect={() => void navigateToThread(thread)}
                       onClose={() => void closeTabAndNavigate(thread)}
+                      onContextMenu={(event) => handleTabContextMenu(event, thread)}
                     />
                   ))
                 ) : (
@@ -621,12 +772,18 @@ function ProjectShellChrome({
           "pl-[90px] electron-full-screen:pl-3 wco:h-[env(titlebar-area-height)] wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3",
       )}
     >
-      <ProjectSwitcher
-        currentProject={currentProject}
-        environmentId={context.environmentId}
-        projectRef={projectRef}
-      />
-      {showProjectScopedActions && <div className="w-0.5 h-4 bg-secondary" />}
+      <div className="flex flex-row items-center gap-1">
+        <ProjectSwitcher
+          currentProject={currentProject}
+          environmentId={context.environmentId}
+          projectRef={projectRef}
+        />
+        <div className="w-0.5 h-4 bg-secondary mx-1" />
+        {actionButtons}
+      </div>
+      {openedTabs.length > 0 && showProjectScopedActions && (
+        <div className="w-0.5 h-4 bg-secondary" />
+      )}
       <div className="flex h-full min-w-0 flex-1 items-stretch overflow-hidden gap-2">
         <div className="no-drag-region scrollbar-none flex h-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {openedTabs.map((thread) => (
@@ -636,6 +793,7 @@ function ProjectShellChrome({
               thread={thread}
               onSelect={() => void navigateToThread(thread)}
               onClose={() => void closeTabAndNavigate(thread)}
+              onContextMenu={(event) => handleTabContextMenu(event, thread)}
             />
           ))}
         </div>
@@ -649,10 +807,15 @@ function ProjectShellChrome({
         )}
       </div>
       <div className="no-drag-region flex shrink-0 items-center gap-1">
-        {actionButtons}
         <Menu>
           <MenuTrigger
-            render={<Button aria-label="More" size="icon" variant="ghost" className="size-8" />}
+            render={
+              <button
+                type="button"
+                aria-label="More"
+                className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-foreground hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            }
           >
             <EllipsisIcon className="size-4" />
           </MenuTrigger>
