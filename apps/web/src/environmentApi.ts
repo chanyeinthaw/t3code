@@ -78,7 +78,7 @@ export function createEnvironmentApi(rpcClient: WsRpcClient): EnvironmentApi {
         reportOwner: (owner) => rpcClient.preview.automation.reportOwner(owner as never),
         clearOwner: (input) => rpcClient.preview.automation.clearOwner(input as never),
       },
-      onEvent: (callback) => rpcClient.preview.onEvent(callback),
+      onEvent: (callback, options) => rpcClient.preview.onEvent(callback, options),
       subscribePorts: (callback, options) => rpcClient.preview.subscribePorts(callback, options),
     },
   };
