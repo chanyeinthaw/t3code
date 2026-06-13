@@ -1,6 +1,39 @@
 {
   "name": "@t3tools/monorepo",
   "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "infra/*",
+      "oxlint-plugin-t3code",
+      "packages/*",
+      "scripts"
+    ],
+    "catalog": {
+      "effect": "4.0.0-beta.78",
+      "@effect/atom-react": "4.0.0-beta.78",
+      "@effect/openapi-generator": "4.0.0-beta.78",
+      "@effect/platform-bun": "4.0.0-beta.78",
+      "@effect/platform-node": "4.0.0-beta.78",
+      "@effect/platform-node-shared": "4.0.0-beta.78",
+      "@effect/sql-pg": "4.0.0-beta.78",
+      "@effect/sql-sqlite-bun": "4.0.0-beta.78",
+      "@effect/vitest": "4.0.0-beta.78",
+      "@effect/tsgo": "0.13.2",
+      "@noble/curves": "1.9.1",
+      "@noble/hashes": "1.8.0",
+      "@pierre/diffs": "1.1.20",
+      "@vitest/runner": "4.1.8",
+      "@types/node": "24.12.4",
+      "@typescript/native-preview": "7.0.0-dev.20260604.1",
+      "jose": "6.2.2",
+      "typescript": "~6.0.3",
+      "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.24",
+      "vite": "npm:@voidzero-dev/vite-plus-core@0.1.24",
+      "vite-plus": "0.1.24",
+      "yaml": "^2.9.0"
+    }
+  },
   "type": "module",
   "scripts": {
     "prepare": "effect-tsgo patch",
@@ -46,48 +79,6 @@
     "@typescript/native-preview": "catalog:",
     "vite-plus": "catalog:"
   },
-  "engines": {
-    "node": "^24.13.1"
-  },
-  "packageManager": "pnpm@10.24.0",
-  "msw": {
-    "workerDirectory": [
-      "apps/web/public"
-    ]
-  },
-  "workspaces": {
-    "packages": [
-      "apps/*",
-      "infra/*",
-      "oxlint-plugin-t3code",
-      "packages/*",
-      "scripts"
-    ],
-    "catalog": {
-      "effect": "4.0.0-beta.78",
-      "@effect/atom-react": "4.0.0-beta.78",
-      "@effect/openapi-generator": "4.0.0-beta.78",
-      "@effect/platform-bun": "4.0.0-beta.78",
-      "@effect/platform-node": "4.0.0-beta.78",
-      "@effect/platform-node-shared": "4.0.0-beta.78",
-      "@effect/sql-pg": "4.0.0-beta.78",
-      "@effect/sql-sqlite-bun": "4.0.0-beta.78",
-      "@effect/vitest": "4.0.0-beta.78",
-      "@effect/tsgo": "0.13.2",
-      "@noble/curves": "1.9.1",
-      "@noble/hashes": "1.8.0",
-      "@pierre/diffs": "1.1.20",
-      "@vitest/runner": "4.1.8",
-      "@types/node": "24.12.4",
-      "@typescript/native-preview": "7.0.0-dev.20260604.1",
-      "jose": "6.2.2",
-      "typescript": "~6.0.3",
-      "vitest": "npm:@voidzero-dev/vite-plus-test@0.1.24",
-      "vite": "npm:@voidzero-dev/vite-plus-core@0.1.24",
-      "vite-plus": "0.1.24",
-      "yaml": "^2.9.0"
-    }
-  },
   "overrides": {
     "@clerk/clerk-js>@base-org/account": "-",
     "@clerk/clerk-js>@coinbase/wallet-sdk": "-",
@@ -110,6 +101,15 @@
     "vite": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:"
+  },
+  "engines": {
+    "node": "^24.13.1"
+  },
+  "packageManager": "pnpm@10.24.0",
+  "msw": {
+    "workerDirectory": [
+      "apps/web/public"
+    ]
   },
   "patchedDependencies": {
     "@effect/vitest@4.0.0-beta.78@4.0.0-beta.78": "patches/@effect__vitest@4.0.0-beta.78.patch",

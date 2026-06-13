@@ -136,6 +136,7 @@ function ProjectSwitcher({
 }) {
   const navigate = useNavigate();
   const recentProjectKeys = useProjectShellUiStateStore((state) => state.recentProjectKeys);
+  const removeRecentProject = useProjectShellUiStateStore((state) => state.removeRecentProject);
   const focusedThreadKeyByProjectKey = useProjectShellUiStateStore(
     (state) => state.focusedThreadKeyByProjectKey,
   );
@@ -160,6 +161,18 @@ function ProjectSwitcher({
         return project ? [project] : [];
       });
     }),
+  );
+
+  const filteredRecentProjects = useMemo(
+    () =>
+      currentProject
+        ? recentProjects.filter(
+            (project) =>
+              project.environmentId !== currentProject.environmentId ||
+              project.id !== currentProject.id,
+          )
+        : recentProjects,
+    [currentProject, recentProjects],
   );
 
   const navigateToProject = useCallback(
@@ -213,16 +226,29 @@ function ProjectSwitcher({
           <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
             Recent projects
           </div>
-          {recentProjects.slice(0, 5).map((project) => (
+          {filteredRecentProjects.slice(0, 5).map((project) => (
             <MenuItem
               key={scopedProjectKey(scopeProjectRef(project.environmentId, project.id))}
+              className="group pr-1"
               onClick={() => void navigateToProject(project)}
             >
               <ProjectFavicon environmentId={project.environmentId} cwd={project.cwd} />
               <span className="min-w-0 flex-1 truncate">{project.name}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${project.name} from recent projects`}
+                className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  removeRecentProject(scopeProjectRef(project.environmentId, project.id));
+                }}
+              >
+                <XIcon className="size-3.5" />
+              </button>
             </MenuItem>
           ))}
-          {recentProjects.length === 0 ? (
+          {filteredRecentProjects.length === 0 ? (
             <div className="px-2 py-2 text-sm text-muted-foreground">No recent projects</div>
           ) : null}
         </MenuGroup>

@@ -15,6 +15,7 @@ export interface ProjectShellUiState {
   closeThreadTab: (projectRef: ScopedProjectRef, threadRef: ScopedThreadRef) => void;
   closeThreadTabs: (threadRefs: readonly ScopedThreadRef[]) => void;
   markProjectAccessed: (projectRef: ScopedProjectRef) => void;
+  removeRecentProject: (projectRef: ScopedProjectRef) => void;
   pruneProjectShellState: (input: {
     validProjectKeys: ReadonlySet<string>;
     validThreadKeysByProjectKey: ReadonlyMap<string, ReadonlySet<string>>;
@@ -136,6 +137,14 @@ export const useProjectShellUiStateStore = create<ProjectShellUiState>()(
         set((state) => ({
           recentProjectKeys: markRecentProject(state.recentProjectKeys, projectKey(projectRef)),
         })),
+      removeRecentProject: (projectRef) =>
+        set((state) => {
+          const pKey = projectKey(projectRef);
+          if (!state.recentProjectKeys.includes(pKey)) return state;
+          return {
+            recentProjectKeys: removeValue(state.recentProjectKeys, pKey),
+          };
+        }),
       pruneProjectShellState: ({
         validProjectKeys,
         validThreadKeysByProjectKey,

@@ -13,15 +13,9 @@ import {
 } from "../lib/chatThreadActions";
 import { isTerminalFocused } from "../lib/terminalFocus";
 import { resolveShortcutCommand, threadTraversalDirectionFromCommand } from "../keybindings";
-import {
-  useProjectShellUiStateStore,
-  type ProjectShellUiState,
-} from "../projectShellUiStateStore";
+import { useProjectShellUiStateStore, type ProjectShellUiState } from "../projectShellUiStateStore";
 import { navigateToProjectThread, navigateToProjectThreads } from "../projectRouteNavigation";
-import {
-  selectSidebarThreadsForProjectRef,
-  useStore,
-} from "../store";
+import { selectSidebarThreadsForProjectRef, useStore } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { resolveSidebarNewThreadEnvMode } from "~/components/Sidebar.logic";
@@ -63,10 +57,12 @@ function findAdjacentOpenedThread(
 
   // Resolve the thread key to an actual thread in our store.
   const threads = selectSidebarThreadsForProjectRef(useStore.getState(), projectRef);
-  return threads.find((thread) => {
-    const threadKey = `${thread.environmentId}:${thread.id}`;
-    return threadKey === nextKey && thread.archivedAt === null;
-  }) ?? null;
+  return (
+    threads.find((thread) => {
+      const threadKey = `${thread.environmentId}:${thread.id}`;
+      return threadKey === nextKey && thread.archivedAt === null;
+    }) ?? null
+  );
 }
 
 function ChatRouteGlobalShortcuts() {
