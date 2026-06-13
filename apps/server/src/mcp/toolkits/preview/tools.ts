@@ -94,6 +94,7 @@ export const PreviewClickTool = browserTool(
     description:
       "Click an element selected by CSS selector or click viewport coordinates in the scoped preview tab.",
     parameters: PreviewAutomationClickInput,
+    success: Schema.Null,
     failure: PreviewAutomationError,
     dependencies,
   }).annotate(Tool.Title, "Click preview page"),
@@ -104,6 +105,7 @@ export const PreviewTypeTool = browserTool(
     description:
       "Type text into the focused element or a CSS-selected element, optionally clearing its existing value first.",
     parameters: PreviewAutomationTypeInput,
+    success: Schema.Null,
     failure: PreviewAutomationError,
     dependencies,
   }).annotate(Tool.Title, "Type into preview page"),
@@ -113,6 +115,7 @@ export const PreviewPressTool = browserTool(
   Tool.make("preview_press", {
     description: "Dispatch a keyboard key with optional modifiers to the scoped preview tab.",
     parameters: PreviewAutomationPressInput,
+    success: Schema.Null,
     failure: PreviewAutomationError,
     dependencies,
   }).annotate(Tool.Title, "Press key in preview page"),
@@ -123,6 +126,7 @@ export const PreviewScrollTool = browserTool(
     description:
       "Scroll the preview viewport or a CSS-selected scroll container by the requested deltas.",
     parameters: PreviewAutomationScrollInput,
+    success: Schema.Null,
     failure: PreviewAutomationError,
     dependencies,
   }).annotate(Tool.Title, "Scroll preview page"),
@@ -144,6 +148,7 @@ export const PreviewWaitForTool = browserTool(
     description:
       "Wait until a CSS selector, visible-text substring, or URL substring appears in the scoped preview tab.",
     parameters: PreviewAutomationWaitForInput,
+    success: Schema.Null,
     failure: PreviewAutomationError,
     dependencies,
   }).annotate(Tool.Title, "Wait for preview page condition"),
@@ -183,3 +188,19 @@ export const PreviewToolkit = Toolkit.make(
   PreviewEvaluateTool,
   PreviewWaitForTool,
 );
+
+export const PreviewStandardToolkit = Toolkit.make(
+  PreviewStatusTool,
+  PreviewOpenTool,
+  PreviewNavigateTool,
+  PreviewClickTool,
+  PreviewTypeTool,
+  PreviewPressTool,
+  PreviewScrollTool,
+  PreviewEvaluateTool,
+  PreviewWaitForTool,
+  PreviewRecordingStartTool,
+  PreviewRecordingStopTool,
+);
+
+export const PreviewSnapshotToolkit = Toolkit.make(PreviewSnapshotTool);
