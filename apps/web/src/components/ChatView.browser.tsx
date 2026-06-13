@@ -23,6 +23,7 @@ import {
   ServerConfig as ServerConfigSchema,
 } from "@t3tools/contracts";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime";
+import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { createModelCapabilities, createModelSelection } from "@t3tools/shared/model";
 import { RouterProvider, createMemoryHistory } from "@tanstack/react-router";
 import * as Option from "effect/Option";
@@ -2063,6 +2064,14 @@ describe("ChatView timeline estimator parity (full app)", () => {
         targetMessageId: "msg-user-open-empty-terminal-drawer" as MessageId,
         targetText: "open empty terminal drawer",
       }),
+      configureFixture: (nextFixture) => {
+        nextFixture.serverConfig = {
+          ...nextFixture.serverConfig,
+          keybindings: DEFAULT_RESOLVED_KEYBINDINGS.filter(
+            (binding) => binding.command === "terminal.toggle",
+          ),
+        };
+      },
     });
 
     try {
@@ -2106,6 +2115,15 @@ describe("ChatView timeline estimator parity (full app)", () => {
         targetMessageId: "msg-user-open-inline-terminal-panel" as MessageId,
         targetText: "open inline terminal panel",
       }),
+      configureFixture: (nextFixture) => {
+        nextFixture.serverConfig = {
+          ...nextFixture.serverConfig,
+          keybindings: DEFAULT_RESOLVED_KEYBINDINGS.filter(
+            (binding) =>
+              binding.command === "rightPanel.toggle" || binding.command === "terminal.toggle",
+          ),
+        };
+      },
     });
 
     try {
@@ -2194,12 +2212,15 @@ describe("ChatView timeline estimator parity (full app)", () => {
         { timeout: 8_000, interval: 16 },
       );
 
-      const drawerToggle = await waitForElement(
-        () =>
-          document.querySelector<HTMLButtonElement>('button[aria-label="Toggle terminal drawer"]'),
-        "Unable to find terminal drawer toggle.",
+      window.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "j",
+          metaKey: isMacPlatform(navigator.platform),
+          ctrlKey: !isMacPlatform(navigator.platform),
+          bubbles: true,
+          cancelable: true,
+        }),
       );
-      drawerToggle.click();
 
       await vi.waitFor(() => {
         expect(
