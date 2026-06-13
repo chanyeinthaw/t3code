@@ -1,17 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import {
-  EnvironmentId,
-  ProjectId,
-  type ScopedThreadRef,
-} from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, type ScopedThreadRef } from "@t3tools/contracts";
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
-import {
-  ArchiveIcon,
-  ClockIcon,
-  MoreHorizontalIcon,
-  PlusIcon,
-  SearchIcon,
-} from "lucide-react";
+import { ArchiveIcon, ClockIcon, MoreHorizontalIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -27,11 +17,7 @@ import { normalizeSearchText } from "../components/CommandPalette.logic";
 import { sortThreads } from "../lib/threadSort";
 import { buildProjectThreadRouteParams } from "../projectTabs";
 import { useProjectShellUiStateStore } from "../projectShellUiStateStore";
-import {
-  selectProjectByRef,
-  selectSidebarThreadsForProjectRef,
-  useStore,
-} from "../store";
+import { selectProjectByRef, selectSidebarThreadsForProjectRef, useStore } from "../store";
 import { useSettings } from "../hooks/useSettings";
 import { readLocalApi } from "../localApi";
 import { newCommandId } from "../lib/utils";
@@ -44,12 +30,8 @@ type ThreadFilter = "active" | "archived" | "all";
 
 function threadStatusDotClassName(thread: SidebarThreadSummary): string | null {
   if (thread.session?.status === "error") return "bg-destructive";
-  if (thread.hasPendingApprovals || thread.hasPendingUserInput)
-    return "bg-amber-500";
-  if (
-    thread.session?.status === "running" ||
-    thread.latestTurn?.state === "running"
-  ) {
+  if (thread.hasPendingApprovals || thread.hasPendingUserInput) return "bg-amber-500";
+  if (thread.session?.status === "running" || thread.latestTurn?.state === "running") {
     return "bg-emerald-500 animate-pulse";
   }
   return null;
@@ -64,9 +46,7 @@ function ProjectThreadsIndexRouteView() {
   const { handleNewThread } = useHandleNewThread();
   const { confirmAndDeleteThread } = useThreadActions();
   const sortOrder = useSettings((settings) => settings.threadSortOrder);
-  const openThreadTab = useProjectShellUiStateStore(
-    (state) => state.openThreadTab,
-  );
+  const openThreadTab = useProjectShellUiStateStore((state) => state.openThreadTab);
   const markThreadUnread = useUiStateStore((state) => state.markThreadUnread);
   const project = useStore((state) => selectProjectByRef(state, projectRef));
   const threads = useStore(
@@ -74,9 +54,7 @@ function ProjectThreadsIndexRouteView() {
   );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ThreadFilter>("active");
-  const [renamingThreadKey, setRenamingThreadKey] = useState<string | null>(
-    null,
-  );
+  const [renamingThreadKey, setRenamingThreadKey] = useState<string | null>(null);
   const [renamingTitle, setRenamingTitle] = useState("");
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
     threadId: string;
@@ -92,8 +70,7 @@ function ProjectThreadsIndexRouteView() {
         stackedThreadToast({
           type: "error",
           title: "Failed to copy thread ID",
-          description:
-            error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       ),
   });
@@ -111,8 +88,7 @@ function ProjectThreadsIndexRouteView() {
         stackedThreadToast({
           type: "error",
           title: "Failed to copy path",
-          description:
-            error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       ),
   });
@@ -169,8 +145,7 @@ function ProjectThreadsIndexRouteView() {
         stackedThreadToast({
           type: "error",
           title: "Failed to rename thread",
-          description:
-            error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       );
     }
@@ -275,11 +250,7 @@ function ProjectThreadsIndexRouteView() {
               value={[filter]}
               onValueChange={(value) => {
                 const next = value[0];
-                if (
-                  next === "active" ||
-                  next === "archived" ||
-                  next === "all"
-                ) {
+                if (next === "active" || next === "archived" || next === "all") {
                   setFilter(next);
                 }
               }}
@@ -320,35 +291,21 @@ function ProjectThreadsIndexRouteView() {
                     disabled={isRenaming}
                   >
                     {statusDotClassName ? (
-                      <span
-                        className={`size-2 shrink-0 rounded-full ${statusDotClassName}`}
-                      />
+                      <span className={`size-2 shrink-0 rounded-full ${statusDotClassName}`} />
                     ) : null}
                     <div className="min-w-0 flex-1">
                       {isRenaming ? (
                         <Input
                           value={renamingTitle}
-                          onChange={(event) =>
-                            setRenamingTitle(event.target.value)
-                          }
+                          onChange={(event) => setRenamingTitle(event.target.value)}
                           autoFocus
                           className="h-7 text-sm"
                           onClick={(event) => event.stopPropagation()}
-                          onBlur={() =>
-                            void commitRename(
-                              threadRef,
-                              renamingTitle,
-                              thread.title,
-                            )
-                          }
+                          onBlur={() => void commitRename(threadRef, renamingTitle, thread.title)}
                           onKeyDown={(event) => {
                             if (event.key === "Enter") {
                               event.preventDefault();
-                              void commitRename(
-                                threadRef,
-                                renamingTitle,
-                                thread.title,
-                              );
+                              void commitRename(threadRef, renamingTitle, thread.title);
                             }
                             if (event.key === "Escape") {
                               event.preventDefault();
@@ -375,9 +332,7 @@ function ProjectThreadsIndexRouteView() {
                         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/80">
                           <ClockIcon className="size-3" />
                           {formatRelativeTimeLabel(
-                            thread.latestUserMessageAt ??
-                              thread.updatedAt ??
-                              thread.createdAt,
+                            thread.latestUserMessageAt ?? thread.updatedAt ?? thread.createdAt,
                           )}
                         </span>
                       </div>
@@ -413,8 +368,6 @@ function ProjectThreadsIndexRouteView() {
   );
 }
 
-export const Route = createFileRoute(
-  "/_chat/$environmentId/projects/$projectId/threads/",
-)({
+export const Route = createFileRoute("/_chat/$environmentId/projects/$projectId/threads/")({
   component: ProjectThreadsIndexRouteView,
 });

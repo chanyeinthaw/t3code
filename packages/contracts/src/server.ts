@@ -166,6 +166,7 @@ export const ServerProvider = Schema.Struct({
   badgeLabel: Schema.optional(TrimmedNonEmptyString),
   continuation: Schema.optional(ServerProviderContinuation),
   showInteractionModeToggle: Schema.optional(Schema.Boolean),
+  requiresNewThreadForModelChange: Schema.optional(Schema.Boolean),
   supportedAccessModes: Schema.optional(Schema.Array(RuntimeMode)),
   deferMidTurnUserMessages: Schema.optional(Schema.Boolean),
   enabled: Schema.Boolean,
@@ -553,7 +554,7 @@ export class ServerProviderUpdateError extends Schema.TaggedErrorClass<ServerPro
   {
     provider: ProviderDriverKind,
     reason: TrimmedNonEmptyString,
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
   },
 ) {
   override get message(): string {

@@ -171,7 +171,7 @@ export class ProviderDiscoveryError extends Schema.TaggedErrorClass<ProviderDisc
   {
     operation: Schema.String,
     detail: Schema.String,
-    cause: Schema.optional(Schema.Defect),
+    cause: Schema.optional(Schema.Defect()),
   },
 ) {
   override get message(): string {

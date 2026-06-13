@@ -17,8 +17,8 @@ import {
 } from "../../../scripts/lib/brand-assets.ts";
 import { resolveCatalogDependencies } from "../../../scripts/lib/resolve-catalog.ts";
 import { fromJsonStringPretty } from "@t3tools/shared/schemaJson";
+import { fromYaml } from "@t3tools/shared/schemaYaml";
 import serverPackageJson from "../package.json" with { type: "json" };
-import { parse as parseYaml } from "yaml";
 
 interface PackageJson {
   name: string;
@@ -39,10 +39,12 @@ interface PackageJson {
 const PackageJsonPrettyJson = fromJsonStringPretty(Schema.Unknown);
 const encodePackageJson = Schema.encodeEffect(PackageJsonPrettyJson);
 
-interface WorkspaceConfig {
-  readonly catalog?: Record<string, string>;
-  readonly overrides?: Record<string, string>;
-}
+const WorkspaceConfig = Schema.Struct({
+  catalog: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+  overrides: Schema.optional(Schema.Record(Schema.String, Schema.String)),
+});
+type WorkspaceConfig = typeof WorkspaceConfig.Type;
+const decodeWorkspaceConfig = Schema.decodeEffect(fromYaml(WorkspaceConfig));
 
 class CliError extends Data.TaggedError("CliError")<{
   readonly message: string;
@@ -58,7 +60,7 @@ const readWorkspaceConfig = Effect.fn("readWorkspaceConfig")(function* () {
   const fs = yield* FileSystem.FileSystem;
   const repoRoot = yield* RepoRoot;
   const workspaceYaml = yield* fs.readFileString(path.join(repoRoot, "pnpm-workspace.yaml"));
-  return parseYaml(workspaceYaml) as WorkspaceConfig;
+  return yield* decodeWorkspaceConfig(workspaceYaml);
 });
 
 const runCommand = Effect.fn("runCommand")(function* (command: ChildProcess.Command) {
@@ -173,8 +175,6 @@ const buildCmd = Command.make(
           cwd: serverDir,
           stdout: config.verbose ? "inherit" : "ignore",
           stderr: "inherit",
-          // Windows needs shell mode to resolve `.cmd` shims on PATH.
-          shell: process.platform === "win32",
         }),
       );
 
@@ -194,6 +194,31 @@ const buildCmd = Command.make(
 // ---------------------------------------------------------------------------
 // publish subcommand
 // ---------------------------------------------------------------------------
+
+interface PublishCommandConfig {
+  readonly access: string;
+  readonly tag: string;
+  readonly provenance: boolean;
+  readonly dryRun: boolean;
+}
+
+const createVpPmPublishArgs = (config: PublishCommandConfig): ReadonlyArray<string> => {
+  const args = [
+    "publish",
+    "--filter",
+    "t3",
+    "--access",
+    config.access,
+    "--tag",
+    config.tag,
+    "--no-git-checks",
+  ];
+
+  if (config.provenance) args.push("--provenance");
+  if (config.dryRun) args.push("--dry-run");
+
+  return args;
+};
 
 const publishCmd = Command.make(
   "publish",
@@ -260,17 +285,16 @@ const publishCmd = Command.make(
           const iconBackups = yield* applyPublishIconOverrides(repoRoot, serverDir);
           return { iconBackups };
         }),
-        // Use: npm publish
+        // Use: pnpm publish from the workspace root so pnpm-only workspace
+        // config, including override selectors, is interpreted correctly.
         () =>
           Effect.gen(function* () {
-            const args = ["publish", "--access", config.access, "--tag", config.tag];
-            if (config.provenance) args.push("--provenance");
-            if (config.dryRun) args.push("--dry-run");
+            const args = createVpPmPublishArgs(config);
 
-            yield* Effect.log(`[cli] Running: npm ${args.join(" ")}`);
+            yield* Effect.log(`[cli] Running: vp pm ${args.join(" ")}`);
             yield* runCommand(
-              ChildProcess.make("npm", [...args], {
-                cwd: serverDir,
+              ChildProcess.make("vp", ["pm", ...args], {
+                cwd: repoRoot,
                 stdout: config.verbose ? "inherit" : "ignore",
                 stderr: "inherit",
                 // Windows needs shell mode to resolve .cmd shims.

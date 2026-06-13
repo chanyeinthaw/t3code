@@ -30,7 +30,7 @@ import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
 import { ProviderService } from "../../provider/Services/ProviderService.ts";
 import { ProjectionTurnRepository } from "../../persistence/Services/ProjectionTurns.ts";
 import { ProjectionTurnRepositoryLive } from "../../persistence/Layers/ProjectionTurns.ts";
-import { findGitRepositoryRoot } from "../../git/Utils.ts";
+import { isGitRepository } from "../../git/Utils.ts";
 import { OrchestrationEngineService } from "../Services/OrchestrationEngine.ts";
 import { ProjectionSnapshotQuery } from "../Services/ProjectionSnapshotQuery.ts";
 import {
@@ -272,24 +272,6 @@ function runtimeEventToActivities(
       : {};
   })();
   switch (event.type) {
-    case "input.queue.updated": {
-      return [
-        {
-          id: event.eventId,
-          createdAt: event.createdAt,
-          tone: "info",
-          kind: "input.queue.updated",
-          summary: "Input queue updated",
-          payload: {
-            steering: event.payload.steering,
-            followUp: event.payload.followUp,
-          },
-          turnId: toTurnId(event.turnId) ?? null,
-          ...maybeSequence,
-        },
-      ];
-    }
-
     case "request.opened": {
       if (event.payload.requestType === "tool_user_input") {
         return [];
@@ -346,17 +328,35 @@ function runtimeEventToActivities(
     }
 
     case "runtime.error": {
-      const message = truncateDetail(event.payload.message);
       return [
         {
           id: event.eventId,
           createdAt: event.createdAt,
           tone: "error",
           kind: "runtime.error",
-          summary: message || "Runtime error",
+          summary: "Runtime error",
           payload: {
-            message,
-            ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
+            message: truncateDetail(event.payload.message),
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
+    case "tool.denied": {
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "error",
+          kind: "tool.denied",
+          summary: `Tool denied: ${event.payload.toolName}`,
+          payload: {
+            toolName: event.payload.toolName,
+            ...(event.payload.toolUseId ? { toolUseId: event.payload.toolUseId } : {}),
+            ...(event.payload.reason ? { detail: truncateDetail(event.payload.reason) } : {}),
+            ...(event.payload.agentId ? { agentId: event.payload.agentId } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,
@@ -365,16 +365,17 @@ function runtimeEventToActivities(
     }
 
     case "runtime.warning": {
-      const message = truncateDetail(event.payload.message);
       return [
         {
           id: event.eventId,
           createdAt: event.createdAt,
           tone: "info",
           kind: "runtime.warning",
-          summary: message || "Runtime warning",
+          // Use the adapter-supplied message as the row label so the work log
+          // shows what the warning was about, not a generic "Runtime warning".
+          summary: truncateDetail(event.payload.message, 120),
           payload: {
-            message,
+            message: truncateDetail(event.payload.message),
             ...(event.payload.detail !== undefined ? { detail: event.payload.detail } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,
@@ -1225,6 +1226,22 @@ const make = Effect.gen(function* () {
         activeTurnId !== null && eventTurnId !== undefined && !sameId(activeTurnId, eventTurnId);
       const missingTurnForActiveTurn = activeTurnId !== null && eventTurnId === undefined;
 
+      // A turn.started that conflicts with the active turn is legitimate when
+      // the server itself has a turn start pending for this thread AND the
+      // provider session already tracks the event's turn as its active turn:
+      // steering a running turn makes some providers (e.g. opencode) open a
+      // new turn without ever completing the superseded one. A stale
+      // turn.started for some other turn id still gets rejected.
+      const conflictingTurnStartIsPendingTurnStart =
+        event.type === "turn.started" && conflictsWithActiveTurn
+          ? sameId(yield* getExpectedProviderTurnIdForThread(thread.id), eventTurnId) &&
+            Option.isSome(
+              yield* projectionTurnRepository.getPendingTurnStartByThreadId({
+                threadId: thread.id,
+              }),
+            )
+          : false;
+
       const shouldApplyThreadLifecycle = (() => {
         if (!STRICT_PROVIDER_LIFECYCLE_GUARD) {
           return true;
@@ -1236,7 +1253,7 @@ const make = Effect.gen(function* () {
           case "thread.started":
             return true;
           case "turn.started":
-            return !conflictsWithActiveTurn;
+            return !conflictsWithActiveTurn || conflictingTurnStartIsPendingTurnStart;
           case "turn.completed":
             if (conflictsWithActiveTurn || missingTurnForActiveTurn) {
               return false;
@@ -1347,48 +1364,6 @@ const make = Effect.gen(function* () {
           : undefined;
       const proposedPlanDelta =
         event.type === "turn.proposed.delta" ? event.payload.delta : undefined;
-
-      if (event.type === "user-message.observed") {
-        const turnId = toTurnId(event.turnId);
-        if (turnId) {
-          const detailedThread = yield* getLoadedThreadDetail();
-          const assistantDeliveryMode: AssistantDeliveryMode = yield* Effect.map(
-            serverSettingsService.getSettings,
-            (settings) => (settings.enableAssistantStreaming ? "streaming" : "buffered"),
-          );
-          const flushedMessageIds =
-            assistantDeliveryMode === "buffered"
-              ? yield* flushBufferedAssistantMessagesForTurn({
-                  event,
-                  threadId: thread.id,
-                  turnId,
-                  createdAt: now,
-                  commandTag: "assistant-delta-flush-on-user-message-observed",
-                })
-              : new Set<MessageId>();
-          yield* finalizeActiveAssistantSegmentForTurn({
-            event,
-            threadId: thread.id,
-            turnId,
-            createdAt: now,
-            commandTag: "assistant-complete-on-user-message-observed",
-            finalDeltaCommandTag: "assistant-delta-finalize-on-user-message-observed",
-            hasProjectedMessage:
-              detailedThread !== null &&
-              hasAssistantMessageForTurn(detailedThread.messages, turnId, { streamingOnly: true }),
-            flushedMessageIds,
-          });
-        }
-        yield* orchestrationEngine.dispatch({
-          type: "thread.message.user.observed",
-          commandId: yield* providerCommandId(event, "user-message-observed"),
-          threadId: thread.id,
-          messageId: MessageId.make(`user:${event.eventId}`),
-          text: event.payload.text,
-          ...(turnId ? { turnId } : {}),
-          createdAt: now,
-        });
-      }
 
       if (assistantDelta && assistantDelta.length > 0) {
         const turnId = toTurnId(event.turnId);
@@ -1651,8 +1626,7 @@ const make = Effect.gen(function* () {
           : undefined;
         const workspaceCwd =
           checkpointContext?.worktreePath ?? checkpointContext?.workspaceRoot ?? undefined;
-        const gitRoot = workspaceCwd ? findGitRepositoryRoot(workspaceCwd) : undefined;
-        if (turnId && checkpointContext && gitRoot) {
+        if (turnId && checkpointContext && workspaceCwd && isGitRepository(workspaceCwd)) {
           // Skip if a checkpoint already exists for this turn. A real
           // (non-placeholder) capture from CheckpointReactor should not
           // be clobbered, and dispatching a duplicate placeholder for the

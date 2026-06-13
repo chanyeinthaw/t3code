@@ -150,6 +150,24 @@ function createBaseServerConfig(): ServerConfig {
           shadowHomePath: "",
           customModels: [],
         },
+        claudeAgent: {
+          enabled: true,
+          binaryPath: "",
+          homePath: "",
+          customModels: [],
+          launchArgs: "",
+        },
+        cursor: {
+          enabled: false,
+          binaryPath: "",
+          apiEndpoint: "",
+          customModels: [],
+        },
+        grok: {
+          enabled: true,
+          binaryPath: "",
+          customModels: [],
+        },
         opencode: {
           enabled: true,
           binaryPath: "",

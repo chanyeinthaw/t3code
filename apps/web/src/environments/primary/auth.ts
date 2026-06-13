@@ -45,7 +45,7 @@ export interface ServerClientSessionRecord {
   readonly sessionId: AuthSessionId;
   readonly subject: string;
   readonly scopes: ReadonlyArray<AuthEnvironmentScope>;
-  readonly method: "browser-session-cookie" | "bearer-access-token";
+  readonly method: "browser-session-cookie" | "bearer-access-token" | "dpop-access-token";
   readonly client: AuthClientMetadata;
   readonly issuedAt: string;
   readonly expiresAt: string;

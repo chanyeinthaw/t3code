@@ -20,13 +20,13 @@ const clientSettings: ClientSettings = {
   diffWordWrap: true,
   favorites: [],
   providerModelPreferences: {},
-  sidebarProjectGroupingMode: "repository_path",
-  sidebarProjectGroupingOverrides: {
+  projectGroupingMode: "repository_path",
+  projectGroupingOverrides: {
     "environment-1:/tmp/project-a": "separate",
   },
-  sidebarProjectSortOrder: "manual",
-  sidebarThreadSortOrder: "created_at",
-  sidebarThreadPreviewCount: 6,
+  projectSortOrder: "manual",
+  threadSortOrder: "created_at",
+  threadPreviewCount: 6,
   timestampFormat: "24-hour",
 };
 

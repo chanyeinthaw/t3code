@@ -22,9 +22,8 @@ it.layer(NodeServices.layer)("effect-codex-app-server client", (it) => {
       const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
       const path = yield* Path.Path;
       const peerCwd = path.join(import.meta.dirname, "..");
-      const command = ChildProcess.make("node", mockPeerArgs(yield* mockPeerPath), {
+      const command = ChildProcess.make(process.execPath, mockPeerArgs(yield* mockPeerPath), {
         cwd: peerCwd,
-        shell: process.platform === "win32",
       });
       return yield* spawner.spawn(command);
     });
@@ -149,6 +148,43 @@ it.layer(NodeServices.layer)("effect-codex-app-server client", (it) => {
           },
         });
       }).pipe(Effect.provide(context), Effect.ensuring(Scope.close(scope, Exit.void)));
+
+      assert.equal(initialized.userAgent, "mock-codex-app-server");
+    }),
+  );
+
+  it.effect("drains command stderr so large diagnostics cannot block protocol responses", () =>
+    Effect.gen(function* () {
+      const path = yield* Path.Path;
+      const scope = yield* Scope.make();
+      const clientLayer = CodexClient.layerCommand({
+        command: "node",
+        args: mockPeerArgs(yield* mockPeerPath),
+        cwd: path.join(import.meta.dirname, ".."),
+        env: {
+          CODEX_APP_SERVER_TEST_STDERR_BYTES: String(512 * 1024),
+        },
+      });
+      const context = yield* Layer.buildWithScope(clientLayer, scope);
+
+      const initialized = yield* Effect.gen(function* () {
+        const client = yield* CodexClient.CodexAppServerClient;
+        return yield* client.request("initialize", {
+          clientInfo: {
+            name: "effect-codex-app-server-test",
+            title: "Effect Codex App Server Test",
+            version: "0.0.0",
+          },
+          capabilities: {
+            experimentalApi: true,
+            optOutNotificationMethods: null,
+          },
+        });
+      }).pipe(
+        Effect.timeout("5 seconds"),
+        Effect.provide(context),
+        Effect.ensuring(Scope.close(scope, Exit.void)),
+      );
 
       assert.equal(initialized.userAgent, "mock-codex-app-server");
     }),

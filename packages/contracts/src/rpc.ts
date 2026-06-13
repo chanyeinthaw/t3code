@@ -57,7 +57,6 @@ import {
   OrchestrationReplayEventsInput,
   OrchestrationRpcSchemas,
 } from "./orchestration.ts";
-import { ProviderInstanceId } from "./providerInstance.ts";
 import {
   ProviderComposerCapabilities,
   ProviderDiscoveryError,
@@ -67,6 +66,12 @@ import {
   ProviderListModelsResult,
   ProviderListSkillsResult,
 } from "./provider.ts";
+import { ProviderInstanceId } from "./providerInstance.ts";
+import {
+  RelayClientInstallFailedError,
+  RelayClientInstallProgressEventSchema,
+  RelayClientStatusSchema,
+} from "./relayClient.ts";
 import {
   ProjectSearchEntriesError,
   ProjectSearchEntriesInput,
@@ -180,6 +185,10 @@ export const WS_METHODS = {
   serverGetProcessDiagnostics: "server.getProcessDiagnostics",
   serverGetProcessResourceHistory: "server.getProcessResourceHistory",
   serverSignalProcess: "server.signalProcess",
+
+  // Cloud environment methods
+  cloudGetRelayClientStatus: "cloud.getRelayClientStatus",
+  cloudInstallRelayClient: "cloud.installRelayClient",
 
   // Source control methods
   sourceControlLookupRepository: "sourceControl.lookupRepository",
@@ -303,6 +312,19 @@ export const WsServerSignalProcessRpc = Rpc.make(WS_METHODS.serverSignalProcess,
   payload: ServerSignalProcessInput,
   success: ServerSignalProcessResult,
   error: EnvironmentAuthorizationError,
+});
+
+export const WsCloudGetRelayClientStatusRpc = Rpc.make(WS_METHODS.cloudGetRelayClientStatus, {
+  payload: Schema.Struct({}),
+  success: RelayClientStatusSchema,
+  error: EnvironmentAuthorizationError,
+});
+
+export const WsCloudInstallRelayClientRpc = Rpc.make(WS_METHODS.cloudInstallRelayClient, {
+  payload: Schema.Struct({}),
+  success: RelayClientInstallProgressEventSchema,
+  error: Schema.Union([RelayClientInstallFailedError, EnvironmentAuthorizationError]),
+  stream: true,
 });
 
 export const WsSourceControlLookupRepositoryRpc = Rpc.make(
@@ -566,10 +588,6 @@ export const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess,
 });
 
 export const WsRpcGroup = RpcGroup.make(
-  WsProviderGetComposerCapabilitiesRpc,
-  WsProviderListModelsRpc,
-  WsProviderListSkillsRpc,
-  WsProviderListCommandsRpc,
   WsServerGetConfigRpc,
   WsServerRefreshProvidersRpc,
   WsServerUpdateProviderRpc,
@@ -582,6 +600,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerGetProcessDiagnosticsRpc,
   WsServerGetProcessResourceHistoryRpc,
   WsServerSignalProcessRpc,
+  WsCloudGetRelayClientStatusRpc,
+  WsCloudInstallRelayClientRpc,
   WsSourceControlLookupRepositoryRpc,
   WsSourceControlCloneRepositoryRpc,
   WsSourceControlPublishRepositoryRpc,
@@ -602,6 +622,10 @@ export const WsRpcGroup = RpcGroup.make(
   WsVcsSwitchRefRpc,
   WsVcsInitRpc,
   WsReviewGetDiffPreviewRpc,
+  WsProviderGetComposerCapabilitiesRpc,
+  WsProviderListModelsRpc,
+  WsProviderListSkillsRpc,
+  WsProviderListCommandsRpc,
   WsTerminalOpenRpc,
   WsTerminalAttachRpc,
   WsTerminalWriteRpc,
