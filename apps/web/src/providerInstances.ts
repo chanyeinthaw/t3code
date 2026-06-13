@@ -15,7 +15,7 @@
 import {
   defaultInstanceIdForDriver,
   PROVIDER_DISPLAY_NAMES,
-  type ProviderDriverKind,
+  ProviderDriverKind,
   type ProviderInstanceId,
   type ServerProvider,
   type ServerProviderModel,
@@ -76,6 +76,19 @@ function humanizeInstanceId(instanceId: ProviderInstanceId): string {
   }
   return words.join(" ");
 }
+
+const PROVIDER_PICKER_DRIVER_ORDER: ReadonlyArray<ProviderDriverKind> = [
+  ProviderDriverKind.make("pi"),
+  ProviderDriverKind.make("codex"),
+  ProviderDriverKind.make("claudeAgent"),
+  ProviderDriverKind.make("cursor"),
+  ProviderDriverKind.make("grok"),
+  ProviderDriverKind.make("opencode"),
+];
+
+const PROVIDER_PICKER_DRIVER_RANK = new Map<ProviderDriverKind, number>(
+  PROVIDER_PICKER_DRIVER_ORDER.map((driverKind, index) => [driverKind, index]),
+);
 
 function driverKindLabel(driverKind: ProviderDriverKind): string {
   return PROVIDER_DISPLAY_NAMES[driverKind] ?? formatProviderDriverKindLabel(driverKind);
@@ -164,26 +177,26 @@ export function deriveProviderInstanceEntries(
 export function sortProviderInstanceEntries(
   entries: ReadonlyArray<ProviderInstanceEntry>,
 ): ReadonlyArray<ProviderInstanceEntry> {
-  // Group by driver kind preserving first-appearance order, then emit
-  // default-first within each kind. Using a Map keeps the "first-seen"
-  // semantics for kinds whose default instance is absent (unusual but
-  // possible during the migration).
-  const byKind = new Map<ProviderDriverKind, ProviderInstanceEntry[]>();
-  for (const entry of entries) {
-    const bucket = byKind.get(entry.driverKind);
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      byKind.set(entry.driverKind, [entry]);
+  const originalIndexByInstance = new Map<ProviderInstanceId, number>(
+    entries.map((entry, index) => [entry.instanceId, index]),
+  );
+
+  return [...entries].sort((left, right) => {
+    const leftDriverRank =
+      PROVIDER_PICKER_DRIVER_RANK.get(left.driverKind) ?? Number.POSITIVE_INFINITY;
+    const rightDriverRank =
+      PROVIDER_PICKER_DRIVER_RANK.get(right.driverKind) ?? Number.POSITIVE_INFINITY;
+    if (leftDriverRank !== rightDriverRank) {
+      return leftDriverRank - rightDriverRank;
     }
-  }
-  const sorted: ProviderInstanceEntry[] = [];
-  for (const bucket of byKind.values()) {
-    const defaults = bucket.filter((entry) => entry.isDefault);
-    const customs = bucket.filter((entry) => !entry.isDefault);
-    sorted.push(...defaults, ...customs);
-  }
-  return sorted;
+    if (left.isDefault !== right.isDefault) {
+      return left.isDefault ? -1 : 1;
+    }
+    return (
+      (originalIndexByInstance.get(left.instanceId) ?? 0) -
+      (originalIndexByInstance.get(right.instanceId) ?? 0)
+    );
+  });
 }
 
 /**

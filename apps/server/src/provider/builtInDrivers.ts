@@ -47,10 +47,10 @@ export type BuiltInDriversEnv =
  * iteration order has no functional effect on instance lookup.
  */
 export const BUILT_IN_DRIVERS: ReadonlyArray<AnyProviderDriver<BuiltInDriversEnv>> = [
+  PiDriver,
   CodexDriver,
   ClaudeDriver,
   CursorDriver,
   GrokDriver,
   OpenCodeDriver,
-  PiDriver,
 ];
