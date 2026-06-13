@@ -557,7 +557,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           providerDisplayName={model.instanceDisplayName}
           providerAccentColor={model.instanceAccentColor}
           isFavorite={favoritesSet.has(modelKey)}
-          showProvider={!isLocked || showLockedInstanceSidebar}
+          showProvider
           preferShortName={!isLocked}
           useTriggerLabel={isLocked && !showLockedInstanceSidebar}
           showNewBadge={isModelPickerNewModel(model.driverKind, model.slug)}

@@ -36,36 +36,16 @@ import { useShallow } from "zustand/react/shallow";
 
 import { ProjectFavicon } from "./ProjectFavicon";
 import { Button } from "./ui/button";
-import {
-  Menu,
-  MenuGroup,
-  MenuItem,
-  MenuPopup,
-  MenuSeparator,
-  MenuTrigger,
-} from "./ui/menu";
-import {
-  Sheet,
-  SheetDescription,
-  SheetHeader,
-  SheetPopup,
-  SheetTitle,
-} from "./ui/sheet";
+import { Menu, MenuGroup, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "./ui/menu";
+import { Sheet, SheetDescription, SheetHeader, SheetPopup, SheetTitle } from "./ui/sheet";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useCommandPaletteStore } from "../commandPaletteStore";
 import { isElectron } from "../env";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useIsMobile } from "../hooks/useMediaQuery";
-import {
-  buildProjectThreadRouteParams,
-  buildProjectThreadsRouteParams,
-} from "../projectTabs";
+import { buildProjectThreadRouteParams, buildProjectThreadsRouteParams } from "../projectTabs";
 import { useProjectShellUiStateStore } from "../projectShellUiStateStore";
-import {
-  selectProjectByRef,
-  selectSidebarThreadsForProjectRef,
-  useStore,
-} from "../store";
+import { selectProjectByRef, selectSidebarThreadsForProjectRef, useStore } from "../store";
 import { sortThreads } from "../lib/threadSort";
 import { cn } from "../lib/utils";
 import { useSettings } from "../hooks/useSettings";
@@ -83,8 +63,9 @@ interface ProjectShellNavigationContextValue {
   openMobileNavigation: () => void;
 }
 
-const ProjectShellNavigationContext =
-  createContext<ProjectShellNavigationContextValue | null>(null);
+const ProjectShellNavigationContext = createContext<ProjectShellNavigationContextValue | null>(
+  null,
+);
 
 export function useProjectShellNavigation(): ProjectShellNavigationContextValue | null {
   return useContext(ProjectShellNavigationContext);
@@ -107,12 +88,9 @@ function threadKey(ref: ScopedThreadRef): string {
 
 function threadStatusDotClassName(thread: SidebarThreadSummary): string {
   if (thread.session?.status === "error") return "block bg-destructive";
-  if (thread.hasPendingApprovals || thread.hasPendingUserInput)
-    return "block bg-amber-500";
-  if (thread.session?.status === "running")
-    return "block bg-emerald-500 animate-pulse";
-  if (thread.latestTurn?.state === "running")
-    return "block bg-emerald-500 animate-pulse";
+  if (thread.hasPendingApprovals || thread.hasPendingUserInput) return "block bg-amber-500";
+  if (thread.session?.status === "running") return "block bg-emerald-500 animate-pulse";
+  if (thread.latestTurn?.state === "running") return "block bg-emerald-500 animate-pulse";
   return "hidden";
 }
 
@@ -133,10 +111,7 @@ function ProjectShellIconButton({
         render={
           <Button
             aria-label={label}
-            className={cn(
-              "size-8 shrink-0",
-              active && "bg-accent text-accent-foreground",
-            )}
+            className={cn("size-8 shrink-0", active && "bg-accent text-accent-foreground")}
             onClick={onClick}
             size="icon"
             variant="ghost"
@@ -160,9 +135,7 @@ function ProjectSwitcher({
   projectRef: ScopedProjectRef | null;
 }) {
   const navigate = useNavigate();
-  const recentProjectKeys = useProjectShellUiStateStore(
-    (state) => state.recentProjectKeys,
-  );
+  const recentProjectKeys = useProjectShellUiStateStore((state) => state.recentProjectKeys);
   const focusedThreadKeyByProjectKey = useProjectShellUiStateStore(
     (state) => state.focusedThreadKeyByProjectKey,
   );
@@ -176,9 +149,7 @@ function ProjectSwitcher({
           Object.values(environmentState.projectById).map(
             (project) =>
               [
-                scopedProjectKey(
-                  scopeProjectRef(project.environmentId, project.id),
-                ),
+                scopedProjectKey(scopeProjectRef(project.environmentId, project.id)),
                 project,
               ] as const,
           ),
@@ -198,13 +169,9 @@ function ProjectSwitcher({
       const focusedKey = focusedThreadKeyByProjectKey[pKey] ?? null;
       const openedKeys = openedThreadKeysByProjectKey[pKey] ?? [];
       if (focusedKey && openedKeys.includes(focusedKey)) {
-        const thread = selectSidebarThreadsForProjectRef(
-          useStore.getState(),
-          ref,
-        ).find(
+        const thread = selectSidebarThreadsForProjectRef(useStore.getState(), ref).find(
           (candidate) =>
-            threadKey(scopeThreadRef(candidate.environmentId, candidate.id)) ===
-            focusedKey,
+            threadKey(scopeThreadRef(candidate.environmentId, candidate.id)) === focusedKey,
         );
         if (thread && thread.archivedAt === null) {
           await navigate({
@@ -238,10 +205,7 @@ function ProjectSwitcher({
           />
         }
       >
-        <ProjectFavicon
-          environmentId={currentProject.environmentId}
-          cwd={currentProject.cwd}
-        />
+        <ProjectFavicon environmentId={currentProject.environmentId} cwd={currentProject.cwd} />
         <span className="truncate">{currentProject?.name ?? "Projects"}</span>
       </MenuTrigger>
       <MenuPopup align="start" className="w-72">
@@ -251,22 +215,15 @@ function ProjectSwitcher({
           </div>
           {recentProjects.slice(0, 5).map((project) => (
             <MenuItem
-              key={scopedProjectKey(
-                scopeProjectRef(project.environmentId, project.id),
-              )}
+              key={scopedProjectKey(scopeProjectRef(project.environmentId, project.id))}
               onClick={() => void navigateToProject(project)}
             >
-              <ProjectFavicon
-                environmentId={project.environmentId}
-                cwd={project.cwd}
-              />
+              <ProjectFavicon environmentId={project.environmentId} cwd={project.cwd} />
               <span className="min-w-0 flex-1 truncate">{project.name}</span>
             </MenuItem>
           ))}
           {recentProjects.length === 0 ? (
-            <div className="px-2 py-2 text-sm text-muted-foreground">
-              No recent projects
-            </div>
+            <div className="px-2 py-2 text-sm text-muted-foreground">No recent projects</div>
           ) : null}
         </MenuGroup>
         <MenuSeparator />
@@ -313,12 +270,7 @@ function ProjectThreadTab({
       onClick={active ? undefined : onSelect}
       onContextMenu={onContextMenu}
     >
-      <span
-        className={cn(
-          "size-2 shrink-0 rounded-full",
-          threadStatusDotClassName(thread),
-        )}
-      />
+      <span className={cn("size-2 shrink-0 rounded-full", threadStatusDotClassName(thread))} />
       <span className="min-w-0 flex-1 truncate">{thread.title}</span>
       <span
         role="button"
@@ -359,32 +311,20 @@ function ProjectShellChrome({
   const sortOrder = useSettings((settings) => settings.threadSortOrder);
   const { handleNewThread } = useHandleNewThread();
   const projectRef = useMemo(
-    () =>
-      context.projectId
-        ? scopeProjectRef(context.environmentId, context.projectId)
-        : null,
+    () => (context.projectId ? scopeProjectRef(context.environmentId, context.projectId) : null),
     [context.environmentId, context.projectId],
   );
-  const currentProject = useStore(
-    (state) => selectProjectByRef(state, projectRef) ?? null,
-  );
+  const currentProject = useStore((state) => selectProjectByRef(state, projectRef) ?? null);
   const projectThreads = useStore(
-    useShallow((state) =>
-      projectRef ? selectSidebarThreadsForProjectRef(state, projectRef) : [],
-    ),
+    useShallow((state) => (projectRef ? selectSidebarThreadsForProjectRef(state, projectRef) : [])),
   );
   const openedThreadKeys = useProjectShellUiStateStore((state) =>
     projectRef
-      ? (state.openedThreadKeysByProjectKey[projectKey(projectRef)] ??
-        EMPTY_THREAD_KEYS)
+      ? (state.openedThreadKeysByProjectKey[projectKey(projectRef)] ?? EMPTY_THREAD_KEYS)
       : EMPTY_THREAD_KEYS,
   );
-  const closeThreadTab = useProjectShellUiStateStore(
-    (state) => state.closeThreadTab,
-  );
-  const markProjectAccessed = useProjectShellUiStateStore(
-    (state) => state.markProjectAccessed,
-  );
+  const closeThreadTab = useProjectShellUiStateStore((state) => state.closeThreadTab);
+  const markProjectAccessed = useProjectShellUiStateStore((state) => state.markProjectAccessed);
   const markThreadUnread = useUiStateStore((state) => state.markThreadUnread);
   const { copyToClipboard: copyThreadIdToClipboard } = useCopyToClipboard<{
     threadId: string;
@@ -400,8 +340,7 @@ function ProjectShellChrome({
         stackedThreadToast({
           type: "error",
           title: "Failed to copy thread ID",
-          description:
-            error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       ),
   });
@@ -419,23 +358,18 @@ function ProjectShellChrome({
         stackedThreadToast({
           type: "error",
           title: "Failed to copy path",
-          description:
-            error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : "An error occurred.",
         }),
       ),
   });
 
   const showThreadContextMenu = useCallback(
-    async (
-      thread: SidebarThreadSummary,
-      position: { x: number; y: number },
-    ) => {
+    async (thread: SidebarThreadSummary, position: { x: number; y: number }) => {
       const api = readLocalApi();
       if (!api) return;
       const threadRef = scopeThreadRef(thread.environmentId, thread.id);
       const threadKey = `${thread.environmentId}:${thread.id}`;
-      const threadWorkspacePath =
-        thread.worktreePath ?? currentProject?.cwd ?? null;
+      const threadWorkspacePath = thread.worktreePath ?? currentProject?.cwd ?? null;
       const clicked = await api.contextMenu.show(
         [
           { id: "open-new-window", label: "Open in New Window" },
@@ -455,11 +389,7 @@ function ProjectShellChrome({
       }
       if (clicked === "rename") {
         const newTitle = window.prompt("Rename thread", thread.title);
-        if (
-          !newTitle ||
-          newTitle.trim() === "" ||
-          newTitle.trim() === thread.title
-        ) {
+        if (!newTitle || newTitle.trim() === "" || newTitle.trim() === thread.title) {
           return;
         }
         const envApi = readEnvironmentApi(threadRef.environmentId);
@@ -476,8 +406,7 @@ function ProjectShellChrome({
             stackedThreadToast({
               type: "error",
               title: "Failed to rename thread",
-              description:
-                error instanceof Error ? error.message : "An error occurred.",
+              description: error instanceof Error ? error.message : "An error occurred.",
             }),
           );
         }
@@ -513,8 +442,7 @@ function ProjectShellChrome({
             stackedThreadToast({
               type: "error",
               title: "Failed to archive thread",
-              description:
-                error instanceof Error ? error.message : "An error occurred.",
+              description: error instanceof Error ? error.message : "An error occurred.",
             }),
           );
         }
@@ -537,12 +465,7 @@ function ProjectShellChrome({
         });
       }
     },
-    [
-      copyPathToClipboard,
-      copyThreadIdToClipboard,
-      currentProject,
-      markThreadUnread,
-    ],
+    [copyPathToClipboard, copyThreadIdToClipboard, currentProject, markThreadUnread],
   );
 
   const handleTabContextMenu = useCallback(
@@ -571,9 +494,7 @@ function ProjectShellChrome({
       projectThreads.filter(
         (thread) =>
           thread.archivedAt === null &&
-          opened.has(
-            threadKey(scopeThreadRef(thread.environmentId, thread.id)),
-          ),
+          opened.has(threadKey(scopeThreadRef(thread.environmentId, thread.id))),
       ),
       sortOrder,
     );
@@ -628,16 +549,10 @@ function ProjectShellChrome({
     async (thread: SidebarThreadSummary) => {
       if (!projectRef) return;
       const closingIndex = openedTabs.findIndex(
-        (entry) =>
-          entry.id === thread.id &&
-          entry.environmentId === thread.environmentId,
+        (entry) => entry.id === thread.id && entry.environmentId === thread.environmentId,
       );
-      const nextThread =
-        openedTabs[closingIndex + 1] ?? openedTabs[closingIndex - 1] ?? null;
-      closeThreadTab(
-        projectRef,
-        scopeThreadRef(thread.environmentId, thread.id),
-      );
+      const nextThread = openedTabs[closingIndex + 1] ?? openedTabs[closingIndex - 1] ?? null;
+      closeThreadTab(projectRef, scopeThreadRef(thread.environmentId, thread.id));
       if (context.activeThreadId === thread.id) {
         if (nextThread) {
           await navigateToThread(nextThread);
@@ -689,8 +604,7 @@ function ProjectShellChrome({
   );
 
   if (isMobile) {
-    const showMobileChrome =
-      context.activeView !== "thread" && context.activeView !== "draft";
+    const showMobileChrome = context.activeView !== "thread" && context.activeView !== "draft";
     const mobileTitle =
       context.activeView === "projects"
         ? "Projects"
@@ -723,13 +637,9 @@ function ProjectShellChrome({
               <ChevronLeftIcon className="size-4" />
             </Button>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-foreground">
-                {mobileTitle}
-              </div>
+              <div className="truncate text-sm font-medium text-foreground">{mobileTitle}</div>
               {currentProject ? (
-                <div className="truncate text-xs text-muted-foreground">
-                  {currentProject.name}
-                </div>
+                <div className="truncate text-xs text-muted-foreground">{currentProject.name}</div>
               ) : null}
             </div>
             <Button
@@ -744,11 +654,7 @@ function ProjectShellChrome({
           </header>
         ) : null}
         <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-          <SheetPopup
-            side="bottom"
-            className="max-h-[82dvh] rounded-t-2xl"
-            showCloseButton={false}
-          >
+          <SheetPopup side="bottom" className="max-h-[82dvh] rounded-t-2xl" showCloseButton={false}>
             <SheetHeader className="px-4 py-3">
               <SheetTitle className="flex items-center gap-2 text-base">
                 {currentProject ? (
@@ -778,26 +684,20 @@ function ProjectShellChrome({
                   </Button>
                 ) : null}
               </SheetTitle>
-              <SheetDescription className="sr-only">
-                Project navigation
-              </SheetDescription>
+              <SheetDescription className="sr-only">Project navigation</SheetDescription>
             </SheetHeader>
             <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-3">
               <div className="rounded-lg border border-border p-1">
                 {openedTabs.length > 0 ? (
                   openedTabs.map((thread) => (
                     <ProjectThreadTab
-                      key={threadKey(
-                        scopeThreadRef(thread.environmentId, thread.id),
-                      )}
+                      key={threadKey(scopeThreadRef(thread.environmentId, thread.id))}
                       active={context.activeThreadId === thread.id}
                       thread={thread}
                       mobile
                       onSelect={() => void navigateToThread(thread)}
                       onClose={() => void closeTabAndNavigate(thread)}
-                      onContextMenu={(event) =>
-                        handleTabContextMenu(event, thread)
-                      }
+                      onContextMenu={(event) => handleTabContextMenu(event, thread)}
                     />
                   ))
                 ) : (
@@ -822,22 +722,13 @@ function ProjectShellChrome({
               </Button>
               {projectRef ? (
                 <>
-                  <Button
-                    variant="outline"
-                    onClick={() => void createNewThread()}
-                  >
+                  <Button variant="outline" onClick={() => void createNewThread()}>
                     <PlusIcon className="size-4" />
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => void navigateToThreads()}
-                  >
+                  <Button variant="outline" onClick={() => void navigateToThreads()}>
                     <ListIcon className="size-4" />
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => void navigateToTerminal()}
-                  >
+                  <Button variant="outline" onClick={() => void navigateToTerminal()}>
                     <TerminalIcon className="size-4" />
                   </Button>
                 </>
@@ -845,17 +736,13 @@ function ProjectShellChrome({
                 <>
                   <Button
                     variant="outline"
-                    onClick={() =>
-                      useCommandPaletteStore.getState().openAddProject()
-                    }
+                    onClick={() => useCommandPaletteStore.getState().openAddProject()}
                   >
                     <PlusIcon className="size-4" />
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() =>
-                      useCommandPaletteStore.getState().setOpen(true)
-                    }
+                    onClick={() => useCommandPaletteStore.getState().setOpen(true)}
                   >
                     <SearchIcon className="size-4" />
                   </Button>
@@ -891,9 +778,7 @@ function ProjectShellChrome({
           environmentId={context.environmentId}
           projectRef={projectRef}
         />
-        {showProjectScopedActions && (
-          <div className="w-0.5 h-4 bg-secondary mx-1" />
-        )}
+        {showProjectScopedActions && <div className="w-0.5 h-4 bg-secondary mx-1" />}
         {actionButtons}
       </div>
       {openedTabs.length > 0 && showProjectScopedActions && (
@@ -915,10 +800,7 @@ function ProjectShellChrome({
         {showProjectScopedActions && (
           <div className="self-center flex flex-row items-center gap-2">
             <div className="w-0.5 h-4 bg-secondary" />
-            <ProjectShellIconButton
-              label="New thread"
-              onClick={() => void createNewThread()}
-            >
+            <ProjectShellIconButton label="New thread" onClick={() => void createNewThread()}>
               <PlusIcon className="size-4" />
             </ProjectShellIconButton>
           </div>
@@ -938,17 +820,11 @@ function ProjectShellChrome({
             <EllipsisIcon className="size-4" />
           </MenuTrigger>
           <MenuPopup align="end">
-            <MenuItem onClick={() => void navigate({ to: "/settings" })}>
-              Settings
-            </MenuItem>
-            <MenuItem
-              onClick={() => void navigate({ to: "/settings/connections" })}
-            >
+            <MenuItem onClick={() => void navigate({ to: "/settings" })}>Settings</MenuItem>
+            <MenuItem onClick={() => void navigate({ to: "/settings/connections" })}>
               Connections
             </MenuItem>
-            <MenuItem
-              onClick={() => void navigate({ to: "/settings/diagnostics" })}
-            >
+            <MenuItem onClick={() => void navigate({ to: "/settings/diagnostics" })}>
               Diagnostics
             </MenuItem>
           </MenuPopup>
@@ -970,30 +846,21 @@ function ProjectShellStatePruner() {
 
     for (const environmentState of Object.values(environmentStateById)) {
       for (const project of Object.values(environmentState.projectById)) {
-        const pKey = scopedProjectKey(
-          scopeProjectRef(project.environmentId, project.id),
-        );
+        const pKey = scopedProjectKey(scopeProjectRef(project.environmentId, project.id));
         validProjectKeys.add(pKey);
         validThreadKeysByProjectKey.set(pKey, new Set());
       }
 
-      for (const thread of Object.values(
-        environmentState.sidebarThreadSummaryById,
-      )) {
+      for (const thread of Object.values(environmentState.sidebarThreadSummaryById)) {
         if (thread.archivedAt !== null) {
           continue;
         }
-        const pKey = scopedProjectKey(
-          scopeProjectRef(thread.environmentId, thread.projectId),
-        );
+        const pKey = scopedProjectKey(scopeProjectRef(thread.environmentId, thread.projectId));
         if (!validProjectKeys.has(pKey)) {
           continue;
         }
-        const validThreadKeys =
-          validThreadKeysByProjectKey.get(pKey) ?? new Set<string>();
-        validThreadKeys.add(
-          scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
-        );
+        const validThreadKeys = validThreadKeysByProjectKey.get(pKey) ?? new Set<string>();
+        validThreadKeys.add(scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)));
         validThreadKeysByProjectKey.set(pKey, validThreadKeys);
       }
     }
@@ -1011,12 +878,10 @@ export function ProjectShell({
   children?: ReactNode;
   context: ProjectShellContextValue;
 }) {
-  const [mobileNavigationOpenRequest, setMobileNavigationOpenRequest] =
-    useState(0);
+  const [mobileNavigationOpenRequest, setMobileNavigationOpenRequest] = useState(0);
   const navigationContext = useMemo(
     () => ({
-      openMobileNavigation: () =>
-        setMobileNavigationOpenRequest((request) => request + 1),
+      openMobileNavigation: () => setMobileNavigationOpenRequest((request) => request + 1),
     }),
     [],
   );
@@ -1040,7 +905,5 @@ export function ProjectShell({
 }
 
 export function ProjectShellPage({ children }: { children: ReactNode }) {
-  return (
-    <div className="min-h-0 flex-1 overflow-auto bg-background">{children}</div>
-  );
+  return <div className="min-h-0 flex-1 overflow-auto bg-background">{children}</div>;
 }
