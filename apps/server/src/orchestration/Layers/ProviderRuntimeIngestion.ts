@@ -272,6 +272,24 @@ function runtimeEventToActivities(
       : {};
   })();
   switch (event.type) {
+    case "input.queue.updated": {
+      return [
+        {
+          id: event.eventId,
+          createdAt: event.createdAt,
+          tone: "info",
+          kind: "input.queue.updated",
+          summary: "Input queue updated",
+          payload: {
+            steering: event.payload.steering,
+            followUp: event.payload.followUp,
+          },
+          turnId: toTurnId(event.turnId) ?? null,
+          ...maybeSequence,
+        },
+      ];
+    }
+
     case "request.opened": {
       if (event.payload.requestType === "tool_user_input") {
         return [];
@@ -1356,6 +1374,48 @@ const make = Effect.gen(function* () {
             createdAt: now,
           });
         }
+      }
+
+      if (event.type === "user-message.observed") {
+        const turnId = toTurnId(event.turnId);
+        if (turnId) {
+          const detailedThread = yield* getLoadedThreadDetail();
+          const assistantDeliveryMode: AssistantDeliveryMode = yield* Effect.map(
+            serverSettingsService.getSettings,
+            (settings) => (settings.enableAssistantStreaming ? "streaming" : "buffered"),
+          );
+          const flushedMessageIds =
+            assistantDeliveryMode === "buffered"
+              ? yield* flushBufferedAssistantMessagesForTurn({
+                  event,
+                  threadId: thread.id,
+                  turnId,
+                  createdAt: now,
+                  commandTag: "assistant-delta-flush-on-user-message-observed",
+                })
+              : new Set<MessageId>();
+          yield* finalizeActiveAssistantSegmentForTurn({
+            event,
+            threadId: thread.id,
+            turnId,
+            createdAt: now,
+            commandTag: "assistant-complete-on-user-message-observed",
+            finalDeltaCommandTag: "assistant-delta-finalize-on-user-message-observed",
+            hasProjectedMessage:
+              detailedThread !== null &&
+              hasAssistantMessageForTurn(detailedThread.messages, turnId, { streamingOnly: true }),
+            flushedMessageIds,
+          });
+        }
+        yield* orchestrationEngine.dispatch({
+          type: "thread.message.user.observed",
+          commandId: yield* providerCommandId(event, "user-message-observed"),
+          threadId: thread.id,
+          messageId: MessageId.make(`user:${event.eventId}`),
+          text: event.payload.text,
+          ...(turnId ? { turnId } : {}),
+          createdAt: now,
+        });
       }
 
       const assistantDelta =

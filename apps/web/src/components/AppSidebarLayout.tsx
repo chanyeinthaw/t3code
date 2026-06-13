@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
 import { SidebarProvider } from "./ui/sidebar";
+import { toastManager } from "./ui/toast";
 import {
   clearShortcutModifierState,
   syncShortcutModifierStateFromKeyboardEvent,
@@ -48,6 +49,31 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
       unsubscribe?.();
     };
   }, [navigate]);
+
+  useEffect(() => {
+    const onMenuAction = window.desktopBridge?.onMenuAction;
+    if (typeof onMenuAction !== "function") return;
+
+    let quitToastId: ReturnType<typeof toastManager.add> | null = null;
+    const unsubscribe = onMenuAction((action) => {
+      if (action === "quit-in-progress") {
+        if (quitToastId !== null) return;
+        quitToastId = toastManager.add({
+          type: "info",
+          title: "Quitting T3 Code…",
+          description: "Cleaning up before shutdown.",
+          timeout: 0,
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+      if (quitToastId !== null) {
+        toastManager.close(quitToastId);
+      }
+    };
+  }, []);
 
   return (
     <SidebarProvider className="h-dvh! min-h-0!" defaultOpen={false} open={false}>
