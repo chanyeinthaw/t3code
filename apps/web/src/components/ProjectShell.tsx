@@ -841,10 +841,25 @@ function ProjectShellStatePruner() {
   );
 
   useEffect(() => {
+    const bootstrappedEnvironmentEntries = Object.entries(environmentStateById).filter(
+      ([, environmentState]) => environmentState.bootstrapComplete,
+    );
+
+    // Do not prune persisted tabs while a newly mounted renderer is still waiting
+    // for the shell snapshot. In Electron dev/prod, closing the window and
+    // reopening it briefly renders the project shell with empty environment
+    // state; pruning at that point deletes the just-restored persisted tabs.
+    if (bootstrappedEnvironmentEntries.length === 0) {
+      return;
+    }
+
+    const prunableEnvironmentIds = new Set(
+      bootstrappedEnvironmentEntries.map(([environmentId]) => EnvironmentId.make(environmentId)),
+    );
     const validProjectKeys = new Set<string>();
     const validThreadKeysByProjectKey = new Map<string, Set<string>>();
 
-    for (const environmentState of Object.values(environmentStateById)) {
+    for (const [, environmentState] of bootstrappedEnvironmentEntries) {
       for (const project of Object.values(environmentState.projectById)) {
         const pKey = scopedProjectKey(scopeProjectRef(project.environmentId, project.id));
         validProjectKeys.add(pKey);
@@ -865,7 +880,11 @@ function ProjectShellStatePruner() {
       }
     }
 
-    pruneProjectShellState({ validProjectKeys, validThreadKeysByProjectKey });
+    pruneProjectShellState({
+      validProjectKeys,
+      validThreadKeysByProjectKey,
+      prunableEnvironmentIds,
+    });
   }, [environmentStateById, pruneProjectShellState]);
 
   return null;

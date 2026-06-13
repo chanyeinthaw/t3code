@@ -1,5 +1,10 @@
-import { type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
-import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime";
+import { type EnvironmentId, type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
+import {
+  parseScopedProjectKey,
+  parseScopedThreadKey,
+  scopedProjectKey,
+  scopeProjectRef,
+} from "@t3tools/client-runtime";
 import {
   Outlet,
   createRootRouteWithContext,
@@ -11,7 +16,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
 
 import { APP_DISPLAY_NAME } from "../branding";
-import { navigateToProjectThread } from "../projectRouteNavigation";
+import { navigateToProjectThread, navigateToProjectThreads } from "../projectRouteNavigation";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { SettingsSidebarLayout } from "../components/SettingsSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
@@ -45,7 +50,8 @@ import {
   useServerConfigUpdatedSubscription,
   useServerWelcomeSubscription,
 } from "../rpc/serverState";
-import { useStore } from "../store";
+import { useProjectShellUiStateStore } from "../projectShellUiStateStore";
+import { selectEnvironmentState, selectProjectByRef, selectThreadByRef, useStore } from "../store";
 import { useUiStateStore } from "../uiStateStore";
 import { syncBrowserChromeTheme } from "../hooks/useTheme";
 import {
@@ -288,6 +294,68 @@ function EnvironmentConnectionManagerBootstrap() {
   return null;
 }
 
+/**
+ * Try to restore the last focused thread from the persisted tab state
+ * (`projectShellUiStateStore`). Returns `true` if navigation succeeded.
+ */
+type NavigateFn = (options: any) => Promise<void>;
+
+function normalizeStartupPath(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
+function isRestorableStartupPath(pathname: string, environmentId: EnvironmentId): boolean {
+  const normalizedPathname = normalizeStartupPath(pathname);
+  if (normalizedPathname === "/") return true;
+  return normalizedPathname === `/${environmentId}/projects`;
+}
+
+async function restorePersistedTabState(
+  navigate: NavigateFn,
+  environmentId: EnvironmentId,
+): Promise<boolean> {
+  const { focusedThreadKeyByProjectKey, recentProjectKeys } =
+    useProjectShellUiStateStore.getState();
+
+  // Find the most recent project that has a focused thread.
+  const projectKeysInOrder =
+    recentProjectKeys.length > 0 ? recentProjectKeys : Object.keys(focusedThreadKeyByProjectKey);
+
+  for (const pKey of projectKeysInOrder) {
+    const focusedThreadKey = focusedThreadKeyByProjectKey[pKey];
+    if (!focusedThreadKey) continue;
+
+    const threadRef = parseScopedThreadKey(focusedThreadKey);
+    if (!threadRef || threadRef.environmentId !== environmentId) continue;
+
+    // Check that the thread still exists in the server-side state.
+    const thread = selectThreadByRef(useStore.getState(), threadRef);
+    if (!thread) continue;
+
+    // Navigate to the focused thread.
+    const navigated = await navigateToProjectThread(navigate, threadRef, {
+      replace: true,
+    });
+    if (navigated) return true;
+
+    // Thread was found but navigation failed — try the next one.
+  }
+
+  // If we couldn't navigate to a focused thread, try opening a project's
+  // threads list for the first recent project that exists.
+  for (const pKey of projectKeysInOrder) {
+    const parsed = parseScopedProjectKey(pKey);
+    if (!parsed || parsed.environmentId !== environmentId) continue;
+    const project = selectProjectByRef(useStore.getState(), parsed);
+    if (!project) continue;
+
+    await navigateToProjectThreads(navigate, parsed, { replace: true });
+    return true;
+  }
+
+  return false;
+}
+
 function EventRouter() {
   const setActiveEnvironmentId = useStore((store) => store.setActiveEnvironmentId);
   const navigate = useNavigate();
@@ -295,10 +363,17 @@ function EventRouter() {
   const projectGroupingSettings = useSettings(selectProjectGroupingSettings);
   const readPathname = useEffectEvent(() => pathname);
   const handledBootstrapThreadIdRef = useRef<string | null>(null);
+  const restoredInitialTabStateRef = useRef(false);
   const seenServerConfigUpdateIdRef = useRef(getServerConfigUpdatedNotification()?.id ?? 0);
   const lastKeybindingsSuccessToastAtRef = useRef(0);
   const disposedRef = useRef(false);
   const serverConfig = useServerConfig();
+  const serverConfigEnvironmentId = serverConfig?.environment.environmentId ?? null;
+  const serverConfigEnvironmentBootstrapped = useStore((state) =>
+    serverConfigEnvironmentId
+      ? selectEnvironmentState(state, serverConfigEnvironmentId).bootstrapComplete
+      : false,
+  );
 
   const handleWelcome = useEffectEvent((payload: ServerLifecycleWelcomePayload | null) => {
     if (!payload) return;
@@ -311,47 +386,61 @@ function EventRouter() {
         return;
       }
 
-      if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
+      if (!isRestorableStartupPath(readPathname(), payload.environment.environmentId)) {
+        restoredInitialTabStateRef.current = true;
         return;
       }
-      const bootstrapEnvironmentState =
-        useStore.getState().environmentStateById[payload.environment.environmentId];
-      const bootstrapProject =
-        bootstrapEnvironmentState?.projectById[payload.bootstrapProjectId] ?? null;
-      const bootstrapProjectKey =
-        (bootstrapProject
-          ? deriveLogicalProjectKeyFromSettings(bootstrapProject, projectGroupingSettings)
-          : null) ??
-        (serverConfig?.cwd
-          ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
-          : null) ??
-        scopedProjectKey(
-          scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
-        );
-      useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
 
-      if (readPathname() !== "/") {
+      restoredInitialTabStateRef.current = true;
+
+      // First priority: navigate to the server-provided bootstrap thread.
+      if (payload.bootstrapProjectId && payload.bootstrapThreadId) {
+        if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
+          return;
+        }
+        const bootstrapEnvironmentState =
+          useStore.getState().environmentStateById[payload.environment.environmentId];
+        const bootstrapProject =
+          bootstrapEnvironmentState?.projectById[payload.bootstrapProjectId] ?? null;
+        const bootstrapProjectKey =
+          (bootstrapProject
+            ? deriveLogicalProjectKeyFromSettings(bootstrapProject, projectGroupingSettings)
+            : null) ??
+          (serverConfig?.cwd
+            ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
+            : null) ??
+          scopedProjectKey(
+            scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
+          );
+        useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
+
+        const navigated = await navigateToProjectThread(
+          navigate,
+          {
+            environmentId: payload.environment.environmentId,
+            threadId: payload.bootstrapThreadId,
+          },
+          { replace: true },
+        );
+        if (navigated) {
+          handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
+          return;
+        }
+      }
+
+      // Second priority: restore the last focused thread from the persisted
+      // tab state (survives app restart in Electron / browser).
+      const restored = await restorePersistedTabState(navigate, payload.environment.environmentId);
+      if (restored) {
         return;
       }
-      if (handledBootstrapThreadIdRef.current === payload.bootstrapThreadId) {
-        return;
-      }
-      const navigated = await navigateToProjectThread(
-        navigate,
-        {
-          environmentId: payload.environment.environmentId,
-          threadId: payload.bootstrapThreadId,
-        },
-        { replace: true },
-      );
-      if (!navigated) {
-        await navigate({
-          to: "/$environmentId/projects",
-          params: { environmentId: payload.environment.environmentId },
-          replace: true,
-        });
-      }
-      handledBootstrapThreadIdRef.current = payload.bootstrapThreadId;
+
+      // Fallback: navigate to the projects list.
+      await navigate({
+        to: "/$environmentId/projects",
+        params: { environmentId: payload.environment.environmentId },
+        replace: true,
+      });
     })().catch(() => undefined);
   });
 
@@ -430,6 +519,39 @@ function EventRouter() {
     updatePrimaryEnvironmentDescriptor(serverConfig.environment);
     setActiveEnvironmentId(serverConfig.environment.environmentId);
   }, [serverConfig, setActiveEnvironmentId]);
+
+  useEffect(() => {
+    if (!serverConfig || !serverConfigEnvironmentBootstrapped) {
+      return;
+    }
+    const environmentId = serverConfig.environment.environmentId;
+    if (restoredInitialTabStateRef.current || !isRestorableStartupPath(pathname, environmentId)) {
+      return;
+    }
+
+    restoredInitialTabStateRef.current = true;
+    void (async () => {
+      await ensureEnvironmentConnectionBootstrapped(environmentId);
+      if (disposedRef.current || !isRestorableStartupPath(readPathname(), environmentId)) {
+        return;
+      }
+
+      const restored = await restorePersistedTabState(navigate, environmentId);
+      if (
+        restored ||
+        disposedRef.current ||
+        !isRestorableStartupPath(readPathname(), environmentId)
+      ) {
+        return;
+      }
+
+      await navigate({
+        to: "/$environmentId/projects",
+        params: { environmentId },
+        replace: true,
+      });
+    })().catch(() => undefined);
+  }, [navigate, pathname, readPathname, serverConfig, serverConfigEnvironmentBootstrapped]);
 
   useEffect(() => {
     disposedRef.current = false;

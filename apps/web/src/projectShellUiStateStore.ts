@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { scopedProjectKey, scopedThreadKey } from "@t3tools/client-runtime";
-import type { ScopedProjectRef, ScopedThreadRef } from "@t3tools/contracts";
+import { parseScopedProjectKey, scopedProjectKey, scopedThreadKey } from "@t3tools/client-runtime";
+import type { EnvironmentId, ScopedProjectRef, ScopedThreadRef } from "@t3tools/contracts";
 
 export const PROJECT_SHELL_UI_STATE_STORAGE_KEY = "t3code:project-shell-ui-state:v1";
 const MAX_RECENT_PROJECTS = 20;
@@ -18,6 +18,7 @@ export interface ProjectShellUiState {
   pruneProjectShellState: (input: {
     validProjectKeys: ReadonlySet<string>;
     validThreadKeysByProjectKey: ReadonlyMap<string, ReadonlySet<string>>;
+    prunableEnvironmentIds?: ReadonlySet<EnvironmentId> | undefined;
   }) => void;
 }
 
@@ -135,13 +136,28 @@ export const useProjectShellUiStateStore = create<ProjectShellUiState>()(
         set((state) => ({
           recentProjectKeys: markRecentProject(state.recentProjectKeys, projectKey(projectRef)),
         })),
-      pruneProjectShellState: ({ validProjectKeys, validThreadKeysByProjectKey }) =>
+      pruneProjectShellState: ({
+        validProjectKeys,
+        validThreadKeysByProjectKey,
+        prunableEnvironmentIds,
+      }) =>
         set((state) => {
           const openedThreadKeysByProjectKey: Record<string, string[]> = {};
           const focusedThreadKeyByProjectKey: Record<string, string | null> = {};
           let changed = false;
           for (const [pKey, tabs] of Object.entries(state.openedThreadKeysByProjectKey)) {
+            const parsedProjectKey = parseScopedProjectKey(pKey);
+            const canPruneProject =
+              !prunableEnvironmentIds ||
+              (parsedProjectKey !== null &&
+                prunableEnvironmentIds.has(parsedProjectKey.environmentId));
             if (!validProjectKeys.has(pKey)) {
+              if (!canPruneProject) {
+                openedThreadKeysByProjectKey[pKey] = tabs;
+                focusedThreadKeyByProjectKey[pKey] =
+                  state.focusedThreadKeyByProjectKey[pKey] ?? null;
+                continue;
+              }
               changed = true;
               continue;
             }
@@ -154,9 +170,17 @@ export const useProjectShellUiStateStore = create<ProjectShellUiState>()(
             if (nextTabs.length !== tabs.length || focusedThreadKeyByProjectKey[pKey] !== focused)
               changed = true;
           }
-          const recentProjectKeys = state.recentProjectKeys.filter((pKey) =>
-            validProjectKeys.has(pKey),
-          );
+          const recentProjectKeys = state.recentProjectKeys.filter((pKey) => {
+            if (validProjectKeys.has(pKey)) {
+              return true;
+            }
+            const parsedProjectKey = parseScopedProjectKey(pKey);
+            return (
+              prunableEnvironmentIds !== undefined &&
+              parsedProjectKey !== null &&
+              !prunableEnvironmentIds.has(parsedProjectKey.environmentId)
+            );
+          });
           if (recentProjectKeys.length !== state.recentProjectKeys.length) changed = true;
           if (!changed) return state;
           return {
