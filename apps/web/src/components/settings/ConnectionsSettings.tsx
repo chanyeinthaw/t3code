@@ -110,6 +110,7 @@ import {
 import { useUiStateStore } from "~/uiStateStore";
 import { resolveServerConfigVersionMismatch } from "~/versionSkew";
 import { useServerConfig } from "~/rpc/serverState";
+import { T3ConnectSettingsPanel } from "./T3ConnectSettingsPanel";
 
 const DEFAULT_TAILSCALE_SERVE_PORT = 443;
 
@@ -2812,6 +2813,8 @@ export function ConnectionsSettings() {
           />
         </SettingsSection>
       )}
+
+      <T3ConnectSettingsPanel />
 
       <SettingsSection
         title="Remote environments"
