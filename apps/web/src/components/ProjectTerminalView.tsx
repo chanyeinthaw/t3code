@@ -31,7 +31,7 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { t
   return (
     <header
       className={cn(
-        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5",
+        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5 no-drag-region",
         isElectron && "drag-region wco:h-[env(titlebar-area-height)]",
       )}
     >

@@ -128,11 +128,9 @@ function ProjectShellIconButton({
 function ProjectSwitcher({
   currentProject,
   environmentId,
-  projectRef,
 }: {
   currentProject: Project | null;
   environmentId: EnvironmentId;
-  projectRef: ScopedProjectRef | null;
 }) {
   const navigate = useNavigate();
   const recentProjectKeys = useProjectShellUiStateStore((state) => state.recentProjectKeys);
@@ -799,11 +797,7 @@ function ProjectShellChrome({
       )}
     >
       <div className="flex flex-row items-center gap-1">
-        <ProjectSwitcher
-          currentProject={currentProject}
-          environmentId={context.environmentId}
-          projectRef={projectRef}
-        />
+        <ProjectSwitcher currentProject={currentProject} environmentId={context.environmentId} />
         {showProjectScopedActions && <div className="w-0.5 h-4 bg-secondary mx-1" />}
         {actionButtons}
       </div>

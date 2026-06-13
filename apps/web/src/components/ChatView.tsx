@@ -3872,7 +3872,7 @@ export default function ChatView(props: ChatViewProps) {
           "border-b border-border",
           isElectron
             ? cn(
-                "drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
+                "no-drag-region flex h-[52px] items-center px-3 sm:px-5 wco:h-[env(titlebar-area-height)]",
                 reserveTitleBarControlInset &&
                   !sidebarOpen &&
                   "pl-[90px] electron-full-screen:pl-3 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-3 sm:pl-[90px] sm:electron-full-screen:pl-5 sm:wco:pl-[calc(env(titlebar-area-x)+1em)] sm:electron-full-screen:wco:pl-5",
