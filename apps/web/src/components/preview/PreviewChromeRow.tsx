@@ -1,8 +1,8 @@
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   ExternalLink,
-  Globe,
   MousePointerClick,
   RotateCw,
 } from "lucide-react";
@@ -22,6 +22,7 @@ import { cn } from "~/lib/utils";
 
 interface Props {
   url: string;
+  displayUrl?: string | undefined;
   loading: boolean;
   loadProgress: number;
   canGoBack: boolean;
@@ -36,6 +37,9 @@ interface Props {
   onSubmit: (url: string) => void;
   /** When provided, renders an "Open in browser" affordance to the right. */
   onOpenInBrowser?: (() => void) | undefined;
+  onCapture?: ((record: boolean) => void) | undefined;
+  captureDisabled?: boolean | undefined;
+  recording?: boolean | undefined;
   /**
    * When provided, renders an annotation-mode toggle button to the right of
    * the URL input. Pressed while annotation mode is active (button shows in `pressed`
@@ -57,6 +61,7 @@ const NOOP = () => {};
 
 export function PreviewChromeRow({
   url,
+  displayUrl,
   loading,
   loadProgress,
   canGoBack,
@@ -69,6 +74,9 @@ export function PreviewChromeRow({
   onRefresh,
   onSubmit,
   onOpenInBrowser,
+  onCapture,
+  captureDisabled,
+  recording,
   onPickElement,
   pickActive,
   pickDisabled,
@@ -77,6 +85,7 @@ export function PreviewChromeRow({
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [draft, setDraft] = useState(url);
+  const [inputFocused, setInputFocused] = useState(false);
 
   // Sync the input with external URL changes, but only when the user isn't
   // actively typing (preserves in-progress edits during navigation events).
@@ -89,7 +98,6 @@ export function PreviewChromeRow({
     const node = inputRef.current;
     if (!node) return;
     node.focus();
-    node.select();
   }, [focusUrlNonce]);
 
   const submit = (event?: FormEvent | KeyboardEvent) => {
@@ -97,13 +105,14 @@ export function PreviewChromeRow({
     const next = draft.trim();
     if (next.length === 0) return;
     onSubmit(next);
+    inputRef.current?.blur();
   };
 
   return (
     <div className="relative">
       <form
         onSubmit={submit}
-        className="flex items-center gap-2 border-b border-border bg-background px-2 py-1.5"
+        className="flex h-10 items-center gap-1 border-b border-border/70 bg-background px-2"
       >
         <div className="flex items-center gap-0.5" role="group" aria-label="Navigation">
           <Tooltip>
@@ -159,14 +168,23 @@ export function PreviewChromeRow({
           </Tooltip>
         </div>
 
-        <InputGroup className="flex-1">
-          <InputGroupAddon align="inline-start">
-            <Globe className="size-3.5 text-muted-foreground" aria-hidden />
-          </InputGroupAddon>
+        <InputGroup className="group/address h-7 flex-1 rounded-md border-transparent bg-transparent shadow-none before:shadow-none hover:bg-muted/40 focus-within:bg-background">
           <InputGroupInput
             ref={inputRef}
-            value={draft}
+            value={inputFocused ? draft : (displayUrl ?? draft)}
+            className={cn(
+              onOpenInBrowser && !inputFocused && "group-hover/address:pe-7 transition-[padding]",
+            )}
             onChange={(event) => setDraft(event.target.value)}
+            onFocus={() => {
+              setDraft(url);
+              setInputFocused(true);
+              queueMicrotask(() => inputRef.current?.select());
+            }}
+            onBlur={() => {
+              setDraft(url);
+              setInputFocused(false);
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter") submit(event);
               if (event.key === "Escape") {
@@ -179,8 +197,32 @@ export function PreviewChromeRow({
             spellCheck={false}
             disabled={inputDisabled}
             data-preview-url-input
+            title={!inputFocused && displayUrl ? url : undefined}
             size="sm"
           />
+          {onOpenInBrowser && !inputFocused ? (
+            <InputGroupAddon
+              align="inline-end"
+              className="pointer-events-none absolute inset-y-0 right-0 opacity-0 transition-opacity group-hover/address:pointer-events-auto group-hover/address:opacity-100"
+            >
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={onOpenInBrowser}
+                      aria-label="Open in system browser"
+                      type="button"
+                    />
+                  }
+                >
+                  <ExternalLink />
+                </TooltipTrigger>
+                <TooltipPopup>Open in system browser</TooltipPopup>
+              </Tooltip>
+            </InputGroupAddon>
+          ) : null}
         </InputGroup>
 
         {onPickElement ? (
@@ -209,22 +251,29 @@ export function PreviewChromeRow({
             </TooltipPopup>
           </Tooltip>
         ) : null}
-        {onOpenInBrowser ? (
+        {onCapture ? (
           <Tooltip>
             <TooltipTrigger
               render={
                 <Button
-                  variant="ghost"
+                  variant={recording ? "secondary" : "ghost"}
                   size="icon-xs"
-                  onClick={onOpenInBrowser}
-                  aria-label="Open in system browser"
+                  onClick={(event) => onCapture(event.shiftKey)}
+                  aria-label={recording ? "Stop recording" : "Capture screenshot"}
                   type="button"
+                  className="relative"
+                  disabled={captureDisabled}
                 />
               }
             >
-              <ExternalLink />
+              <Camera className={cn(recording && "text-destructive")} />
+              {recording ? (
+                <span className="absolute right-0.5 top-0.5 size-1.5 animate-pulse rounded-full bg-destructive" />
+              ) : null}
             </TooltipTrigger>
-            <TooltipPopup>Open in system browser</TooltipPopup>
+            <TooltipPopup>
+              {recording ? "Stop recording" : "Screenshot · Shift-click to record"}
+            </TooltipPopup>
           </Tooltip>
         ) : null}
         {trailingActions}
