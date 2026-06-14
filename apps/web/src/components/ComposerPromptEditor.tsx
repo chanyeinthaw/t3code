@@ -1,4 +1,7 @@
-import { LexicalComposer, type InitialConfigType } from "@lexical/react/LexicalComposer";
+import {
+  LexicalComposer,
+  type InitialConfigType,
+} from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
@@ -63,7 +66,11 @@ import {
   type TerminalContextDraft,
 } from "~/lib/terminalContext";
 import { cn } from "~/lib/utils";
-import { basenameOfPath, getVscodeIconUrlForEntry, inferEntryKindFromPath } from "~/vscode-icons";
+import {
+  basenameOfPath,
+  getVscodeIconUrlForEntry,
+  inferEntryKindFromPath,
+} from "~/vscode-icons";
 import {
   COMPOSER_INLINE_CHIP_CLASS_NAME,
   COMPOSER_INLINE_CHIP_ICON_CLASS_NAME,
@@ -141,16 +148,25 @@ function ComposerMentionDecorator(props: { path: string }) {
         aria-hidden="true"
         className={COMPOSER_INLINE_CHIP_ICON_CLASS_NAME}
         loading="lazy"
-        src={getVscodeIconUrlForEntry(props.path, inferEntryKindFromPath(props.path), theme)}
+        src={getVscodeIconUrlForEntry(
+          props.path,
+          inferEntryKindFromPath(props.path),
+          theme,
+        )}
       />
-      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{basenameOfPath(props.path)}</span>
+      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>
+        {basenameOfPath(props.path)}
+      </span>
     </span>
   );
 
   return (
     <Tooltip>
       <TooltipTrigger render={chip} />
-      <TooltipPopup side="top" className="max-w-120 whitespace-normal leading-tight wrap-anywhere">
+      <TooltipPopup
+        side="top"
+        className="max-w-120 whitespace-normal leading-tight wrap-anywhere"
+      >
         {props.path}
       </TooltipPopup>
     </Tooltip>
@@ -168,8 +184,12 @@ class ComposerMentionNode extends DecoratorNode<React.ReactElement> {
     return new ComposerMentionNode(node.__path, node.__key);
   }
 
-  static override importJSON(serializedNode: SerializedComposerMentionNode): ComposerMentionNode {
-    return $createComposerMentionNode(serializedNode.path).updateFromJSON(serializedNode);
+  static override importJSON(
+    serializedNode: SerializedComposerMentionNode,
+  ): ComposerMentionNode {
+    return $createComposerMentionNode(serializedNode.path).updateFromJSON(
+      serializedNode,
+    );
   }
 
   constructor(path: string, key?: NodeKey) {
@@ -244,7 +264,10 @@ function skillMetadataByName(
   );
 }
 
-function ComposerSkillDecorator(props: { skillLabel: string; skillDescription: string | null }) {
+function ComposerSkillDecorator(props: {
+  skillLabel: string;
+  skillDescription: string | null;
+}) {
   const chip = (
     <span
       className={COMPOSER_INLINE_SKILL_CHIP_CLASS_NAME}
@@ -257,7 +280,9 @@ function ComposerSkillDecorator(props: { skillLabel: string; skillDescription: s
         className={COMPOSER_INLINE_CHIP_ICON_CLASS_NAME}
         dangerouslySetInnerHTML={{ __html: SKILL_CHIP_ICON_SVG }}
       />
-      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>{props.skillLabel}</span>
+      <span className={COMPOSER_INLINE_CHIP_LABEL_CLASS_NAME}>
+        {props.skillLabel}
+      </span>
     </span>
   );
 
@@ -268,7 +293,10 @@ function ComposerSkillDecorator(props: { skillLabel: string; skillDescription: s
   return (
     <Tooltip>
       <TooltipTrigger render={chip} />
-      <TooltipPopup side="top" className="max-w-120 whitespace-normal leading-tight">
+      <TooltipPopup
+        side="top"
+        className="max-w-120 whitespace-normal leading-tight"
+      >
         {props.skillDescription}
       </TooltipPopup>
     </Tooltip>
@@ -293,7 +321,9 @@ class ComposerSkillNode extends DecoratorNode<React.ReactElement> {
     );
   }
 
-  static override importJSON(serializedNode: SerializedComposerSkillNode): ComposerSkillNode {
+  static override importJSON(
+    serializedNode: SerializedComposerSkillNode,
+  ): ComposerSkillNode {
     return $createComposerSkillNode(
       serializedNode.skillName,
       serializedNode.skillLabel ?? serializedNode.skillName,
@@ -308,7 +338,9 @@ class ComposerSkillNode extends DecoratorNode<React.ReactElement> {
     key?: NodeKey,
   ) {
     super(key);
-    const normalizedSkillName = skillName.startsWith("$") ? skillName.slice(1) : skillName;
+    const normalizedSkillName = skillName.startsWith("$")
+      ? skillName.slice(1)
+      : skillName;
     this.__skillName = normalizedSkillName;
     this.__skillLabel = skillLabel;
     this.__skillDescription = skillDescription;
@@ -319,7 +351,9 @@ class ComposerSkillNode extends DecoratorNode<React.ReactElement> {
       ...super.exportJSON(),
       skillName: this.__skillName,
       skillLabel: this.__skillLabel,
-      ...(this.__skillDescription ? { skillDescription: this.__skillDescription } : {}),
+      ...(this.__skillDescription
+        ? { skillDescription: this.__skillDescription }
+        : {}),
       type: "composer-skill",
       version: 1,
     };
@@ -358,10 +392,14 @@ function $createComposerSkillNode(
   skillLabel: string,
   skillDescription: string | null,
 ): ComposerSkillNode {
-  return $applyNodeReplacement(new ComposerSkillNode(skillName, skillLabel, skillDescription));
+  return $applyNodeReplacement(
+    new ComposerSkillNode(skillName, skillLabel, skillDescription),
+  );
 }
 
-function ComposerTerminalContextDecorator(props: { context: TerminalContextDraft }) {
+function ComposerTerminalContextDecorator(props: {
+  context: TerminalContextDraft;
+}) {
   return <ComposerPendingTerminalContextChip context={props.context} />;
 }
 
@@ -372,7 +410,9 @@ class ComposerTerminalContextNode extends DecoratorNode<React.ReactElement> {
     return "composer-terminal-context";
   }
 
-  static override clone(node: ComposerTerminalContextNode): ComposerTerminalContextNode {
+  static override clone(
+    node: ComposerTerminalContextNode,
+  ): ComposerTerminalContextNode {
     return new ComposerTerminalContextNode(node.__context, node.__key);
   }
 
@@ -430,7 +470,9 @@ type ComposerInlineTokenNode =
   | ComposerSkillNode
   | ComposerTerminalContextNode;
 
-function isComposerInlineTokenNode(candidate: unknown): candidate is ComposerInlineTokenNode {
+function isComposerInlineTokenNode(
+  candidate: unknown,
+): candidate is ComposerInlineTokenNode {
   return (
     candidate instanceof ComposerMentionNode ||
     candidate instanceof ComposerSkillNode ||
@@ -442,7 +484,9 @@ function resolvedThemeFromDocument(): "light" | "dark" {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
-function terminalContextSignature(contexts: ReadonlyArray<TerminalContextDraft>): string {
+function terminalContextSignature(
+  contexts: ReadonlyArray<TerminalContextDraft>,
+): string {
   return contexts
     .map((context) =>
       [
@@ -484,7 +528,9 @@ function getComposerInlineTokenTextLength(_node: ComposerInlineTokenNode): 1 {
   return 1;
 }
 
-function getComposerInlineTokenExpandedTextLength(node: ComposerInlineTokenNode): number {
+function getComposerInlineTokenExpandedTextLength(
+  node: ComposerInlineTokenNode,
+): number {
   return node.getTextContentSize();
 }
 
@@ -493,7 +539,10 @@ function getAbsoluteOffsetForInlineTokenPoint(
   absoluteOffset: number,
   pointOffset: number,
 ): number {
-  return absoluteOffset + (pointOffset > 0 ? getComposerInlineTokenTextLength(node) : 0);
+  return (
+    absoluteOffset +
+    (pointOffset > 0 ? getComposerInlineTokenTextLength(node) : 0)
+  );
 }
 
 function getExpandedAbsoluteOffsetForInlineTokenPoint(
@@ -501,7 +550,10 @@ function getExpandedAbsoluteOffsetForInlineTokenPoint(
   absoluteOffset: number,
   pointOffset: number,
 ): number {
-  return absoluteOffset + (pointOffset > 0 ? getComposerInlineTokenExpandedTextLength(node) : 0);
+  return (
+    absoluteOffset +
+    (pointOffset > 0 ? getComposerInlineTokenExpandedTextLength(node) : 0)
+  );
 }
 
 function findSelectionPointForInlineToken(
@@ -540,7 +592,9 @@ function getComposerNodeTextLength(node: LexicalNode): number {
     return 1;
   }
   if ($isElementNode(node)) {
-    return node.getChildren().reduce((total, child) => total + getComposerNodeTextLength(child), 0);
+    return node
+      .getChildren()
+      .reduce((total, child) => total + getComposerNodeTextLength(child), 0);
   }
   return 0;
 }
@@ -558,12 +612,18 @@ function getComposerNodeExpandedTextLength(node: LexicalNode): number {
   if ($isElementNode(node)) {
     return node
       .getChildren()
-      .reduce((total, child) => total + getComposerNodeExpandedTextLength(child), 0);
+      .reduce(
+        (total, child) => total + getComposerNodeExpandedTextLength(child),
+        0,
+      );
   }
   return 0;
 }
 
-function getAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: number): number {
+function getAbsoluteOffsetForPoint(
+  node: LexicalNode,
+  pointOffset: number,
+): number {
   let offset = 0;
   let current: LexicalNode | null = node;
 
@@ -607,7 +667,10 @@ function getAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: number): numb
   return offset;
 }
 
-function getExpandedAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: number): number {
+function getExpandedAbsoluteOffsetForPoint(
+  node: LexicalNode,
+  pointOffset: number,
+): number {
   let offset = 0;
   let current: LexicalNode | null = node;
 
@@ -630,7 +693,11 @@ function getExpandedAbsoluteOffsetForPoint(node: LexicalNode, pointOffset: numbe
     return offset + Math.min(pointOffset, node.getTextContentSize());
   }
   if (isComposerInlineTokenNode(node)) {
-    return getExpandedAbsoluteOffsetForInlineTokenPoint(node, offset, pointOffset);
+    return getExpandedAbsoluteOffsetForInlineTokenPoint(
+      node,
+      offset,
+      pointOffset,
+    );
   }
 
   if ($isLineBreakNode(node)) {
@@ -717,7 +784,10 @@ function findSelectionPointAtOffset(
 function $getComposerRootLength(): number {
   const root = $getRoot();
   const children = root.getChildren();
-  return children.reduce((sum, child) => sum + getComposerNodeTextLength(child), 0);
+  return children.reduce(
+    (sum, child) => sum + getComposerNodeTextLength(child),
+    0,
+  );
 }
 
 function $setSelectionAtComposerOffset(nextOffset: number): void {
@@ -736,7 +806,10 @@ function $setSelectionAtComposerOffset(nextOffset: number): void {
   $setSelection(selection);
 }
 
-function $setSelectionRangeAtComposerOffsets(startOffset: number, endOffset: number): void {
+function $setSelectionRangeAtComposerOffsets(
+  startOffset: number,
+  endOffset: number,
+): void {
   const root = $getRoot();
   const composerLength = $getComposerRootLength();
   const boundedStart = Math.max(0, Math.min(startOffset, composerLength));
@@ -759,7 +832,9 @@ function $setSelectionRangeAtComposerOffsets(startOffset: number, endOffset: num
   $setSelection(selection);
 }
 
-function getSelectionRangeForExpandedComposerOffsets(selection: ReturnType<typeof $getSelection>): {
+function getSelectionRangeForExpandedComposerOffsets(
+  selection: ReturnType<typeof $getSelection>,
+): {
   start: number;
   end: number;
 } | null {
@@ -768,15 +843,23 @@ function getSelectionRangeForExpandedComposerOffsets(selection: ReturnType<typeo
   }
   const anchorNode = selection.anchor.getNode();
   const focusNode = selection.focus.getNode();
-  const anchorOffset = getExpandedAbsoluteOffsetForPoint(anchorNode, selection.anchor.offset);
-  const focusOffset = getExpandedAbsoluteOffsetForPoint(focusNode, selection.focus.offset);
+  const anchorOffset = getExpandedAbsoluteOffsetForPoint(
+    anchorNode,
+    selection.anchor.offset,
+  );
+  const focusOffset = getExpandedAbsoluteOffsetForPoint(
+    focusNode,
+    selection.focus.offset,
+  );
   return {
     start: Math.min(anchorOffset, focusOffset),
     end: Math.max(anchorOffset, focusOffset),
   };
 }
 
-function $selectionTouchesInlineToken(selection: ReturnType<typeof $getSelection>): boolean {
+function $selectionTouchesInlineToken(
+  selection: ReturnType<typeof $getSelection>,
+): boolean {
   if (!$isRangeSelection(selection)) {
     return false;
   }
@@ -800,7 +883,10 @@ function $readExpandedSelectionOffsetFromEditorState(fallback: number): number {
     return fallback;
   }
   const anchorNode = selection.anchor.getNode();
-  const offset = getExpandedAbsoluteOffsetForPoint(anchorNode, selection.anchor.offset);
+  const offset = getExpandedAbsoluteOffsetForPoint(
+    anchorNode,
+    selection.anchor.offset,
+  );
   const expandedLength = $getRoot().getTextContent().length;
   return Math.max(0, Math.min(offset, expandedLength));
 }
@@ -839,7 +925,8 @@ function $setComposerEditorPrompt(
       paragraph.append(
         $createComposerSkillNode(
           segment.name,
-          metadata?.label ?? formatProviderSkillDisplayName({ name: segment.name }),
+          metadata?.label ??
+            formatProviderSkillDisplayName({ name: segment.name }),
           metadata?.description ?? null,
         ),
       );
@@ -860,7 +947,9 @@ function collectTerminalContextIds(node: LexicalNode): string[] {
     return [node.__context.id];
   }
   if ($isElementNode(node)) {
-    return node.getChildren().flatMap((child) => collectTerminalContextIds(child));
+    return node
+      .getChildren()
+      .flatMap((child) => collectTerminalContextIds(child));
   }
   return [];
 }
@@ -971,7 +1060,13 @@ function ComposerInlineTokenArrowPlugin() {
           const currentOffset = $readSelectionOffsetFromEditorState(0);
           if (currentOffset <= 0) return;
           const promptValue = $getRoot().getTextContent();
-          if (!isCollapsedCursorAdjacentToInlineToken(promptValue, currentOffset, "left")) {
+          if (
+            !isCollapsedCursorAdjacentToInlineToken(
+              promptValue,
+              currentOffset,
+              "left",
+            )
+          ) {
             return;
           }
           nextOffset = currentOffset - 1;
@@ -998,7 +1093,13 @@ function ComposerInlineTokenArrowPlugin() {
           const composerLength = $getComposerRootLength();
           if (currentOffset >= composerLength) return;
           const promptValue = $getRoot().getTextContent();
-          if (!isCollapsedCursorAdjacentToInlineToken(promptValue, currentOffset, "right")) {
+          if (
+            !isCollapsedCursorAdjacentToInlineToken(
+              promptValue,
+              currentOffset,
+              "right",
+            )
+          ) {
             return;
           }
           nextOffset = currentOffset + 1;
@@ -1053,7 +1154,9 @@ function ComposerInlineTokenSelectionNormalizePlugin() {
 
 function ComposerInlineTokenBackspacePlugin() {
   const [editor] = useLexicalComposerContext();
-  const { onRemoveTerminalContext } = use(ComposerTerminalContextActionsContext);
+  const { onRemoveTerminalContext } = use(
+    ComposerTerminalContextActionsContext,
+  );
 
   useEffect(() => {
     return editor.registerCommand(
@@ -1095,7 +1198,10 @@ function ComposerInlineTokenBackspacePlugin() {
           const parent = anchorNode.getParent();
           if ($isElementNode(parent)) {
             const index = anchorNode.getIndexWithinParent();
-            if (index > 0 && removeInlineTokenNode(parent.getChildAtIndex(index - 1))) {
+            if (
+              index > 0 &&
+              removeInlineTokenNode(parent.getChildAtIndex(index - 1))
+            ) {
               return true;
             }
           }
@@ -1104,7 +1210,10 @@ function ComposerInlineTokenBackspacePlugin() {
 
         if ($isElementNode(anchorNode)) {
           const childIndex = selection.anchor.offset - 1;
-          if (childIndex >= 0 && removeInlineTokenNode(anchorNode.getChildAtIndex(childIndex))) {
+          if (
+            childIndex >= 0 &&
+            removeInlineTokenNode(anchorNode.getChildAtIndex(childIndex))
+          ) {
             return true;
           }
         }
@@ -1144,76 +1253,94 @@ function ComposerSurroundSelectionPlugin(props: {
     skillMetadataRef.current = skillMetadataByName(props.skills);
   }, [props.skills]);
 
-  const applySurroundInsertion = useEffectEvent((inputData: string): boolean => {
-    const surroundCloseSymbol = SURROUND_SYMBOLS_MAP.get(inputData);
-    const pendingSurroundSelection = pendingSurroundSelectionRef.current;
-    if (!surroundCloseSymbol) {
-      pendingSurroundSelectionRef.current = null;
-      return false;
-    }
-
-    let handled = false;
-    editor.update(() => {
-      const selectionSnapshot =
-        pendingSurroundSelection ??
-        (() => {
-          const selection = $getSelection();
-          if (!$isRangeSelection(selection) || selection.isCollapsed()) {
-            return null;
-          }
-          if ($selectionTouchesInlineToken(selection)) {
-            return null;
-          }
-          const range = getSelectionRangeForExpandedComposerOffsets(selection);
-          if (!range || range.start === range.end) {
-            return null;
-          }
-          const value = $getRoot().getTextContent();
-          if (selectionTouchesMentionBoundary(value, range.start, range.end)) {
-            return null;
-          }
-          return {
-            value,
-            expandedStart: range.start,
-            expandedEnd: range.end,
-          };
-        })();
-
-      if (!selectionSnapshot || !surroundCloseSymbol) {
-        return;
+  const applySurroundInsertion = useEffectEvent(
+    (inputData: string): boolean => {
+      const surroundCloseSymbol = SURROUND_SYMBOLS_MAP.get(inputData);
+      const pendingSurroundSelection = pendingSurroundSelectionRef.current;
+      if (!surroundCloseSymbol) {
+        pendingSurroundSelectionRef.current = null;
+        return false;
       }
 
-      const selectedText = selectionSnapshot.value.slice(
-        selectionSnapshot.expandedStart,
-        selectionSnapshot.expandedEnd,
-      );
-      const nextValue = `${selectionSnapshot.value.slice(0, selectionSnapshot.expandedStart)}${inputData}${selectedText}${surroundCloseSymbol}${selectionSnapshot.value.slice(selectionSnapshot.expandedEnd)}`;
-      $setComposerEditorPrompt(nextValue, terminalContextsRef.current, skillMetadataRef.current);
-      const selectionStart = collapseExpandedComposerCursor(
-        nextValue,
-        selectionSnapshot.expandedStart,
-      );
-      $setSelectionRangeAtComposerOffsets(
-        selectionStart + inputData.length,
-        selectionStart + inputData.length + selectedText.length,
-      );
-      handled = true;
-      pendingSurroundSelectionRef.current = null;
-    });
+      let handled = false;
+      editor.update(() => {
+        const selectionSnapshot =
+          pendingSurroundSelection ??
+          (() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection) || selection.isCollapsed()) {
+              return null;
+            }
+            if ($selectionTouchesInlineToken(selection)) {
+              return null;
+            }
+            const range =
+              getSelectionRangeForExpandedComposerOffsets(selection);
+            if (!range || range.start === range.end) {
+              return null;
+            }
+            const value = $getRoot().getTextContent();
+            if (
+              selectionTouchesMentionBoundary(value, range.start, range.end)
+            ) {
+              return null;
+            }
+            return {
+              value,
+              expandedStart: range.start,
+              expandedEnd: range.end,
+            };
+          })();
 
-    return handled;
-  });
+        if (!selectionSnapshot || !surroundCloseSymbol) {
+          return;
+        }
+
+        const selectedText = selectionSnapshot.value.slice(
+          selectionSnapshot.expandedStart,
+          selectionSnapshot.expandedEnd,
+        );
+        const nextValue = `${selectionSnapshot.value.slice(0, selectionSnapshot.expandedStart)}${inputData}${selectedText}${surroundCloseSymbol}${selectionSnapshot.value.slice(selectionSnapshot.expandedEnd)}`;
+        $setComposerEditorPrompt(
+          nextValue,
+          terminalContextsRef.current,
+          skillMetadataRef.current,
+        );
+        const selectionStart = collapseExpandedComposerCursor(
+          nextValue,
+          selectionSnapshot.expandedStart,
+        );
+        $setSelectionRangeAtComposerOffsets(
+          selectionStart + inputData.length,
+          selectionStart + inputData.length + selectedText.length,
+        );
+        handled = true;
+        pendingSurroundSelectionRef.current = null;
+      });
+
+      return handled;
+    },
+  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (pendingDeadKeySelectionRef.current) {
-        if (event.key === "Dead" || event.key === " " || event.code === "Space") {
+        if (
+          event.key === "Dead" ||
+          event.key === " " ||
+          event.code === "Space"
+        ) {
           return;
         }
         pendingDeadKeySelectionRef.current = null;
       }
 
-      if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey) {
+      if (
+        event.defaultPrevented ||
+        event.isComposing ||
+        event.metaKey ||
+        event.ctrlKey
+      ) {
         pendingSurroundSelectionRef.current = null;
         pendingDeadKeySelectionRef.current = null;
         return;
@@ -1260,7 +1387,8 @@ function ComposerSurroundSelectionPlugin(props: {
         BACKTICK_SURROUND_CLOSE_SYMBOL !== null &&
         pendingSurroundSelectionRef.current
       ) {
-        pendingDeadKeySelectionRef.current = pendingSurroundSelectionRef.current;
+        pendingDeadKeySelectionRef.current =
+          pendingSurroundSelectionRef.current;
         return;
       }
 
@@ -1290,7 +1418,9 @@ function ComposerSurroundSelectionPlugin(props: {
       event.stopImmediatePropagation();
     };
 
-    const tryApplyDeadKeyBacktickSurround = (options?: { finalAttempt?: boolean }) => {
+    const tryApplyDeadKeyBacktickSurround = (options?: {
+      finalAttempt?: boolean;
+    }) => {
       queueMicrotask(() => {
         editor.update(
           () => {
@@ -1323,14 +1453,19 @@ function ComposerSurroundSelectionPlugin(props: {
               currentValue,
               pendingDeadKeySelection.expandedStart,
             );
-            $setSelectionRangeAtComposerOffsets(replacementStart, replacementStart + 1);
+            $setSelectionRangeAtComposerOffsets(
+              replacementStart,
+              replacementStart + 1,
+            );
             const replacementSelection = $getSelection();
             if (!$isRangeSelection(replacementSelection)) {
               pendingSurroundSelectionRef.current = null;
               pendingDeadKeySelectionRef.current = null;
               return;
             }
-            replacementSelection.insertText(`\`${selectedText}${backtickCloseSymbol}`);
+            replacementSelection.insertText(
+              `\`${selectedText}${backtickCloseSymbol}`,
+            );
             $setSelectionRangeAtComposerOffsets(
               replacementStart + 1,
               replacementStart + 1 + selectedText.length,
@@ -1358,24 +1493,40 @@ function ComposerSurroundSelectionPlugin(props: {
     };
 
     let activeRootElement: HTMLElement | null = null;
-    const unregisterRootListener = editor.registerRootListener((rootElement, prevRootElement) => {
-      prevRootElement?.removeEventListener("keydown", onKeyDown);
-      prevRootElement?.removeEventListener("beforeinput", onBeforeInput, true);
-      prevRootElement?.removeEventListener("input", onInput);
-      prevRootElement?.removeEventListener("compositionend", onCompositionEnd);
-      rootElement?.addEventListener("keydown", onKeyDown);
-      rootElement?.addEventListener("beforeinput", onBeforeInput, true);
-      rootElement?.addEventListener("input", onInput);
-      rootElement?.addEventListener("compositionend", onCompositionEnd);
-      activeRootElement = rootElement;
-    });
+    const unregisterRootListener = editor.registerRootListener(
+      (rootElement, prevRootElement) => {
+        prevRootElement?.removeEventListener("keydown", onKeyDown);
+        prevRootElement?.removeEventListener(
+          "beforeinput",
+          onBeforeInput,
+          true,
+        );
+        prevRootElement?.removeEventListener("input", onInput);
+        prevRootElement?.removeEventListener(
+          "compositionend",
+          onCompositionEnd,
+        );
+        rootElement?.addEventListener("keydown", onKeyDown);
+        rootElement?.addEventListener("beforeinput", onBeforeInput, true);
+        rootElement?.addEventListener("input", onInput);
+        rootElement?.addEventListener("compositionend", onCompositionEnd);
+        activeRootElement = rootElement;
+      },
+    );
 
     return () => {
       if (activeRootElement) {
         activeRootElement.removeEventListener("keydown", onKeyDown);
-        activeRootElement.removeEventListener("beforeinput", onBeforeInput, true);
+        activeRootElement.removeEventListener(
+          "beforeinput",
+          onBeforeInput,
+          true,
+        );
         activeRootElement.removeEventListener("input", onInput);
-        activeRootElement.removeEventListener("compositionend", onCompositionEnd);
+        activeRootElement.removeEventListener(
+          "compositionend",
+          onCompositionEnd,
+        );
       }
       unregisterRootListener();
     };
@@ -1433,7 +1584,8 @@ function ComposerPromptEditorInner({
   useLayoutEffect(() => {
     const normalizedCursor = clampCollapsedComposerCursor(value, cursor);
     const previousSnapshot = snapshotRef.current;
-    const contextsChanged = terminalContextsSignatureRef.current !== terminalContextsSignature;
+    const contextsChanged =
+      terminalContextsSignatureRef.current !== terminalContextsSignature;
     const skillsChanged = skillsSignatureRef.current !== skillsSignature;
     if (
       previousSnapshot.value === value &&
@@ -1454,8 +1606,15 @@ function ComposerPromptEditorInner({
     skillsSignatureRef.current = skillsSignature;
 
     const rootElement = editor.getRootElement();
-    const isFocused = Boolean(rootElement && document.activeElement === rootElement);
-    if (previousSnapshot.value === value && !contextsChanged && !skillsChanged && !isFocused) {
+    const isFocused = Boolean(
+      rootElement && document.activeElement === rootElement,
+    );
+    if (
+      previousSnapshot.value === value &&
+      !contextsChanged &&
+      !skillsChanged &&
+      !isFocused
+    ) {
       return;
     }
 
@@ -1464,7 +1623,11 @@ function ComposerPromptEditorInner({
       const shouldRewriteEditorState =
         previousSnapshot.value !== value || contextsChanged || skillsChanged;
       if (shouldRewriteEditorState) {
-        $setComposerEditorPrompt(value, terminalContexts, skillMetadataRef.current);
+        $setComposerEditorPrompt(
+          value,
+          terminalContexts,
+          skillMetadataRef.current,
+        );
       }
       if (shouldRewriteEditorState || isFocused) {
         $setSelectionAtComposerOffset(normalizedCursor);
@@ -1473,13 +1636,23 @@ function ComposerPromptEditorInner({
     queueMicrotask(() => {
       isApplyingControlledUpdateRef.current = false;
     });
-  }, [cursor, editor, skillsSignature, terminalContexts, terminalContextsSignature, value]);
+  }, [
+    cursor,
+    editor,
+    skillsSignature,
+    terminalContexts,
+    terminalContextsSignature,
+    value,
+  ]);
 
   const focusAt = useCallback(
     (nextCursor: number) => {
       const rootElement = editor.getRootElement();
       if (!rootElement) return;
-      const boundedCursor = clampCollapsedComposerCursor(snapshotRef.current.value, nextCursor);
+      const boundedCursor = clampCollapsedComposerCursor(
+        snapshotRef.current.value,
+        nextCursor,
+      );
       rootElement.focus({ preventScroll: true });
       editor.update(() => {
         $setSelectionAtComposerOffset(boundedCursor);
@@ -1487,7 +1660,10 @@ function ComposerPromptEditorInner({
       snapshotRef.current = {
         value: snapshotRef.current.value,
         cursor: boundedCursor,
-        expandedCursor: expandCollapsedComposerCursor(snapshotRef.current.value, boundedCursor),
+        expandedCursor: expandCollapsedComposerCursor(
+          snapshotRef.current.value,
+          boundedCursor,
+        ),
         terminalContextIds: snapshotRef.current.terminalContextIds,
       };
       onChangeRef.current(
@@ -1510,7 +1686,10 @@ function ComposerPromptEditorInner({
     let snapshot = snapshotRef.current;
     editor.getEditorState().read(() => {
       const nextValue = $getRoot().getTextContent();
-      const fallbackCursor = clampCollapsedComposerCursor(nextValue, snapshotRef.current.cursor);
+      const fallbackCursor = clampCollapsedComposerCursor(
+        nextValue,
+        snapshotRef.current.cursor,
+      );
       const nextCursor = clampCollapsedComposerCursor(
         nextValue,
         $readSelectionOffsetFromEditorState(fallbackCursor),
@@ -1558,7 +1737,10 @@ function ComposerPromptEditorInner({
   const handleEditorChange = useCallback((editorState: EditorState) => {
     editorState.read(() => {
       const nextValue = $getRoot().getTextContent();
-      const fallbackCursor = clampCollapsedComposerCursor(nextValue, snapshotRef.current.cursor);
+      const fallbackCursor = clampCollapsedComposerCursor(
+        nextValue,
+        snapshotRef.current.cursor,
+      );
       const nextCursor = clampCollapsedComposerCursor(
         nextValue,
         $readSelectionOffsetFromEditorState(fallbackCursor),
@@ -1577,8 +1759,11 @@ function ComposerPromptEditorInner({
         previousSnapshot.value === nextValue &&
         previousSnapshot.cursor === nextCursor &&
         previousSnapshot.expandedCursor === nextExpandedCursor &&
-        previousSnapshot.terminalContextIds.length === terminalContextIds.length &&
-        previousSnapshot.terminalContextIds.every((id, index) => id === terminalContextIds[index])
+        previousSnapshot.terminalContextIds.length ===
+          terminalContextIds.length &&
+        previousSnapshot.terminalContextIds.every(
+          (id, index) => id === terminalContextIds[index],
+        )
       ) {
         return;
       }
@@ -1622,7 +1807,7 @@ function ComposerPromptEditorInner({
           }
           placeholder={
             terminalContexts.length > 0 ? null : (
-              <div className="pointer-events-none absolute inset-0 text-[16px] leading-relaxed text-muted-foreground/35 sm:text-[14px]">
+              <div className="pointer-events-none absolute inset-0 text-[14px] leading-relaxed text-muted-foreground/35 sm:text-[14px]">
                 {placeholder}
               </div>
             )
@@ -1630,8 +1815,13 @@ function ComposerPromptEditorInner({
           ErrorBoundary={LexicalErrorBoundary}
         />
         <OnChangePlugin onChange={handleEditorChange} />
-        <ComposerCommandKeyPlugin {...(onCommandKeyDown ? { onCommandKeyDown } : {})} />
-        <ComposerSurroundSelectionPlugin terminalContexts={terminalContexts} skills={skills} />
+        <ComposerCommandKeyPlugin
+          {...(onCommandKeyDown ? { onCommandKeyDown } : {})}
+        />
+        <ComposerSurroundSelectionPlugin
+          terminalContexts={terminalContexts}
+          skills={skills}
+        />
         <ComposerInlineTokenArrowPlugin />
         <ComposerInlineTokenSelectionNormalizePlugin />
         <ComposerInlineTokenBackspacePlugin />
@@ -1662,7 +1852,11 @@ export function ComposerPromptEditor({
     () => ({
       namespace: "t3tools-composer-editor",
       editable: true,
-      nodes: [ComposerMentionNode, ComposerSkillNode, ComposerTerminalContextNode],
+      nodes: [
+        ComposerMentionNode,
+        ComposerSkillNode,
+        ComposerTerminalContextNode,
+      ],
       editorState: () => {
         $setComposerEditorPrompt(
           initialValueRef.current,
@@ -1678,7 +1872,10 @@ export function ComposerPromptEditor({
   );
 
   return (
-    <LexicalComposer key={COMPOSER_EDITOR_HMR_KEY} initialConfig={initialConfig}>
+    <LexicalComposer
+      key={COMPOSER_EDITOR_HMR_KEY}
+      initialConfig={initialConfig}
+    >
       <ComposerPromptEditorInner
         value={value}
         cursor={cursor}

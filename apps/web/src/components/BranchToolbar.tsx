@@ -13,7 +13,10 @@ import { memo, useMemo } from "react";
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { useIsMobile } from "../hooks/useMediaQuery";
 import { useStore } from "../store";
-import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeSelectors";
+import {
+  createProjectSelectorByRef,
+  createThreadSelectorByRef,
+} from "../storeSelectors";
 import {
   type EnvMode,
   type EnvironmentOption,
@@ -77,7 +80,10 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
   onEnvModeChange,
 }: MobileRunContextSelectorProps) {
   const activeEnvironment = useMemo(
-    () => availableEnvironments?.find((env) => env.environmentId === environmentId) ?? null,
+    () =>
+      availableEnvironments?.find(
+        (env) => env.environmentId === environmentId,
+      ) ?? null,
     [availableEnvironments, environmentId],
   );
   const WorkspaceIcon =
@@ -95,7 +101,9 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
         : resolveEnvModeLabel("local");
   const isLocked = envLocked || envModeLocked;
   const hasLocalWorktreeForMobile = activeWorktreePath !== null;
-  const EnvironmentIcon = activeEnvironment?.isPrimary ? MonitorIcon : CloudIcon;
+  const EnvironmentIcon = activeEnvironment?.isPrimary
+    ? MonitorIcon
+    : CloudIcon;
   const icon = showEnvironmentPicker ? (
     // Button's base styles apply `-mx-0.5` to descendant SVGs, which eats 4px
     // out of whatever gap we set. mx-0! cancels that so gap-0.5 reads as 2px.
@@ -109,8 +117,10 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
   const triggerContent = (
     <>
       {icon}
-      <span className="min-w-0 truncate">
-        {showEnvironmentPicker ? (activeEnvironment?.label ?? "Run on") : workspaceLabel}
+      <span className="min-w-0 truncate text-xs">
+        {showEnvironmentPicker
+          ? (activeEnvironment?.label ?? "Run on")
+          : workspaceLabel}
       </span>
     </>
   );
@@ -127,19 +137,23 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
     <Menu>
       <MenuTrigger
         render={<Button variant="ghost" size="xs" />}
-        className="min-w-0 max-w-[48%] flex-1 justify-start text-muted-foreground/70 hover:text-foreground/80 md:hidden"
+        className="min-w-0 max-w-[48%] justify-start text-muted-foreground/70 hover:text-foreground/80 md:hidden"
       >
         {triggerContent}
         <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
       </MenuTrigger>
       <MenuPopup align="start" side="top" className="w-64">
-        {showEnvironmentPicker && availableEnvironments && onEnvironmentChange ? (
+        {showEnvironmentPicker &&
+        availableEnvironments &&
+        onEnvironmentChange ? (
           <>
             <MenuGroup>
               <MenuGroupLabel>Run on</MenuGroupLabel>
               <MenuRadioGroup
                 value={environmentId}
-                onValueChange={(value) => onEnvironmentChange(value as EnvironmentId)}
+                onValueChange={(value) =>
+                  onEnvironmentChange(value as EnvironmentId)
+                }
               >
                 {availableEnvironments.map((env) => {
                   const Icon = env.isPrimary ? MonitorIcon : CloudIcon;
@@ -182,7 +196,9 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
             <MenuRadioItem disabled={envModeLocked} value="local">
               <span className="flex min-w-0 items-center gap-1.5">
                 <FolderIcon className="size-3" />
-                <span className="min-w-0 truncate">{resolveEnvModeLabel("local")}</span>
+                <span className="min-w-0 truncate">
+                  {resolveEnvModeLabel("local")}
+                </span>
               </span>
             </MenuRadioItem>
             {hasLocalWorktreeForMobile ? (
@@ -197,7 +213,9 @@ const MobileRunContextSelector = memo(function MobileRunContextSelector({
             <MenuRadioItem disabled={envModeLocked} value="worktree">
               <span className="flex min-w-0 items-center gap-1.5">
                 <FolderGit2Icon className="size-3" />
-                <span className="min-w-0 truncate">{resolveEnvModeLabel("worktree")}</span>
+                <span className="min-w-0 truncate">
+                  {resolveEnvModeLabel("worktree")}
+                </span>
               </span>
             </MenuRadioItem>
           </MenuRadioGroup>
@@ -226,10 +244,15 @@ export const BranchToolbar = memo(function BranchToolbar({
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
   );
-  const serverThreadSelector = useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]);
+  const serverThreadSelector = useMemo(
+    () => createThreadSelectorByRef(threadRef),
+    [threadRef],
+  );
   const serverThread = useStore(serverThreadSelector);
   const draftThread = useComposerDraftStore((store) =>
-    draftId ? store.getDraftSession(draftId) : store.getDraftThreadByRef(threadRef),
+    draftId
+      ? store.getDraftSession(draftId)
+      : store.getDraftThreadByRef(threadRef),
   );
   const activeProjectRef = serverThread
     ? scopeProjectRef(serverThread.environmentId, serverThread.projectId)
@@ -242,7 +265,8 @@ export const BranchToolbar = memo(function BranchToolbar({
   );
   const activeProject = useStore(activeProjectSelector);
   const hasActiveThread = serverThread !== undefined || draftThread !== null;
-  const activeWorktreePath = serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
+  const activeWorktreePath =
+    serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
   const effectiveEnvMode =
     effectiveEnvModeOverride ??
     resolveEffectiveEnvMode({
@@ -250,66 +274,81 @@ export const BranchToolbar = memo(function BranchToolbar({
       hasServerThread: serverThread !== undefined,
       draftThreadEnvMode: draftThread?.envMode,
     });
-  const envModeLocked = envLocked || (serverThread !== undefined && activeWorktreePath !== null);
+  const envModeLocked =
+    envLocked || (serverThread !== undefined && activeWorktreePath !== null);
 
   const showEnvironmentPicker = Boolean(
-    availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
+    availableEnvironments &&
+    availableEnvironments.length > 1 &&
+    onEnvironmentChange,
   );
   const isMobile = useIsMobile();
 
   if (!hasActiveThread || !activeProject) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-208 items-center gap-2 px-2.5 pb-3 pt-1 sm:px-3">
-      {isMobile ? (
-        <MobileRunContextSelector
-          envLocked={envLocked}
-          envModeLocked={envModeLocked}
-          environmentId={environmentId}
-          availableEnvironments={availableEnvironments}
-          showEnvironmentPicker={showEnvironmentPicker}
-          onEnvironmentChange={onEnvironmentChange}
-          effectiveEnvMode={effectiveEnvMode}
-          activeWorktreePath={activeWorktreePath}
-          onEnvModeChange={onEnvModeChange}
-        />
-      ) : (
-        <div className="flex min-w-0 shrink-0 items-center gap-1">
-          {showEnvironmentPicker && availableEnvironments && onEnvironmentChange && (
-            <>
-              <BranchToolbarEnvironmentSelector
-                envLocked={envLocked}
-                environmentId={environmentId}
-                availableEnvironments={availableEnvironments}
-                onEnvironmentChange={onEnvironmentChange}
-              />
-              <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
-            </>
-          )}
-          <BranchToolbarEnvModeSelector
-            envLocked={envModeLocked}
+    <div className="w-full bg-background/60 backdrop-blur-sm mx-auto max-w-208 flex flex-row items-center justify-center md:justify-start pb-3 px-3.5 sm:px-6 -mt-[1px]">
+      <div className="flex w-[95%] md:w-fit justify-between items-center gap-2 rounded-b-lg bg-background/60 backdrop-blur-sm border border-border border-t-[0px] p-0 md:p-0.5">
+        {isMobile ? (
+          <MobileRunContextSelector
+            envLocked={envLocked}
+            envModeLocked={envModeLocked}
+            environmentId={environmentId}
+            availableEnvironments={availableEnvironments}
+            showEnvironmentPicker={showEnvironmentPicker}
+            onEnvironmentChange={onEnvironmentChange}
             effectiveEnvMode={effectiveEnvMode}
             activeWorktreePath={activeWorktreePath}
-            projectCwd={activeProject?.cwd ?? null}
-            environmentId={environmentId}
             onEnvModeChange={onEnvModeChange}
-            {...(onSelectExistingWorktree ? { onSelectExistingWorktree } : {})}
           />
-        </div>
-      )}
+        ) : (
+          <div className="flex min-w-0 shrink-0 items-center gap-1">
+            {showEnvironmentPicker &&
+              availableEnvironments &&
+              onEnvironmentChange && (
+                <>
+                  <BranchToolbarEnvironmentSelector
+                    envLocked={envLocked}
+                    environmentId={environmentId}
+                    availableEnvironments={availableEnvironments}
+                    onEnvironmentChange={onEnvironmentChange}
+                  />
+                  <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
+                </>
+              )}
+            <BranchToolbarEnvModeSelector
+              envLocked={envModeLocked}
+              effectiveEnvMode={effectiveEnvMode}
+              activeWorktreePath={activeWorktreePath}
+              projectCwd={activeProject?.cwd ?? null}
+              environmentId={environmentId}
+              onEnvModeChange={onEnvModeChange}
+              {...(onSelectExistingWorktree
+                ? { onSelectExistingWorktree }
+                : {})}
+            />
+          </div>
+        )}
 
-      <BranchToolbarBranchSelector
-        className="min-w-0 flex-1 justify-end md:ml-auto md:flex-none"
-        environmentId={environmentId}
-        threadId={threadId}
-        {...(draftId ? { draftId } : {})}
-        envLocked={envLocked}
-        {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
-        {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
-        {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
-        {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
-        {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
-      />
+        <BranchToolbarBranchSelector
+          className="min-w-0 justify-end md:flex-none"
+          environmentId={environmentId}
+          threadId={threadId}
+          {...(draftId ? { draftId } : {})}
+          envLocked={envLocked}
+          {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
+          {...(activeThreadBranchOverride !== undefined
+            ? { activeThreadBranchOverride }
+            : {})}
+          {...(onActiveThreadBranchOverrideChange
+            ? { onActiveThreadBranchOverrideChange }
+            : {})}
+          {...(onCheckoutPullRequestRequest
+            ? { onCheckoutPullRequestRequest }
+            : {})}
+          {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
+        />
+      </div>
     </div>
   );
 });
