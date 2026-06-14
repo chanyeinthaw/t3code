@@ -1420,18 +1420,11 @@ export default function ChatView(props: ChatViewProps) {
         ? currentThreadIds
         : nextThreadIds;
     });
-<<<<<<< HEAD
   }, [
     activeThreadKey,
     existingOpenTerminalThreadKeys,
     terminalUiState.terminalOpen,
   ]);
-  const latestTurnSettled = isLatestTurnSettled(
-    activeLatestTurn,
-    activeThread?.session ?? null,
-  );
-=======
-  }, [activeThreadKey, existingOpenTerminalThreadKeys, terminalUiState.terminalOpen]);
   useEffect(() => {
     setMountedPreviewThreadKeys((currentThreadIds) => {
       const nextThreadIds = reconcileRetainedMountedThreadIds({
@@ -1443,7 +1436,9 @@ export default function ChatView(props: ChatViewProps) {
         retainInactiveActiveThread: true,
       });
       return currentThreadIds.length === nextThreadIds.length &&
-        currentThreadIds.every((nextThreadId, index) => nextThreadId === nextThreadIds[index])
+        currentThreadIds.every(
+          (nextThreadId, index) => nextThreadId === nextThreadIds[index],
+        )
         ? currentThreadIds
         : nextThreadIds;
     });
@@ -1453,8 +1448,10 @@ export default function ChatView(props: ChatViewProps) {
     previewPanelOpen,
     shouldUsePlanSidebarSheet,
   ]);
-  const latestTurnSettled = isLatestTurnSettled(activeLatestTurn, activeThread?.session ?? null);
->>>>>>> 29150b573 (Add shared MCP preview automation)
+  const latestTurnSettled = isLatestTurnSettled(
+    activeLatestTurn,
+    activeThread?.session ?? null,
+  );
   const activeProjectRef = activeThread
     ? scopeProjectRef(activeThread.environmentId, activeThread.projectId)
     : null;
