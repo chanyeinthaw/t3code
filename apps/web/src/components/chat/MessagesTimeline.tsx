@@ -137,7 +137,6 @@ interface TimelineRowActivityState {
 const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
 const TimelineRowActivityCtx = createContext<TimelineRowActivityState>(null!);
 const TIMELINE_LIST_HEADER = <div className="h-3 sm:h-4" />;
-const TIMELINE_LIST_FOOTER = <div className="h-3 sm:h-4" />;
 const EMPTY_TIMELINE_SKILLS: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">> = [];
 
 // ---------------------------------------------------------------------------
@@ -164,6 +163,7 @@ interface MessagesTimelineProps {
   timestampFormat: TimestampFormat;
   workspaceRoot: string | undefined;
   skills?: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
+  bottomInsetPx: number;
   onIsAtEndChange: (isAtEnd: boolean) => void;
 }
 
@@ -191,6 +191,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   timestampFormat,
   workspaceRoot,
   skills = EMPTY_TIMELINE_SKILLS,
+  bottomInsetPx,
   onIsAtEndChange,
 }: MessagesTimelineProps) {
   const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<TurnId>>(new Set());
@@ -283,6 +284,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
   const rows = useStableRows(rawRows);
+  const listFooter = useMemo(
+    () => <div style={{ height: `${Math.max(0, bottomInsetPx)}px` }} />,
+    [bottomInsetPx],
+  );
 
   const handleScroll = useCallback(() => {
     const state = listRef.current?.getState?.();
@@ -384,7 +389,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           onScroll={handleScroll}
           className="scrollbar-gutter-both h-full overflow-x-hidden overscroll-y-contain px-3 sm:px-5"
           ListHeaderComponent={TIMELINE_LIST_HEADER}
-          ListFooterComponent={TIMELINE_LIST_FOOTER}
+          ListFooterComponent={listFooter}
         />
       </TimelineRowActivityCtx>
     </TimelineRowCtx>

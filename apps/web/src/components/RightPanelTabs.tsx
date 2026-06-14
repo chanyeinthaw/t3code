@@ -1,6 +1,13 @@
 import type { PreviewSessionSnapshot } from "@t3tools/contracts";
 import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
-import { ClipboardList, FileDiff, Globe2, Plus, TerminalSquare, X } from "lucide-react";
+import {
+  ClipboardList,
+  FileDiff,
+  Globe2,
+  Plus,
+  TerminalSquare,
+  X,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 
 import { isElectron } from "~/env";
@@ -10,7 +17,10 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "~/components/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { faviconUrlForOrigin } from "~/lib/favicon";
 
-import { PreviewPanelShell, type PreviewPanelMode } from "./preview/PreviewPanelShell";
+import {
+  PreviewPanelShell,
+  type PreviewPanelMode,
+} from "./preview/PreviewPanelShell";
 
 interface RightPanelTabsProps {
   mode: PreviewPanelMode;
@@ -63,7 +73,9 @@ function RightPanelEmptyState(props: {
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
       <div className="w-full max-w-xl">
         <div className="mb-5 text-center">
-          <h3 className="text-sm font-medium text-foreground">Open a surface</h3>
+          <h3 className="text-sm font-medium text-foreground">
+            Open a surface
+          </h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose what to show in the right panel.
           </p>
@@ -111,7 +123,8 @@ function surfaceTitle(
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
-      if (snapshot.navStatus.title.trim().length > 0) return snapshot.navStatus.title;
+      if (snapshot.navStatus.title.trim().length > 0)
+        return snapshot.navStatus.title;
       try {
         return new URL(snapshot.navStatus.url).host || "Browser";
       } catch {
@@ -124,7 +137,8 @@ function surfaceTitle(
 function PreviewFavicon({ url }: { url: string | null }) {
   const faviconUrl = faviconUrlForOrigin(url, 32);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  if (!faviconUrl || failedUrl === faviconUrl) return <Globe2 className="size-3.5 shrink-0" />;
+  if (!faviconUrl || failedUrl === faviconUrl)
+    return <Globe2 className="size-3.5 shrink-0" />;
   return (
     <img
       src={faviconUrl}
@@ -147,7 +161,10 @@ function SurfaceIcon({
   switch (surface.kind) {
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
-      const url = !snapshot || snapshot.navStatus._tag === "Idle" ? null : snapshot.navStatus.url;
+      const url =
+        !snapshot || snapshot.navStatus._tag === "Idle"
+          ? null
+          : snapshot.navStatus.url;
       return <PreviewFavicon url={url} />;
     }
     case "diff":
@@ -168,14 +185,18 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
         className={cn(
           "flex shrink-0 items-center px-2",
           ownsDesktopTitleBar
-            ? "drag-region h-[52px] wco:h-[env(titlebar-area-height)] wco:pr-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+1em)]"
+            ? "h-[52px] wco:h-[env(titlebar-area-height)] wco:pr-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+1em)]"
             : "h-10",
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
           {props.surfaces.map((surface) => {
             const active = surface.id === props.activeSurfaceId;
-            const title = surfaceTitle(surface, props.previewSessions, props.terminalLabelsById);
+            const title = surfaceTitle(
+              surface,
+              props.previewSessions,
+              props.terminalLabelsById,
+            );
             return (
               <div
                 key={surface.id}
@@ -194,7 +215,10 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                         className="flex min-w-0 flex-1 items-center gap-1.5"
                         onClick={() => props.onActivate(surface)}
                       >
-                        <SurfaceIcon surface={surface} sessions={props.previewSessions} />
+                        <SurfaceIcon
+                          surface={surface}
+                          sessions={props.previewSessions}
+                        />
                         <span className="truncate">{title}</span>
                       </button>
                     }
@@ -220,8 +244,16 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           >
             <Plus className="size-4" />
           </MenuTrigger>
-          <MenuPopup align="start" side="bottom" sideOffset={6} className="min-w-44">
-            <MenuItem onClick={props.onAddBrowser} disabled={!props.browserAvailable}>
+          <MenuPopup
+            align="start"
+            side="bottom"
+            sideOffset={6}
+            className="min-w-44"
+          >
+            <MenuItem
+              onClick={props.onAddBrowser}
+              disabled={!props.browserAvailable}
+            >
               <Globe2 />
               Browser
             </MenuItem>

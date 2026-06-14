@@ -179,6 +179,16 @@ export interface DesktopAppBranding {
   displayName: string;
 }
 
+export interface DesktopOpenThreadWindowInput {
+  environmentId: string;
+  threadId: string;
+}
+
+export const DesktopOpenThreadWindowInputSchema = Schema.Struct({
+  environmentId: Schema.String,
+  threadId: Schema.String,
+});
+
 export const DesktopAppBrandingSchema = Schema.Struct({
   baseName: Schema.String,
   stageLabel: DesktopAppStageLabelSchema,
@@ -935,6 +945,7 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
+  openThreadWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   createCloudAuthRequest: () => Promise<string>;
   getCloudAuthToken: () => Promise<string | null>;
   setCloudAuthToken: (token: string) => Promise<boolean>;

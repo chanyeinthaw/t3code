@@ -70,6 +70,7 @@ import {
   updatePrimaryEnvironmentDescriptor,
 } from "../environments/primary";
 import { hasHostedPairingRequest, isHostedStaticApp } from "../hostedPairing";
+import { ElectronBrowserHost } from "../browser/ElectronBrowserHost";
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -153,6 +154,7 @@ function RootRouteView() {
         <EnvironmentConnectionManagerBootstrap />
         <SshPasswordPromptDialog />
         <HostedStaticEnvironmentBootstrap />
+        {primaryEnvironmentAuthenticated ? <ElectronBrowserHost /> : null}
         {primaryEnvironmentAuthenticated ? <EventRouter /> : null}
         {primaryEnvironmentAuthenticated ? <ProviderUpdateLaunchNotification /> : null}
         {primaryEnvironmentAuthenticated ? <WebSocketConnectionCoordinator /> : null}

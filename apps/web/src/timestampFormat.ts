@@ -48,6 +48,37 @@ export function formatShortTimestamp(isoDate: string, timestampFormat: Timestamp
   return getTimestampFormatter(timestampFormat, false).format(new Date(isoDate));
 }
 
+const monthNameFormatter = new Intl.DateTimeFormat(undefined, { month: "long" });
+
+function ordinalSuffix(day: number): string {
+  const lastTwo = day % 100;
+  if (lastTwo >= 11 && lastTwo <= 13) return "th";
+  switch (day % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+export function formatChatTimestampTooltip(
+  isoDate: string,
+  timestampFormat: TimestampFormat,
+): string {
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return "";
+  const time = formatShortTimestamp(isoDate, timestampFormat);
+  const day = date.getDate();
+  const month = monthNameFormatter.format(date);
+  const year = date.getFullYear();
+  return `${time}, ${day}${ordinalSuffix(day)} ${month} ${year}`;
+}
+
+
 /**
  * Format a relative time string from an ISO date.
  * Returns `{ value: "20s", suffix: "ago" }` or `{ value: "just now", suffix: null }`

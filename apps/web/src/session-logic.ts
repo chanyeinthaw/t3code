@@ -59,9 +59,17 @@ export const PROVIDER_OPTIONS: Array<{
   },
 ];
 
+export type WorkLogToolLifecycleStatus =
+  | "inProgress"
+  | "completed"
+  | "failed"
+  | "declined"
+  | "stopped";
+
 export interface WorkLogEntry {
   id: string;
   createdAt: string;
+  turnId?: TurnId | null;
   label: string;
   detail?: string;
   command?: string;
@@ -69,8 +77,11 @@ export interface WorkLogEntry {
   changedFiles?: ReadonlyArray<string>;
   tone: "thinking" | "tool" | "info" | "error";
   toolTitle?: string;
+  toolData?: unknown;
   itemType?: ToolLifecycleItemType;
   requestKind?: PendingApproval["requestKind"];
+  toolLifecycleStatus?: WorkLogToolLifecycleStatus;
+  sourceActivityKind?: OrchestrationThreadActivity["kind"];
 }
 
 interface DerivedWorkLogEntry extends WorkLogEntry {
@@ -131,6 +142,63 @@ export type TimelineEntry =
       createdAt: string;
       entry: WorkLogEntry;
     };
+
+export function workLogEntryIsToolLike(entry: WorkLogEntry): boolean {
+  if (entry.tone === "tool" || entry.tone === "thinking" || entry.tone === "error") {
+    return true;
+  }
+  if (entry.command !== undefined && entry.command.trim().length > 0) {
+    return true;
+  }
+  if (entry.requestKind !== undefined) {
+    return true;
+  }
+  return entry.itemType !== undefined && isToolLifecycleItemType(entry.itemType);
+}
+
+function toolDetailTextLooksLikeFailure(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes("file not found") ||
+    t.includes("no files found") ||
+    t.includes("enoent") ||
+    t.includes("no such file or directory") ||
+    t.includes("no such file") ||
+    (t.includes("cannot find path") && t.includes("because it does not exist")) ||
+    t.includes("commandnotfoundexception") ||
+    t.includes("is not recognized as the name of a cmdlet") ||
+    (t.includes("is not recognized") && t.includes("the term '")) ||
+    t.includes("a parameter cannot be found that matches parameter name") ||
+    t.includes("command not found") ||
+    /<exited with exit code\s+[1-9]\d*\s*>/i.test(text) ||
+    /exit(?:ed)? with exit code\s+[1-9]\d*/i.test(text) ||
+    /exit code\s*[:\s]\s*[1-9]\d*\b/i.test(text)
+  );
+}
+
+export function workEntryIndicatesToolFailure(entry: WorkLogEntry): boolean {
+  if (entry.tone === "error") return true;
+  const ls = entry.toolLifecycleStatus;
+  if (ls === "failed" || ls === "declined") return true;
+  if (!workLogEntryIsToolLike(entry)) return false;
+  const blob = [entry.detail, entry.command].filter(Boolean).join("\n");
+  return blob.length > 0 && toolDetailTextLooksLikeFailure(blob);
+}
+
+export function workEntryIndicatesToolSuccess(entry: WorkLogEntry): boolean {
+  if (!workLogEntryIsToolLike(entry)) return false;
+  if (workEntryIndicatesToolFailure(entry)) return false;
+  if (entry.tone === "thinking") return false;
+  const ls = entry.toolLifecycleStatus;
+  return ls !== "failed" && ls !== "declined" && ls !== "inProgress" && ls !== "stopped";
+}
+
+export function workEntryIndicatesToolNeutralStatus(entry: WorkLogEntry): boolean {
+  if (!workLogEntryIsToolLike(entry)) return false;
+  if (workEntryIndicatesToolFailure(entry)) return false;
+  if (workEntryIndicatesToolSuccess(entry)) return false;
+  return true;
+}
 
 export function formatDuration(durationMs: number): string {
   if (!Number.isFinite(durationMs) || durationMs < 0) return "0ms";

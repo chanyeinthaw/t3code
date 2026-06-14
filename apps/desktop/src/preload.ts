@@ -101,6 +101,7 @@ contextBridge.exposeInMainWorld("desktopBridge", {
       ...(position === undefined ? {} : { position }),
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
+  openThreadWindow: (input) => ipcRenderer.invoke(IpcChannels.OPEN_THREAD_WINDOW_CHANNEL, input),
   createCloudAuthRequest: () => ipcRenderer.invoke(IpcChannels.CREATE_CLOUD_AUTH_REQUEST_CHANNEL),
   getCloudAuthToken: () => ipcRenderer.invoke(IpcChannels.GET_CLOUD_AUTH_TOKEN_CHANNEL),
   setCloudAuthToken: (token: string) =>

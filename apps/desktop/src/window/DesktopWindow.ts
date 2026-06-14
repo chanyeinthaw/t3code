@@ -92,7 +92,21 @@ function getIconOption(
 }
 
 function getInitialWindowBackgroundColor(shouldUseDarkColors: boolean): string {
+  if (process.platform === "darwin") return "#00000000";
   return shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
+}
+
+function getWindowTransparencyOptions(): Pick<
+  Electron.BrowserWindowConstructorOptions,
+  "transparent" | "vibrancy" | "visualEffectState"
+> {
+  if (process.platform !== "darwin") return {};
+
+  return {
+    transparent: true,
+    vibrancy: "fullscreen-ui",
+    visualEffectState: "active",
+  };
 }
 
 export function isSameOriginRendererNavigation(input: {
@@ -189,6 +203,7 @@ const make = Effect.gen(function* () {
       show: false,
       autoHideMenuBar: true,
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
+      ...getWindowTransparencyOptions(),
       ...iconOption,
       title: environment.displayName,
       ...getWindowTitleBarOptions(shouldUseDarkColors),

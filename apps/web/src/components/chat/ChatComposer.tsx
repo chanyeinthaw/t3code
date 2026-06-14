@@ -90,7 +90,6 @@ import {
   BotIcon,
   CircleAlertIcon,
   ListTodoIcon,
-  PencilRulerIcon,
   type LucideIcon,
   LockIcon,
   LockOpenIcon,
@@ -98,7 +97,11 @@ import {
   XIcon,
 } from "lucide-react";
 import { proposedPlanTitle } from "../../proposedPlan";
-import { getProviderDisplayName, getProviderInteractionModeToggle } from "../../providerModels";
+import {
+  getProviderDisplayName,
+  getProviderInteractionModeToggle,
+  getProviderSupportedAccessModes,
+} from "../../providerModels";
 import {
   deriveProviderInstanceEntries,
   resolveProviderDriverKindForInstanceSelection,
@@ -186,6 +189,7 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
   showInteractionModeToggle: boolean;
   interactionMode: ProviderInteractionMode;
   runtimeMode: RuntimeMode;
+  supportedAccessModes: readonly RuntimeMode[];
   showPlanToggle: boolean;
   planSidebarLabel: string;
   planSidebarOpen: boolean;
@@ -195,124 +199,103 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
 }) {
   const runtimeModeOption = runtimeModeConfig[props.runtimeMode];
   const RuntimeModeIcon = runtimeModeOption.icon;
-  const interactionModeTooltip =
-    props.interactionMode === "plan"
-      ? "Plan mode — click to return to normal build mode"
-      : "Default mode — click to enter plan mode";
-  const planSidebarTooltip = props.planSidebarOpen
-    ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
-    : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`;
+  const showAccessModeToggle = props.supportedAccessModes.length > 1;
+  const hasVisibleControls =
+    props.showInteractionModeToggle || showAccessModeToggle || props.showPlanToggle;
 
-  const interactionModeToggle = props.showInteractionModeToggle ? (
-    <>
-      <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              className={cn(
-                "shrink-0 whitespace-nowrap px-2 sm:px-3",
-                props.interactionMode === "plan"
-                  ? "bg-blue-500/10 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300"
-                  : "text-muted-foreground/70 hover:text-foreground/80",
-              )}
-              size="sm"
-              type="button"
-              onClick={props.onToggleInteractionMode}
-              aria-label={interactionModeTooltip}
-            />
-          }
-        >
-          {props.interactionMode === "plan" ? (
-            <PencilRulerIcon className="text-current opacity-100" />
-          ) : (
-            <BotIcon />
-          )}
-          <span className="sr-only sm:not-sr-only">
-            {props.interactionMode === "plan" ? "Plan" : "Build"}
-          </span>
-        </TooltipTrigger>
-        <TooltipPopup side="top">{interactionModeTooltip}</TooltipPopup>
-      </Tooltip>
-    </>
-  ) : null;
+  if (!hasVisibleControls) {
+    return null;
+  }
 
   return (
     <>
       <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />
 
-      <Tooltip>
-        <Select
-          value={props.runtimeMode}
-          onValueChange={(value) => props.onRuntimeModeChange(value!)}
-        >
-          <TooltipTrigger
-            render={
-              <SelectTrigger
-                variant="ghost"
-                size="sm"
-                className="font-medium"
-                aria-label="Runtime mode"
-              />
+      {props.showInteractionModeToggle ? (
+        <>
+          <Button
+            variant="ghost"
+            className="shrink-0 whitespace-nowrap px-2 text-muted-foreground/70 hover:text-foreground/80 sm:px-3"
+            size="xs"
+            type="button"
+            onClick={props.onToggleInteractionMode}
+            title={
+              props.interactionMode === "plan"
+                ? "Plan mode — click to return to normal build mode"
+                : "Default mode — click to enter plan mode"
             }
+          >
+            <BotIcon />
+            <span className="sr-only sm:not-sr-only">
+              {props.interactionMode === "plan" ? "Plan" : "Build"}
+            </span>
+          </Button>
+
+          {showAccessModeToggle || props.showPlanToggle ? (
+            <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />
+          ) : null}
+        </>
+      ) : null}
+
+      {showAccessModeToggle ? (
+        <Select value={props.runtimeMode} onValueChange={(value) => props.onRuntimeModeChange(value!)}>
+          <SelectTrigger
+            variant="ghost"
+            size="xs"
+            className="font-medium"
+            aria-label="Access mode"
+            title={runtimeModeOption.description}
           >
             <RuntimeModeIcon className="size-4" />
             <SelectValue>{runtimeModeOption.label}</SelectValue>
-          </TooltipTrigger>
+          </SelectTrigger>
           <SelectPopup alignItemWithTrigger={false}>
-            {runtimeModeOptions.map((mode) => {
-              const option = runtimeModeConfig[mode];
-              const OptionIcon = option.icon;
-              return (
-                <SelectItem key={mode} value={mode} className="min-w-64 py-2">
-                  <div className="grid min-w-0 gap-0.5">
-                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                      <OptionIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                      {option.label}
-                    </span>
-                    <span className="text-muted-foreground text-xs leading-4">
-                      {option.description}
-                    </span>
-                  </div>
-                </SelectItem>
-              );
-            })}
+            {runtimeModeOptions
+              .filter((mode) => props.supportedAccessModes.includes(mode))
+              .map((mode) => {
+                const option = runtimeModeConfig[mode];
+                const OptionIcon = option.icon;
+                return (
+                  <SelectItem key={mode} value={mode} className="min-w-64 py-2">
+                    <div className="grid min-w-0 gap-0.5">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                        <OptionIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                        {option.label}
+                      </span>
+                      <span className="text-muted-foreground text-xs leading-4">
+                        {option.description}
+                      </span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
           </SelectPopup>
         </Select>
-        <TooltipPopup side="top">{runtimeModeOption.description}</TooltipPopup>
-      </Tooltip>
-
-      {interactionModeToggle}
+      ) : null}
 
       {props.showPlanToggle ? (
         <>
           <Separator orientation="vertical" className="mx-0.5 hidden h-4 sm:block" />
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "shrink-0 whitespace-nowrap px-2 sm:px-3",
-                    props.planSidebarOpen
-                      ? "bg-blue-500/10 text-blue-400 hover:bg-blue-500/15 hover:text-blue-300"
-                      : "text-muted-foreground/70 hover:text-foreground/80",
-                  )}
-                  size="sm"
-                  type="button"
-                  onClick={props.onTogglePlanSidebar}
-                  aria-label={planSidebarTooltip}
-                />
-              }
-            >
-              <ListTodoIcon
-                className={props.planSidebarOpen ? "text-current opacity-100" : undefined}
-              />
-              <span className="sr-only sm:not-sr-only">{props.planSidebarLabel}</span>
-            </TooltipTrigger>
-            <TooltipPopup side="top">{planSidebarTooltip}</TooltipPopup>
-          </Tooltip>
+          <Button
+            variant="ghost"
+            className={cn(
+              "shrink-0 whitespace-nowrap px-2 sm:px-3",
+              props.planSidebarOpen
+                ? "text-blue-400 hover:text-blue-300"
+                : "text-muted-foreground/70 hover:text-foreground/80",
+            )}
+            size="xs"
+            type="button"
+            onClick={props.onTogglePlanSidebar}
+            title={
+              props.planSidebarOpen
+                ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
+                : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`
+            }
+          >
+            <ListTodoIcon />
+            <span className="sr-only sm:not-sr-only">{props.planSidebarLabel}</span>
+          </Button>
         </>
       ) : null}
     </>
@@ -803,9 +786,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         providerStatuses,
         selectedProvider,
       ),
+      supportedAccessModes: getProviderSupportedAccessModes(providerStatuses, selectedProvider),
     }),
     [providerStatuses, selectedProvider],
   );
+  const effectiveRuntimeMode = composerProviderControls.supportedAccessModes.includes(runtimeMode)
+    ? runtimeMode
+    : composerProviderControls.supportedAccessModes[0]!;
   const selectedModelSelection = useMemo<ModelSelection>(
     () => createModelSelection(selectedInstanceId, selectedModel, selectedModelOptionsForDispatch),
     [selectedInstanceId, selectedModel, selectedModelOptionsForDispatch],
@@ -2045,7 +2032,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     >
       <div
         className={cn(
-          "group rounded-[22px] p-px transition-colors duration-200",
+          "group rounded-[27px] p-px transition-colors duration-200",
           composerProviderState.composerFrameClassName,
         )}
         onDragEnter={onComposerDragEnter}
@@ -2057,7 +2044,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           ref={composerSurfaceRef}
           data-chat-composer-mobile-collapsed={isComposerCollapsedMobile ? "true" : "false"}
           className={cn(
-            "rounded-[20px] border bg-card transition-colors duration-200 has-focus-visible:border-ring/45",
+            "rounded-[25px] border bg-background/60 backdrop-blur-sm transition-colors duration-200",
             isDragOverComposer ? "border-primary/70 bg-accent/30" : "border-border",
             environmentUnavailable ? "opacity-75" : null,
             composerProviderState.composerSurfaceClassName,
@@ -2236,7 +2223,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
             )}
           >
             {composerMenuOpen && !isComposerApprovalState && (
-              <div className="absolute inset-x-0 bottom-full z-20 mb-2">
+              <div className="absolute inset-x-0 bottom-full z-20 mb-2 px-1">
                 <ComposerCommandMenu
                   items={composerMenuItems}
                   resolvedTheme={resolvedTheme}
@@ -2484,7 +2471,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     interactionMode={interactionMode}
                     planSidebarLabel={planSidebarLabel}
                     planSidebarOpen={planSidebarOpen}
-                    runtimeMode={runtimeMode}
+                    runtimeMode={effectiveRuntimeMode}
                     showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
                     traitsMenuContent={providerTraitsMenuContent}
                     onToggleInteractionMode={toggleInteractionMode}
@@ -2502,7 +2489,8 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     <ComposerFooterModeControls
                       showInteractionModeToggle={composerProviderControls.showInteractionModeToggle}
                       interactionMode={interactionMode}
-                      runtimeMode={runtimeMode}
+                      runtimeMode={effectiveRuntimeMode}
+                      supportedAccessModes={composerProviderControls.supportedAccessModes}
                       showPlanToggle={showPlanSidebarToggle}
                       planSidebarLabel={planSidebarLabel}
                       planSidebarOpen={planSidebarOpen}

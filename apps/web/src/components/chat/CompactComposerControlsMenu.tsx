@@ -19,13 +19,19 @@ export const CompactComposerControlsMenu = memo(
     planSidebarLabel: string;
     planSidebarOpen: boolean;
     runtimeMode: RuntimeMode;
-    supportedAccessModes: readonly RuntimeMode[];
+    supportedAccessModes?: readonly RuntimeMode[];
     showInteractionModeToggle: boolean;
     traitsMenuContent?: ReactNode;
     onToggleInteractionMode: () => void;
     onTogglePlanSidebar: () => void;
     onRuntimeModeChange: (mode: RuntimeMode) => void;
   }) {
+    const supportedAccessModes = props.supportedAccessModes ?? [
+      "approval-required",
+      "auto-accept-edits",
+      "full-access",
+    ];
+
     return (
       <Menu>
         <MenuTrigger
@@ -65,7 +71,7 @@ export const CompactComposerControlsMenu = memo(
               <MenuDivider />
             </>
           ) : null}
-          {props.supportedAccessModes.length > 1 ? (
+          {supportedAccessModes.length > 1 ? (
             <>
               <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
                 Access
@@ -77,17 +83,17 @@ export const CompactComposerControlsMenu = memo(
                   props.onRuntimeModeChange(value as RuntimeMode);
                 }}
               >
-                {props.supportedAccessModes.includes("approval-required") ? (
+                {supportedAccessModes.includes("approval-required") ? (
                   <MenuRadioItem value="approval-required">
                     Supervised
                   </MenuRadioItem>
                 ) : null}
-                {props.supportedAccessModes.includes("auto-accept-edits") ? (
+                {supportedAccessModes.includes("auto-accept-edits") ? (
                   <MenuRadioItem value="auto-accept-edits">
                     Auto-accept edits
                   </MenuRadioItem>
                 ) : null}
-                {props.supportedAccessModes.includes("full-access") ? (
+                {supportedAccessModes.includes("full-access") ? (
                   <MenuRadioItem value="full-access">Full access</MenuRadioItem>
                 ) : null}
               </MenuRadioGroup>
