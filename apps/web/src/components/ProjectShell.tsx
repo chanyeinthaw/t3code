@@ -927,7 +927,7 @@ export function ProjectShell({
 
   return (
     <ProjectShellNavigationContext value={navigationContext}>
-      <div className="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-muted/35 text-foreground">
+      <div className="electron-vibrant-background flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-muted/35 text-foreground">
         <ProjectShellStatePruner />
         <ProjectShellChrome
           context={context}

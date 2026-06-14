@@ -1,17 +1,8 @@
 import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
-import {
-  ChevronDownIcon,
-  CloudIcon,
-  FolderGit2Icon,
-  FolderGitIcon,
-  FolderIcon,
-  MonitorIcon,
-} from "lucide-react";
 import { memo, useMemo } from "react";
 
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
-import { useIsMobile } from "../hooks/useMediaQuery";
 import { useStore } from "../store";
 import {
   createProjectSelectorByRef,
@@ -20,24 +11,11 @@ import {
 import {
   type EnvMode,
   type EnvironmentOption,
-  resolveEnvModeLabel,
   resolveEffectiveEnvMode,
-  resolveLockedWorkspaceLabel,
 } from "./BranchToolbar.logic";
 import { BranchToolbarBranchSelector } from "./BranchToolbarBranchSelector";
 import { BranchToolbarEnvironmentSelector } from "./BranchToolbarEnvironmentSelector";
 import { BranchToolbarEnvModeSelector } from "./BranchToolbarEnvModeSelector";
-import { Button } from "./ui/button";
-import {
-  Menu,
-  MenuGroup,
-  MenuGroupLabel,
-  MenuPopup,
-  MenuRadioGroup,
-  MenuRadioItem,
-  MenuSeparator,
-  MenuTrigger,
-} from "./ui/menu";
 import { Separator } from "./ui/separator";
 
 interface BranchToolbarProps {
@@ -55,175 +33,6 @@ interface BranchToolbarProps {
   availableEnvironments?: readonly EnvironmentOption[];
   onEnvironmentChange?: (environmentId: EnvironmentId) => void;
 }
-
-interface MobileRunContextSelectorProps {
-  envLocked: boolean;
-  envModeLocked: boolean;
-  environmentId: EnvironmentId;
-  availableEnvironments: readonly EnvironmentOption[] | undefined;
-  showEnvironmentPicker: boolean;
-  onEnvironmentChange: ((environmentId: EnvironmentId) => void) | undefined;
-  effectiveEnvMode: EnvMode;
-  activeWorktreePath: string | null;
-  onEnvModeChange: (mode: EnvMode) => void;
-}
-
-const MobileRunContextSelector = memo(function MobileRunContextSelector({
-  envLocked,
-  envModeLocked,
-  environmentId,
-  availableEnvironments,
-  showEnvironmentPicker,
-  onEnvironmentChange,
-  effectiveEnvMode,
-  activeWorktreePath,
-  onEnvModeChange,
-}: MobileRunContextSelectorProps) {
-  const activeEnvironment = useMemo(
-    () =>
-      availableEnvironments?.find(
-        (env) => env.environmentId === environmentId,
-      ) ?? null,
-    [availableEnvironments, environmentId],
-  );
-  const WorkspaceIcon =
-    effectiveEnvMode === "worktree"
-      ? FolderGit2Icon
-      : activeWorktreePath
-        ? FolderGitIcon
-        : FolderIcon;
-  const workspaceLabel = envModeLocked
-    ? resolveLockedWorkspaceLabel(activeWorktreePath)
-    : effectiveEnvMode === "worktree"
-      ? resolveEnvModeLabel("worktree")
-      : activeWorktreePath
-        ? "Current worktree"
-        : resolveEnvModeLabel("local");
-  const isLocked = envLocked || envModeLocked;
-  const hasLocalWorktreeForMobile = activeWorktreePath !== null;
-  const EnvironmentIcon = activeEnvironment?.isPrimary
-    ? MonitorIcon
-    : CloudIcon;
-  const icon = showEnvironmentPicker ? (
-    // Button's base styles apply `-mx-0.5` to descendant SVGs, which eats 4px
-    // out of whatever gap we set. mx-0! cancels that so gap-0.5 reads as 2px.
-    <span className="inline-flex shrink-0 items-center gap-0.5">
-      <EnvironmentIcon className="size-3 shrink-0 mx-0!" />
-      <WorkspaceIcon className="size-3 shrink-0 mx-0!" />
-    </span>
-  ) : (
-    <WorkspaceIcon className="size-3 shrink-0" />
-  );
-  const triggerContent = (
-    <>
-      {icon}
-      <span className="min-w-0 truncate text-xs">
-        {showEnvironmentPicker
-          ? (activeEnvironment?.label ?? "Run on")
-          : workspaceLabel}
-      </span>
-    </>
-  );
-
-  if (isLocked) {
-    return (
-      <span className="inline-flex min-w-0 max-w-[48%] flex-1 items-center justify-start gap-1 rounded-md border border-transparent px-[calc(--spacing(2)-1px)] text-sm font-medium text-muted-foreground/70 md:hidden">
-        {triggerContent}
-      </span>
-    );
-  }
-
-  return (
-    <Menu>
-      <MenuTrigger
-        render={<Button variant="ghost" size="xs" />}
-        className="min-w-0 max-w-[48%] justify-start text-muted-foreground/70 hover:text-foreground/80 md:hidden"
-      >
-        {triggerContent}
-        <ChevronDownIcon className="size-3 shrink-0 opacity-50" />
-      </MenuTrigger>
-      <MenuPopup align="start" side="top" className="w-64">
-        {showEnvironmentPicker &&
-        availableEnvironments &&
-        onEnvironmentChange ? (
-          <>
-            <MenuGroup>
-              <MenuGroupLabel>Run on</MenuGroupLabel>
-              <MenuRadioGroup
-                value={environmentId}
-                onValueChange={(value) =>
-                  onEnvironmentChange(value as EnvironmentId)
-                }
-              >
-                {availableEnvironments.map((env) => {
-                  const Icon = env.isPrimary ? MonitorIcon : CloudIcon;
-                  return (
-                    <MenuRadioItem
-                      key={env.environmentId}
-                      disabled={envLocked}
-                      value={env.environmentId}
-                    >
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <Icon className="size-3" />
-                        <span className="min-w-0 truncate">{env.label}</span>
-                      </span>
-                    </MenuRadioItem>
-                  );
-                })}
-              </MenuRadioGroup>
-            </MenuGroup>
-            <MenuSeparator />
-          </>
-        ) : null}
-        <MenuGroup>
-          <MenuGroupLabel>Workspace</MenuGroupLabel>
-          <MenuRadioGroup
-            value={
-              effectiveEnvMode === "worktree"
-                ? "worktree"
-                : activeWorktreePath
-                  ? "local-worktree"
-                  : "local"
-            }
-            onValueChange={(value) => {
-              if (value === "local-worktree") {
-                onEnvModeChange("local");
-                return;
-              }
-              onEnvModeChange(value as EnvMode);
-            }}
-          >
-            <MenuRadioItem disabled={envModeLocked} value="local">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <FolderIcon className="size-3" />
-                <span className="min-w-0 truncate">
-                  {resolveEnvModeLabel("local")}
-                </span>
-              </span>
-            </MenuRadioItem>
-            {hasLocalWorktreeForMobile ? (
-              <MenuRadioItem disabled={envModeLocked} value="local-worktree">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <FolderGitIcon className="size-3" />
-                  <span className="min-w-0 truncate">Current worktree</span>
-                </span>
-              </MenuRadioItem>
-            ) : null}
-            <MenuSeparator />
-            <MenuRadioItem disabled={envModeLocked} value="worktree">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <FolderGit2Icon className="size-3" />
-                <span className="min-w-0 truncate">
-                  {resolveEnvModeLabel("worktree")}
-                </span>
-              </span>
-            </MenuRadioItem>
-          </MenuRadioGroup>
-        </MenuGroup>
-      </MenuPopup>
-    </Menu>
-  );
-});
 
 export const BranchToolbar = memo(function BranchToolbar({
   environmentId,
@@ -282,53 +91,36 @@ export const BranchToolbar = memo(function BranchToolbar({
     availableEnvironments.length > 1 &&
     onEnvironmentChange,
   );
-  const isMobile = useIsMobile();
 
   if (!hasActiveThread || !activeProject) return null;
 
   return (
     <div className="w-full bg-background/60 backdrop-blur-sm mx-auto max-w-208 flex flex-row items-center justify-center md:justify-start pb-3 px-3.5 sm:px-6 -mt-[1px]">
       <div className="flex w-[95%] md:w-fit justify-between items-center gap-2 rounded-b-lg bg-background/60 backdrop-blur-sm border border-border border-t-[0px] p-0 md:p-0.5">
-        {isMobile ? (
-          <MobileRunContextSelector
-            envLocked={envLocked}
-            envModeLocked={envModeLocked}
-            environmentId={environmentId}
-            availableEnvironments={availableEnvironments}
-            showEnvironmentPicker={showEnvironmentPicker}
-            onEnvironmentChange={onEnvironmentChange}
+        <div className="flex min-w-0 shrink-0 items-center gap-1">
+          {showEnvironmentPicker &&
+            availableEnvironments &&
+            onEnvironmentChange && (
+              <>
+                <BranchToolbarEnvironmentSelector
+                  envLocked={envLocked}
+                  environmentId={environmentId}
+                  availableEnvironments={availableEnvironments}
+                  onEnvironmentChange={onEnvironmentChange}
+                />
+                <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
+              </>
+            )}
+          <BranchToolbarEnvModeSelector
+            envLocked={envModeLocked}
             effectiveEnvMode={effectiveEnvMode}
             activeWorktreePath={activeWorktreePath}
+            projectCwd={activeProject?.cwd ?? null}
+            environmentId={environmentId}
             onEnvModeChange={onEnvModeChange}
+            {...(onSelectExistingWorktree ? { onSelectExistingWorktree } : {})}
           />
-        ) : (
-          <div className="flex min-w-0 shrink-0 items-center gap-1">
-            {showEnvironmentPicker &&
-              availableEnvironments &&
-              onEnvironmentChange && (
-                <>
-                  <BranchToolbarEnvironmentSelector
-                    envLocked={envLocked}
-                    environmentId={environmentId}
-                    availableEnvironments={availableEnvironments}
-                    onEnvironmentChange={onEnvironmentChange}
-                  />
-                  <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
-                </>
-              )}
-            <BranchToolbarEnvModeSelector
-              envLocked={envModeLocked}
-              effectiveEnvMode={effectiveEnvMode}
-              activeWorktreePath={activeWorktreePath}
-              projectCwd={activeProject?.cwd ?? null}
-              environmentId={environmentId}
-              onEnvModeChange={onEnvModeChange}
-              {...(onSelectExistingWorktree
-                ? { onSelectExistingWorktree }
-                : {})}
-            />
-          </div>
-        )}
+        </div>
 
         <BranchToolbarBranchSelector
           className="min-w-0 justify-end md:flex-none"

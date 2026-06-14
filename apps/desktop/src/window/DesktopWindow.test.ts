@@ -123,9 +123,17 @@ function makeTestLayer(input: {
   readonly window: Electron.BrowserWindow;
   readonly createCount: Ref.Ref<number>;
   readonly mainWindow: Ref.Ref<Option.Option<Electron.BrowserWindow>>;
+  readonly createOptions?: Ref.Ref<readonly Electron.BrowserWindowConstructorOptions[]>;
 }) {
   const electronWindowLayer = Layer.succeed(ElectronWindow.ElectronWindow, {
-    create: () => Ref.update(input.createCount, (count) => count + 1).pipe(Effect.as(input.window)),
+    create: (options) =>
+      Effect.gen(function* () {
+        yield* Ref.update(input.createCount, (count) => count + 1);
+        if (input.createOptions !== undefined) {
+          yield* Ref.update(input.createOptions, (current) => [...current, options]);
+        }
+        return input.window;
+      }),
     main: Ref.get(input.mainWindow),
     currentMainOrFirst: Ref.get(input.mainWindow),
     focusedMainOrFirst: Ref.get(input.mainWindow),
@@ -199,6 +207,34 @@ describe("DesktopWindow", () => {
         ]);
         assert.equal(fakeWindow.openDevTools.mock.calls.length, 1);
         assert.deepEqual(yield* Ref.get(mainWindow), Option.none());
+      }).pipe(Effect.provide(layer));
+    }),
+  );
+
+  it.effect("creates macOS windows with transparent vibrancy enabled", () =>
+    Effect.gen(function* () {
+      const fakeWindow = makeFakeBrowserWindow();
+      const createCount = yield* Ref.make(0);
+      const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      const createOptions = yield* Ref.make<readonly Electron.BrowserWindowConstructorOptions[]>(
+        [],
+      );
+      const layer = makeTestLayer({
+        window: fakeWindow.window,
+        createCount,
+        mainWindow,
+        createOptions,
+      });
+
+      yield* Effect.gen(function* () {
+        const desktopWindow = yield* DesktopWindow.DesktopWindow;
+        yield* desktopWindow.createNew();
+
+        const options = yield* Ref.get(createOptions);
+        assert.equal(options[0]?.backgroundColor, "#00000000");
+        assert.equal(options[0]?.transparent, true);
+        assert.equal(options[0]?.vibrancy, "fullscreen-ui");
+        assert.equal(options[0]?.visualEffectState, "active");
       }).pipe(Effect.provide(layer));
     }),
   );

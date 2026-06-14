@@ -73,8 +73,21 @@ function resolveBrowserChromeSurface(): HTMLElement {
   );
 }
 
+function isElectronDocument() {
+  return (
+    typeof window !== "undefined" &&
+    (window.desktopBridge !== undefined || window.nativeApi !== undefined)
+  );
+}
+
 export function syncBrowserChromeTheme() {
   if (typeof document === "undefined" || typeof getComputedStyle === "undefined") return;
+  if (isElectronDocument()) {
+    document.documentElement.style.backgroundColor = "transparent";
+    document.body.style.backgroundColor = "transparent";
+    ensureThemeColorMetaTag().setAttribute("content", "transparent");
+    return;
+  }
   const surfaceColor = normalizeThemeColor(
     getComputedStyle(resolveBrowserChromeSurface()).backgroundColor,
   );

@@ -21,7 +21,7 @@ export function SettingsSidebarLayout({ children }: { children: ReactNode }) {
 
   return (
     <SidebarProvider
-      className="h-dvh! min-h-0!"
+      className="electron-vibrant-background h-dvh! min-h-0!"
       defaultOpen
       open={sidebarOpen}
       onOpenChange={setSidebarOpen}
@@ -29,7 +29,7 @@ export function SettingsSidebarLayout({ children }: { children: ReactNode }) {
       <Sidebar
         side="left"
         collapsible="offcanvas"
-        className="border-r border-border bg-card text-foreground"
+        className="border-r border-border bg-card/95 text-foreground"
         resizable={{
           minWidth: SETTINGS_SIDEBAR_MIN_WIDTH,
           shouldAcceptWidth: ({ nextWidth, wrapper }) =>
