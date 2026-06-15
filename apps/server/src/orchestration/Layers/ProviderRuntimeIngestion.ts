@@ -603,11 +603,12 @@ function runtimeEventToActivities(
         {
           id: event.eventId,
           createdAt: event.createdAt,
-          tone: "tool",
+          tone: event.payload.status === "failed" ? "error" : "tool",
           kind: "tool.completed",
           summary: event.payload.title ?? "Tool",
           payload: {
             itemType: event.payload.itemType,
+            ...(event.payload.status ? { status: event.payload.status } : {}),
             ...(event.payload.detail ? { detail: truncateDetail(event.payload.detail) } : {}),
             ...(event.payload.data !== undefined ? { data: event.payload.data } : {}),
           },
@@ -630,7 +631,10 @@ function runtimeEventToActivities(
           summary: `${event.payload.title ?? "Tool"} started`,
           payload: {
             itemType: event.payload.itemType,
+            ...(event.payload.status ? { status: event.payload.status } : {}),
+            ...(event.payload.title ? { title: event.payload.title } : {}),
             ...(event.payload.detail ? { detail: truncateDetail(event.payload.detail) } : {}),
+            ...(event.payload.data !== undefined ? { data: event.payload.data } : {}),
           },
           turnId: toTurnId(event.turnId) ?? null,
           ...maybeSequence,

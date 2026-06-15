@@ -22,6 +22,13 @@ export interface DiscoverProviderComposerStateInput {
 
 const EMPTY_MODEL_CAPABILITIES: ModelCapabilities = {};
 
+function toTitle(input: string): string {
+  return input
+    .replaceAll("_", " ")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export async function discoverProviderComposerState(
   api: EnvironmentApi,
   input: DiscoverProviderComposerStateInput,
@@ -78,17 +85,27 @@ export async function discoverProviderComposerState(
         ? commandsResult.value.commands.map((command) => ({
             name: command.name,
             ...(command.description ? { description: command.description } : {}),
+            ...(command.input ? { input: command.input } : {}),
           }))
         : [],
     skills:
       skillsResult.status === "fulfilled"
-        ? skillsResult.value.skills.map((skill) => ({
-            name: skill.name,
-            ...(skill.description ? { description: skill.description } : {}),
-            path: skill.path ?? skill.name,
-            ...(skill.scope ? { scope: skill.scope } : {}),
-            enabled: skill.enabled ?? true,
-          }))
+        ? skillsResult.value.skills.map((skill) => {
+            const description = skill.description?.trim();
+            const shortDescription =
+              description && description.length > 100
+                ? description.slice(0, 100).replace(/\s+\S*$/, "")
+                : description;
+            return {
+              name: skill.name,
+              ...(description ? { description } : {}),
+              path: skill.path ?? skill.name,
+              ...(skill.scope ? { scope: skill.scope } : {}),
+              enabled: skill.enabled ?? true,
+              displayName: toTitle(skill.name),
+              ...(shortDescription ? { shortDescription } : {}),
+            };
+          })
         : [],
   };
 }

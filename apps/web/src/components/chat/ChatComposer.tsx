@@ -120,6 +120,12 @@ import {
 import { formatProviderSkillDisplayName } from "../../providerSkillPresentation";
 import { searchProviderSkills } from "../../providerSkillSearch";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { readEnvironmentApi } from "../../environmentApi";
+import {
+  discoverProviderComposerState,
+  mergeProviderDiscoveryIntoSnapshot,
+  type RuntimeProviderDiscoveryState,
+} from "./providerDiscoveryUi";
 
 const IMAGE_SIZE_LIMIT_LABEL = `${Math.round(PROVIDER_SEND_TURN_MAX_IMAGE_BYTES / (1024 * 1024))}MB`;
 
@@ -754,9 +760,44 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     () => selectedProviderEntry?.snapshot ?? null,
     [selectedProviderEntry],
   );
+  const [runtimeProviderDiscovery, setRuntimeProviderDiscovery] =
+    useState<RuntimeProviderDiscoveryState | null>(null);
+
+  useEffect(() => {
+    const api = readEnvironmentApi(environmentId);
+    if (!api) {
+      setRuntimeProviderDiscovery(null);
+      return;
+    }
+    let cancelled = false;
+    void discoverProviderComposerState(api, {
+      instanceId: selectedInstanceId,
+      cwd: gitCwd ?? undefined,
+      threadId: activeThreadId,
+    }).then((discovery) => {
+      if (!cancelled) setRuntimeProviderDiscovery(discovery);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeThreadId, environmentId, gitCwd, selectedInstanceId]);
+
   const selectedProviderModels = useMemo<ReadonlyArray<ServerProvider["models"][number]>>(
-    () => selectedProviderEntry?.models ?? [],
-    [selectedProviderEntry],
+    () =>
+      runtimeProviderDiscovery?.instanceId === selectedInstanceId &&
+      runtimeProviderDiscovery.models.length > 0
+        ? runtimeProviderDiscovery.models
+        : (selectedProviderEntry?.models ?? []),
+    [runtimeProviderDiscovery, selectedInstanceId, selectedProviderEntry],
+  );
+  const selectedProviderStatusWithDiscovery = useMemo<ServerProvider | null>(
+    () =>
+      mergeProviderDiscoveryIntoSnapshot(
+        selectedProviderStatus,
+        runtimeProviderDiscovery,
+        selectedInstanceId,
+      ),
+    [runtimeProviderDiscovery, selectedInstanceId, selectedProviderStatus],
   );
 
   const composerProviderState = useMemo(
@@ -942,16 +983,16 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
           description: "Switch this thread back to normal build mode",
         },
       ] satisfies ReadonlyArray<Extract<ComposerCommandItem, { type: "slash-command" }>>;
-      const providerSlashCommandItems = (selectedProviderStatus?.slashCommands ?? []).map(
-        (command) => ({
-          id: `provider-slash-command:${selectedProvider}:${command.name}`,
-          type: "provider-slash-command" as const,
-          provider: selectedProvider,
-          command,
-          label: `/${command.name}`,
-          description: command.description ?? command.input?.hint ?? "Run provider command",
-        }),
-      );
+      const providerSlashCommandItems = (
+        selectedProviderStatusWithDiscovery?.slashCommands ?? []
+      ).map((command) => ({
+        id: `provider-slash-command:${selectedProvider}:${command.name}`,
+        type: "provider-slash-command" as const,
+        provider: selectedProvider,
+        command,
+        label: `/${command.name}`,
+        description: command.description ?? command.input?.hint ?? "Run provider command",
+      }));
       const query = composerTrigger.query.trim().toLowerCase();
       const slashCommandItems = [...builtInSlashCommandItems, ...providerSlashCommandItems];
       if (!query) {
@@ -960,22 +1001,28 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       return searchSlashCommandItems(slashCommandItems, query);
     }
     if (composerTrigger.kind === "skill") {
-      return searchProviderSkills(selectedProviderStatus?.skills ?? [], composerTrigger.query).map(
-        (skill) => ({
-          id: `skill:${selectedProvider}:${skill.name}`,
-          type: "skill" as const,
-          provider: selectedProvider,
-          skill,
-          label: formatProviderSkillDisplayName(skill),
-          description:
-            skill.shortDescription ??
-            skill.description ??
-            (skill.scope ? `${skill.scope} skill` : "Run provider skill"),
-        }),
-      );
+      return searchProviderSkills(
+        selectedProviderStatusWithDiscovery?.skills ?? [],
+        composerTrigger.query,
+      ).map((skill) => ({
+        id: `skill:${selectedProvider}:${skill.name}`,
+        type: "skill" as const,
+        provider: selectedProvider,
+        skill,
+        label: formatProviderSkillDisplayName(skill),
+        description:
+          skill.shortDescription ??
+          skill.description ??
+          (skill.scope ? `${skill.scope} skill` : "Run provider skill"),
+      }));
     }
     return [];
-  }, [composerTrigger, selectedProvider, selectedProviderStatus, workspaceEntries.entries]);
+  }, [
+    composerTrigger,
+    selectedProvider,
+    selectedProviderStatusWithDiscovery,
+    workspaceEntries.entries,
+  ]);
 
   const composerMenuOpen = Boolean(composerTrigger);
   const composerMenuSearchKey = composerTrigger
@@ -2366,7 +2413,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     ? composerTerminalContexts
                     : []
                 }
-                skills={selectedProviderStatus?.skills ?? []}
+                skills={selectedProviderStatusWithDiscovery?.skills ?? []}
                 {...(showMobilePendingAnswerActions ? { className: "max-sm:pb-11" } : {})}
                 onRemoveTerminalContext={removeComposerTerminalContextFromDraft}
                 onChange={onPromptChange}

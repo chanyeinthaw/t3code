@@ -60,7 +60,14 @@ function makeEnvironmentApi(overrides?: Partial<EnvironmentApi["provider"]>): En
     listCommands: vi.fn(async () => ({
       source: "runtime",
       cached: false,
-      commands: [{ name: "reload", description: "Reload Pi configuration" }],
+      commands: [
+        { name: "reload", description: "Reload Pi configuration" },
+        {
+          name: "compact",
+          description: "Compact thread",
+          input: { hint: "Optional instructions" },
+        },
+      ],
     })),
     ...overrides,
   };
@@ -149,6 +156,11 @@ describe("discoverProviderComposerState", () => {
     ]);
     expect(state.slashCommands).toEqual([
       { name: "reload", description: "Reload Pi configuration" },
+      {
+        name: "compact",
+        description: "Compact thread",
+        input: { hint: "Optional instructions" },
+      },
     ]);
     expect(state.skills).toEqual([
       {
@@ -157,6 +169,8 @@ describe("discoverProviderComposerState", () => {
         path: "gh-fix-ci",
         scope: "user",
         enabled: true,
+        displayName: "Gh Fix Ci",
+        shortDescription: "Fix failing CI",
       },
     ]);
   });

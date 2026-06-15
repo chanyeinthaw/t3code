@@ -69,7 +69,11 @@ function piModelToServerModel(
   };
 }
 
-const PI_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
+export const PI_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
+  {
+    name: "reload",
+    description: "Reload Pi extensions, skills, prompts, themes, tools, and settings",
+  },
   {
     name: "compact",
     description: "Manually compact the session context to reduce token usage",
@@ -78,6 +82,36 @@ const PI_SLASH_COMMANDS: ReadonlyArray<ServerProviderSlashCommand> = [
     },
   },
 ];
+
+function trimToUndefined(value: string | null | undefined): string | undefined {
+  const trimmed = typeof value === "string" ? value.trim() : "";
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function piSkillScope(skill: PiSkill): string | undefined {
+  return trimToUndefined(skill.sourceInfo.scope ?? skill.sourceInfo.source);
+}
+
+function piSkillShortDescription(description: string | undefined): string | undefined {
+  const trimmed = trimToUndefined(description);
+  if (!trimmed) return undefined;
+  return trimmed.length > 100 ? trimmed.slice(0, 100).replace(/\s+\S*$/, "") : trimmed;
+}
+
+export function piSkillToServerProviderSkill(skill: PiSkill): ServerProviderSkill {
+  const description = trimToUndefined(skill.description);
+  const scope = piSkillScope(skill);
+  const shortDescription = piSkillShortDescription(description);
+  return {
+    name: skill.name,
+    ...(description ? { description } : {}),
+    path: skill.filePath,
+    ...(scope ? { scope } : {}),
+    enabled: !skill.disableModelInvocation,
+    displayName: toTitle(skill.name),
+    ...(shortDescription ? { shortDescription } : {}),
+  };
+}
 
 function loadPiSkills(agentDir: string | undefined): ReadonlyArray<ServerProviderSkill> {
   const resolvedAgentDir = agentDir && agentDir.trim().length > 0 ? agentDir : getAgentDir();
@@ -88,22 +122,7 @@ function loadPiSkills(agentDir: string | undefined): ReadonlyArray<ServerProvide
     includeDefaults: true,
   });
 
-  return skills.map((skill: PiSkill): ServerProviderSkill => {
-    const shortDescription =
-      skill.description.length > 100
-        ? skill.description.slice(0, 100).replace(/\s+\S*$/, "")
-        : skill.description;
-
-    return {
-      name: skill.name,
-      description: skill.description,
-      path: skill.filePath,
-      scope: skill.sourceInfo.scope === "project" ? "project" : "user",
-      enabled: !skill.disableModelInvocation,
-      displayName: toTitle(skill.name),
-      shortDescription,
-    };
-  });
+  return skills.map(piSkillToServerProviderSkill);
 }
 
 export function makePendingPiProvider(settings: PiSettings): Effect.Effect<ServerProviderDraft> {

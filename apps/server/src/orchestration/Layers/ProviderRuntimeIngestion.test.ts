@@ -2525,11 +2525,120 @@ describe("ProviderRuntimeIngestion", () => {
     );
 
     expect(thread.session?.status).toBe("ready");
-    expect(
-      thread.activities.some(
-        (activity: ProviderRuntimeTestActivity) => activity.kind === "tool.started",
-      ),
-    ).toBe(true);
+    const toolStarted = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "tool.started",
+    ) as ProviderRuntimeTestActivity | undefined;
+    expect(toolStarted).toBeDefined();
+    expect(toolStarted?.payload).toMatchObject({
+      itemType: "command_execution",
+      status: "in_progress",
+      title: "Read file",
+      detail: "/tmp/file.ts",
+    });
+  });
+
+  it("preserves Pi queued input, tool start data, and failed tool completion state", async () => {
+    const harness = await createHarness();
+    const now = "2026-01-01T00:00:00.000Z";
+
+    harness.emit({
+      type: "input.queue.updated",
+      eventId: asEventId("evt-input-queue"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-pi"),
+      payload: {
+        steering: ["Prefer small changes"],
+        followUp: ["Then run checks"],
+      },
+    });
+    harness.emit({
+      type: "item.started",
+      eventId: asEventId("evt-pi-tool-started"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-pi"),
+      itemId: "tool-read-1",
+      payload: {
+        itemType: "dynamic_tool_call",
+        status: "inProgress",
+        title: "read apps/server/src/provider/Layers/PiAdapter.ts",
+        data: {
+          toolCallId: "tool-read-1",
+          toolName: "read",
+          path: "apps/server/src/provider/Layers/PiAdapter.ts",
+        },
+      },
+    });
+    harness.emit({
+      type: "item.completed",
+      eventId: asEventId("evt-pi-tool-completed"),
+      provider: ProviderDriverKind.make("pi"),
+      createdAt: now,
+      threadId: asThreadId("thread-1"),
+      turnId: asTurnId("turn-pi"),
+      itemId: "tool-read-1",
+      payload: {
+        itemType: "dynamic_tool_call",
+        status: "failed",
+        title: "read apps/server/src/provider/Layers/PiAdapter.ts",
+        detail: "File not found",
+        data: {
+          toolCallId: "tool-read-1",
+          toolName: "read",
+          isError: true,
+        },
+      },
+    });
+
+    const thread = await waitForThread(
+      harness.readModel,
+      (entry) =>
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) => activity.kind === "input.queue.updated",
+        ) &&
+        entry.activities.some(
+          (activity: ProviderRuntimeTestActivity) =>
+            activity.id === "evt-pi-tool-completed" && activity.kind === "tool.completed",
+        ),
+    );
+
+    const queueActivity = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.kind === "input.queue.updated",
+    ) as ProviderRuntimeTestActivity | undefined;
+    expect(queueActivity?.payload).toMatchObject({
+      steering: ["Prefer small changes"],
+      followUp: ["Then run checks"],
+    });
+
+    const startedActivity = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.id === "evt-pi-tool-started",
+    ) as ProviderRuntimeTestActivity | undefined;
+    expect(startedActivity?.payload).toMatchObject({
+      itemType: "dynamic_tool_call",
+      status: "inProgress",
+      title: "read apps/server/src/provider/Layers/PiAdapter.ts",
+      data: {
+        toolCallId: "tool-read-1",
+        path: "apps/server/src/provider/Layers/PiAdapter.ts",
+      },
+    });
+
+    const completedActivity = thread.activities.find(
+      (activity: ProviderRuntimeTestActivity) => activity.id === "evt-pi-tool-completed",
+    ) as ProviderRuntimeTestActivity | undefined;
+    expect(completedActivity?.tone).toBe("error");
+    expect(completedActivity?.payload).toMatchObject({
+      itemType: "dynamic_tool_call",
+      status: "failed",
+      detail: "File not found",
+      data: {
+        toolCallId: "tool-read-1",
+        isError: true,
+      },
+    });
   });
 
   it("consumes P1 runtime events into thread metadata, diff checkpoints, and activities", async () => {

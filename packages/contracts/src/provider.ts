@@ -21,6 +21,7 @@ import {
   ProviderUserInputAnswers,
   RuntimeMode,
 } from "./orchestration.ts";
+import { ServerProviderSlashCommandInput } from "./server.ts";
 import { ProviderInstanceId, ProviderDriverKind } from "./providerInstance.ts";
 
 const ProviderSessionStatus = Schema.Literals([
@@ -141,6 +142,7 @@ export type ProviderListSkillsResult = typeof ProviderListSkillsResult.Type;
 export const ProviderCommandDescriptor = Schema.Struct({
   name: TrimmedNonEmptyString,
   description: Schema.optional(TrimmedNonEmptyString),
+  input: Schema.optional(ServerProviderSlashCommandInput),
 });
 export type ProviderCommandDescriptor = typeof ProviderCommandDescriptor.Type;
 

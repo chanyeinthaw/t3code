@@ -29,6 +29,7 @@ import type {
   AgentSession,
   AgentSessionEvent,
   ModelRegistry,
+  Skill as PiSkill,
 } from "@earendil-works/pi-coding-agent";
 import {
   AuthStorage,
@@ -48,6 +49,7 @@ import {
 import type { PiAdapterShape } from "../Services/PiAdapter.ts";
 import type { PiSettings } from "@t3tools/contracts";
 import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
+import { PI_SLASH_COMMANDS, piSkillToServerProviderSkill } from "./PiProvider.ts";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 const DEFAULT_PI_THINKING_LEVEL = "medium";
@@ -2113,17 +2115,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         if (services && input.forceReload) await services.resourceLoader.reload();
         const result = (loader ?? services!.resourceLoader).getSkills();
         return {
-          skills: result.skills.map((skill) => {
-            const description = trimToUndefined(skill.description);
-            const scope = trimToUndefined(skill.sourceInfo.source);
-            return {
-              name: skill.name,
-              ...(description ? { description } : {}),
-              path: skill.filePath,
-              enabled: !skill.disableModelInvocation,
-              ...(scope ? { scope } : {}),
-            };
-          }),
+          skills: result.skills.map((skill: PiSkill) => piSkillToServerProviderSkill(skill)),
           source: "pi.sdk",
           cached: false,
         } satisfies ProviderListSkillsResult;
@@ -2142,14 +2134,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       try: async () => {
         const active = input.threadId ? sessions.get(input.threadId) : undefined;
         const session = active?.piSession;
-        const reloadCommand = {
-          name: "reload",
-          description: "Reload Pi extensions, skills, prompts, themes, tools, and settings",
-        };
-        const compactCommand = {
-          name: "compact",
-          description: "Compact the current Pi thread context",
-        };
+        const [reloadCommand, compactCommand] = PI_SLASH_COMMANDS;
         if (session) {
           if (input.forceReload) await session.reload();
           const extensionCommands = session.extensionRunner
@@ -2168,8 +2153,8 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           }));
           return {
             commands: [
-              reloadCommand,
-              compactCommand,
+              reloadCommand!,
+              compactCommand!,
               ...extensionCommands,
               ...promptCommands,
               ...skillCommands,
@@ -2193,7 +2178,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
           description: trimToUndefined(skill.description) ?? "Skill",
         }));
         return {
-          commands: [reloadCommand, compactCommand, ...promptCommands, ...skillCommands],
+          commands: [reloadCommand!, compactCommand!, ...promptCommands, ...skillCommands],
           source: "pi.sdk",
           cached: false,
         } satisfies ProviderListCommandsResult;

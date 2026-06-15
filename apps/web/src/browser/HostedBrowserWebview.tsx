@@ -35,8 +35,12 @@ export function HostedBrowserWebview(props: {
   const config = usePreviewWebviewConfig(threadRef.environmentId);
   const initialSrcRef = useRef(initialUrl ?? "about:blank");
   const webviewRef = useRef<ElectronWebview | null>(null);
-  const presentation = useBrowserSurfaceStore(useShallow((state) => state.byTabId[tabId] ?? null));
-  const recording = useBrowserRecordingStore((state) => state.activeTabId === tabId);
+  const presentation = useBrowserSurfaceStore(
+    useShallow((state) => state.byTabId[tabId] ?? null),
+  );
+  const recording = useBrowserRecordingStore(
+    (state) => state.activeTabId === tabId,
+  );
 
   usePreviewBridge({ threadRef, tabId });
 
@@ -44,7 +48,8 @@ export function HostedBrowserWebview(props: {
 
   const setWebviewRef = useCallback((node: HTMLElement | null) => {
     webviewRef.current = node as ElectronWebview | null;
-    if (node && !node.hasAttribute("allowpopups")) node.setAttribute("allowpopups", "true");
+    if (node && !node.hasAttribute("allowpopups"))
+      node.setAttribute("allowpopups", "true");
   }, []);
 
   useEffect(() => {
@@ -77,11 +82,13 @@ export function HostedBrowserWebview(props: {
           width: lastRect.width,
           height: lastRect.height,
           zIndex: 30,
+          borderBottomRightRadius: 18,
           pointerEvents: "auto" as const,
         }
       : {
-          left: 0,
-          top: 0,
+          left: 4,
+          top: 52,
+          borderRadius: 30,
           width: lastRect?.width ?? 1280,
           height: lastRect?.height ?? 800,
           zIndex: recording ? 0 : -1,
