@@ -23,6 +23,8 @@ import {
 import { type QueryClient } from "@tanstack/react-query";
 import { Throttler } from "@tanstack/react-pacer";
 import * as Schema from "effect/Schema";
+import { Headers, HttpTraceContext } from "effect/unstable/http";
+import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
 import {
   createKnownEnvironment,
   getKnownEnvironmentWsBaseUrl,

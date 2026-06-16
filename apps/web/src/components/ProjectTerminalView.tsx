@@ -31,8 +31,8 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { t
   return (
     <header
       className={cn(
-        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5 no-drag-region",
-        isElectron && "drag-region wco:h-[env(titlebar-area-height)]",
+        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5",
+        isElectron && "wco:h-[env(titlebar-area-height)]",
       )}
     >
       <div className="min-w-0 flex-1">
@@ -219,13 +219,13 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
           activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
           focusRequestId={focusRequestId}
           onSplitTerminal={splitTerminal}
+          onSplitTerminalVertical={splitTerminal}
           onNewTerminal={createNewTerminal}
           onActiveTerminalChange={activateTerminal}
           onCloseTerminal={closeTerminal}
           onHeightChange={() => undefined}
           onAddTerminalContext={() => undefined}
           keybindings={keybindings}
-          canCloseLastTerminal={false}
           terminalLabelsById={terminalLabelsById}
         />
       </div>

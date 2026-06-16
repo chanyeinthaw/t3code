@@ -63,12 +63,14 @@ function createBrowserLocalApi(rpcClient?: WsRpcClient): LocalApi {
         window.open(url, "_blank", "noopener,noreferrer");
       },
       openThreadInNewWindow: async (input) => {
-        if (window.desktopBridge) {
+        if (window.desktopBridge?.openThreadWindow) {
           await window.desktopBridge.openThreadWindow(input);
           return;
         }
 
-        const route = `/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
+        const route = input.projectId
+          ? `/${encodeURIComponent(input.environmentId)}/projects/${encodeURIComponent(input.projectId)}/threads/${encodeURIComponent(input.threadId)}`
+          : `/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
         window.open(`${window.location.origin}/#${route}`, "_blank", "noopener,noreferrer");
       },
     },

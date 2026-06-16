@@ -148,6 +148,18 @@ const authAccessHarness = vi.hoisted(() => {
 });
 
 const mockConnectDesktopSshEnvironment = vi.hoisted(() => vi.fn());
+const mockGetClerkToken = vi.hoisted(() => vi.fn(async () => null));
+const mockOpenClerkWaitlist = vi.hoisted(() => vi.fn());
+
+vi.mock("@clerk/react", () => ({
+  useAuth: () => ({
+    getToken: mockGetClerkToken,
+    isSignedIn: false,
+  }),
+  useClerk: () => ({
+    openWaitlist: mockOpenClerkWaitlist,
+  }),
+}));
 
 vi.mock("../../environments/runtime", () => {
   const primaryConnection = {
@@ -185,6 +197,7 @@ vi.mock("../../environments/runtime", () => {
     resolveEnvironmentHttpUrl: (_environmentId: unknown, path: string) =>
       new URL(path, "http://localhost:3000").toString(),
     waitForSavedEnvironmentRegistryHydration: async () => undefined,
+    addManagedRelayEnvironment: vi.fn(),
     addSavedEnvironment: vi.fn(),
     connectDesktopSshEnvironment: mockConnectDesktopSshEnvironment,
     disconnectSavedEnvironment: vi.fn(),
@@ -450,9 +463,18 @@ const createDesktopBridgeStub = (overrides?: {
     setTheme: vi.fn().mockResolvedValue(undefined),
     showContextMenu: vi.fn().mockResolvedValue(null),
     openExternal: vi.fn().mockResolvedValue(true),
-    openThreadWindow: vi.fn().mockResolvedValue(undefined),
-    getWindowFullScreenState: () => false,
-    onWindowFullScreenChange: () => () => {},
+    createCloudAuthRequest: vi.fn().mockResolvedValue("t3code-dev://auth/callback?t3_state=test"),
+    getCloudAuthToken: vi.fn().mockResolvedValue(null),
+    setCloudAuthToken: vi.fn().mockResolvedValue(true),
+    clearCloudAuthToken: vi.fn().mockResolvedValue(undefined),
+    fetchCloudAuth: vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      body: "",
+    }),
+    onCloudAuthCallback: () => () => {},
     onMenuAction: () => () => {},
     getUpdateState: vi.fn().mockResolvedValue(idleUpdateState),
     setUpdateChannel:
@@ -556,7 +578,9 @@ describe("GeneralSettingsPanel observability", () => {
       </AppAtomRegistryProvider>,
     );
 
-    await expect.element(page.getByText("Manage local backend")).toBeInTheDocument();
+    await expect
+      .element(page.getByRole("heading", { name: "This environment", exact: true }))
+      .toBeInTheDocument();
     await expect.element(page.getByLabelText("Enable network access")).toBeDisabled();
     await expect
       .element(
@@ -891,6 +915,59 @@ describe("GeneralSettingsPanel observability", () => {
       .element(page.getByRole("button", { name: /^Copy pairing URL for:/ }))
       .toBeInTheDocument();
     await expect.element(page.getByText("Revoke others")).toBeInTheDocument();
+  });
+
+  it("keeps authorized clients within a five-row fading scroll area", async () => {
+    window.desktopBridge = createDesktopBridgeStub({
+      serverExposureState: {
+        mode: "network-accessible",
+        endpointUrl: "http://192.168.1.44:3773",
+        advertisedHost: "192.168.1.44",
+        tailscaleServeEnabled: false,
+        tailscaleServePort: 443,
+      },
+    });
+    authAccessHarness.setSnapshot({
+      pairingLinks: [],
+      clientSessions: Array.from({ length: 7 }, (_, index) =>
+        makeClientSession({
+          sessionId: `session-client-${index}`,
+          subject: `client-${index}`,
+          scopes: ["orchestration:read"],
+          method: "browser-session-cookie",
+          client: {
+            label: `Client ${index + 1}`,
+            deviceType: "desktop",
+            os: "macOS",
+            browser: "Electron",
+            ipAddress: `192.168.1.${index + 10}`,
+          },
+          issuedAt: "2036-04-07T00:00:00.000Z",
+          expiresAt: "2036-05-07T00:00:00.000Z",
+          connected: index === 0,
+          current: index === 0,
+        }),
+      ),
+    });
+    setServerConfigSnapshot(createBaseServerConfig());
+
+    mounted = await render(
+      <AppAtomRegistryProvider>
+        <ConnectionsSettings />
+      </AppAtomRegistryProvider>,
+    );
+
+    await expect.element(page.getByText("Client 7")).toBeInTheDocument();
+    const scrollArea = document.querySelector<HTMLElement>(
+      '[data-testid="authorized-clients-scroll-area"]',
+    );
+    const viewport = scrollArea?.querySelector<HTMLElement>('[data-slot="scroll-area-viewport"]');
+
+    expect(scrollArea).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(scrollArea?.clientHeight).toBe(360);
+    expect(viewport?.scrollHeight).toBeGreaterThan(viewport?.clientHeight ?? 0);
+    expect(viewport?.className).toContain("mask-b-from");
   });
 
   it("revokes all other paired clients from settings", async () => {
@@ -1334,6 +1411,50 @@ describe("SourceControlSettingsPanel discovery states", () => {
 
     await expect.element(page.getByRole("switch", { name: "Git availability" })).toBeDisabled();
     await expect.element(page.getByText("Nothing detected yet")).not.toBeInTheDocument();
+  });
+
+  it("shows unauthenticated API providers as available but not enabled", async () => {
+    setSourceControlDiscoveryStub(async () => ({
+      versionControlSystems: [],
+      sourceControlProviders: [
+        {
+          kind: "bitbucket",
+          label: "Bitbucket",
+          status: "available",
+          version: Option.none(),
+          installHint:
+            "Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN, or T3CODE_BITBUCKET_ACCESS_TOKEN.",
+          detail: Option.none(),
+          auth: {
+            status: "unauthenticated",
+            account: Option.none(),
+            host: Option.some("bitbucket.org"),
+            detail: Option.some(
+              "Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN, or T3CODE_BITBUCKET_ACCESS_TOKEN.",
+            ),
+          },
+        },
+      ],
+    }));
+
+    mounted = await render(
+      <AppAtomRegistryProvider>
+        <SourceControlSettingsPanel />
+      </AppAtomRegistryProvider>,
+    );
+
+    const bitbucketSwitch = page.getByRole("switch", { name: "Bitbucket availability" });
+
+    await expect.element(page.getByText("Not authenticated")).toBeInTheDocument();
+    await expect
+      .element(
+        page.getByText(
+          "Available. Set T3CODE_BITBUCKET_EMAIL and T3CODE_BITBUCKET_API_TOKEN, or T3CODE_BITBUCKET_ACCESS_TOKEN.",
+        ),
+      )
+      .toBeInTheDocument();
+    await expect.element(bitbucketSwitch).toBeDisabled();
+    await expect.element(bitbucketSwitch).not.toBeChecked();
   });
 
   it("shows Git fetch interval settings inside the Git details dropdown", async () => {

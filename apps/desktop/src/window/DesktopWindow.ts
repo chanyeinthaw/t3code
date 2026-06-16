@@ -55,6 +55,7 @@ export type DesktopWindowError =
 
 export interface DesktopWindowShape {
   readonly createMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
+  readonly createNew: (routePath?: string) => Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly ensureMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly revealOrCreateMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly activate: Effect.Effect<void, DesktopWindowError>;
@@ -82,9 +83,10 @@ function resolveDesktopDevServerUrl(
 
 function getIconOption(
   iconPaths: DesktopAssets.DesktopIconPaths,
+  platform: NodeJS.Platform,
 ): { icon: string } | Record<string, never> {
-  if (process.platform === "darwin") return {}; // macOS uses .icns from app bundle
-  const ext = process.platform === "win32" ? "ico" : "png";
+  if (platform === "darwin") return {}; // macOS uses .icns from app bundle
+  const ext = platform === "win32" ? "ico" : "png";
   return Option.match(iconPaths[ext], {
     onNone: () => ({}),
     onSome: (icon) => ({ icon }),
@@ -120,8 +122,11 @@ export function isSameOriginRendererNavigation(input: {
   }
 }
 
-function getWindowTitleBarOptions(shouldUseDarkColors: boolean): WindowTitleBarOptions {
-  if (process.platform === "darwin") {
+function getWindowTitleBarOptions(
+  shouldUseDarkColors: boolean,
+  platform: NodeJS.Platform,
+): WindowTitleBarOptions {
+  if (platform === "darwin") {
     return {
       titleBarStyle: "hiddenInset",
       trafficLightPosition: { x: 16, y: 18 },
@@ -141,6 +146,7 @@ function getWindowTitleBarOptions(shouldUseDarkColors: boolean): WindowTitleBarO
 function syncWindowAppearance(
   window: Electron.BrowserWindow,
   shouldUseDarkColors: boolean,
+  platform: NodeJS.Platform,
 ): Effect.Effect<void> {
   return Effect.sync(() => {
     if (window.isDestroyed()) {
@@ -148,7 +154,7 @@ function syncWindowAppearance(
     }
 
     window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
-    const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors);
+    const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
     if (typeof titleBarOverlay === "object") {
       window.setTitleBarOverlay(titleBarOverlay);
     }
@@ -187,13 +193,21 @@ const make = Effect.gen(function* () {
 
   const createWindow = Effect.fn("desktop.window.createWindow")(function* (
     backendHttpUrl: URL,
+    routePath?: string,
   ): Effect.fn.Return<Electron.BrowserWindow, DesktopWindowError> {
     yield* previewManager.getBrowserSession();
-    const applicationUrl = environment.isDevelopment
+    const baseApplicationUrl = environment.isDevelopment
       ? yield* resolveDesktopDevServerUrl(environment)
       : backendHttpUrl.href;
+    const applicationUrl = routePath
+      ? (() => {
+          const url = new URL(baseApplicationUrl);
+          url.hash = routePath.startsWith("/") ? routePath : `/${routePath}`;
+          return url.href;
+        })()
+      : baseApplicationUrl;
     const iconPaths = yield* assets.iconPaths;
-    const iconOption = getIconOption(iconPaths);
+    const iconOption = getIconOption(iconPaths, environment.platform);
     const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
     const window = yield* electronWindow.create({
       width: 1100,
@@ -202,11 +216,12 @@ const make = Effect.gen(function* () {
       minHeight: 620,
       show: false,
       autoHideMenuBar: true,
+      ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
       backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
       ...getWindowTransparencyOptions(),
       ...iconOption,
       title: environment.displayName,
-      ...getWindowTitleBarOptions(shouldUseDarkColors),
+      ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform),
       webPreferences: {
         preload: environment.preloadPath,
         contextIsolation: true,
@@ -215,6 +230,10 @@ const make = Effect.gen(function* () {
         webviewTag: true,
       },
     });
+
+    if (environment.platform === "darwin") {
+      window.setAutoHideCursor(false);
+    }
 
     yield* previewManager.setMainWindow(window);
     window.webContents.on("will-attach-webview", (event, webPreferences, params) => {
@@ -333,7 +352,7 @@ const make = Effect.gen(function* () {
     });
 
     const revealSubscribers: RevealSubscription[] = [(fire) => window.once("ready-to-show", fire)];
-    if (process.platform === "linux") {
+    if (environment.platform === "linux") {
       revealSubscribers.push((fire) => window.webContents.once("did-finish-load", fire));
     }
     bindFirstRevealTrigger(revealSubscribers, () => {
@@ -386,6 +405,13 @@ const make = Effect.gen(function* () {
 
   return DesktopWindow.of({
     createMain,
+    createNew: Effect.fn("desktop.window.createNew")(function* (routePath) {
+      const backendConfig = yield* serverExposure.backendConfig;
+      const window = yield* createWindow(backendConfig.httpBaseUrl, routePath);
+      yield* electronWindow.reveal(window);
+      yield* logWindowInfo("window created", { routePath });
+      return window;
+    }),
     ensureMain,
     revealOrCreateMain,
     activate: Effect.gen(function* () {
@@ -423,7 +449,7 @@ const make = Effect.gen(function* () {
     syncAppearance: Effect.gen(function* () {
       const shouldUseDarkColors = yield* electronTheme.shouldUseDarkColors;
       yield* electronWindow.syncAllAppearance((window) =>
-        syncWindowAppearance(window, shouldUseDarkColors),
+        syncWindowAppearance(window, shouldUseDarkColors, environment.platform),
       );
     }).pipe(Effect.withSpan("desktop.window.syncAppearance")),
   });

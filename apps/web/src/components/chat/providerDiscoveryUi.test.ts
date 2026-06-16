@@ -83,7 +83,7 @@ function makeEnvironmentApi(overrides?: Partial<EnvironmentApi["provider"]>): En
     review: {} as EnvironmentApi["review"],
     provider,
     orchestration: {} as EnvironmentApi["orchestration"],
-  } as EnvironmentApi;
+  } as unknown as EnvironmentApi;
 }
 
 function makeSnapshot(): ServerProvider {

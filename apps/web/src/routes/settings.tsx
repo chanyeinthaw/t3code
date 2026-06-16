@@ -83,7 +83,7 @@ function SettingsContentLayout() {
         {isElectron && (
           <div
             className={cn(
-              "drag-region flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-5 wco:h-[env(titlebar-area-height)]",
+              "flex h-[52px] shrink-0 items-center gap-2 border-b border-border px-5 wco:h-[env(titlebar-area-height)]",
               !open &&
                 "pl-[90px] electron-full-screen:pl-5 wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-5",
             )}

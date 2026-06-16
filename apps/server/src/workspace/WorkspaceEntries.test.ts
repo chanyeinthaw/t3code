@@ -1,26 +1,24 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import fsPromises from "node:fs/promises";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { FileFinder } from "@ff-labs/fff-node";
 import { it, afterEach, describe, expect, vi } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 
-import { ServerConfig } from "../../config.ts";
-import * as VcsDriverRegistry from "../../vcs/VcsDriverRegistry.ts";
-import * as VcsProcess from "../../vcs/VcsProcess.ts";
-import { WorkspaceEntries } from "../Services/WorkspaceEntries.ts";
-import { WorkspaceEntriesLive } from "./WorkspaceEntries.ts";
-import { WorkspacePathsLive } from "./WorkspacePaths.ts";
+import { ServerConfig } from "../config.ts";
+import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import * as VcsProcess from "../vcs/VcsProcess.ts";
+import * as WorkspaceEntries from "./WorkspaceEntries.ts";
+import { WorkspacePathsLive } from "./Layers/WorkspacePaths.ts";
 
 const TestLayer = Layer.empty.pipe(
-  Layer.provideMerge(WorkspaceEntriesLive.pipe(Layer.provide(WorkspacePathsLive))),
+  Layer.provideMerge(WorkspaceEntries.layer.pipe(Layer.provide(WorkspacePathsLive))),
   Layer.provideMerge(WorkspacePathsLive),
   Layer.provideMerge(VcsProcess.layer),
-  Layer.provideMerge(VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcess.layer))),
   Layer.provide(
     ServerConfig.layerTest(process.cwd(), {
       prefix: "t3-workspace-entries-test-",
@@ -70,18 +68,48 @@ const git = (cwd: string, args: ReadonlyArray<string>, env?: NodeJS.ProcessEnv) 
 
 const searchWorkspaceEntries = (input: { cwd: string; query: string; limit: number }) =>
   Effect.gen(function* () {
-    const workspaceEntries = yield* WorkspaceEntries;
+    const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
     return yield* workspaceEntries.search(input);
   });
 
 const appendSeparator = (input: string) =>
-  input.endsWith("/") || input.endsWith("\\")
-    ? input
-    : `${input}${process.platform === "win32" ? "\\" : "/"}`;
+  Effect.map(HostProcessPlatform, (platform) =>
+    input.endsWith("/") || input.endsWith("\\")
+      ? input
+      : `${input}${platform === "win32" ? "\\" : "/"}`,
+  );
 
-it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
+it.layer(TestLayer, { excludeTestServices: true })("WorkspaceEntries", (it) => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe("list", () => {
+    it.effect("returns the complete cached workspace index", () =>
+      Effect.gen(function* () {
+        const cwd = yield* makeTempDir();
+        yield* writeTextFile(cwd, "src/components/Composer.tsx");
+        yield* writeTextFile(cwd, "README.md");
+        yield* writeTextFile(cwd, "node_modules/pkg/index.js");
+
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const result = yield* workspaceEntries.list({ cwd });
+
+        expect(result.entries).toEqual(
+          expect.arrayContaining([
+            { path: "src", kind: "directory" },
+            { path: "src/components", kind: "directory" },
+            {
+              path: "src/components/Composer.tsx",
+              kind: "file",
+            },
+            { path: "README.md", kind: "file" },
+          ]),
+        );
+        expect(result.entries.some((entry) => entry.path.startsWith("node_modules"))).toBe(false);
+        expect(result.truncated).toBe(false);
+      }),
+    );
   });
 
   describe("search", () => {
@@ -221,94 +249,39 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
       }),
     );
 
-    it.effect("deduplicates concurrent index builds for the same cwd", () =>
+    it.effect("supports typo-resistant file search through fff", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-concurrent-build-" });
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-fff-typo-" });
         yield* writeTextFile(cwd, "src/components/Composer.tsx");
 
-        let rootReadCount = 0;
-        let releaseRootRead: (() => void) | undefined;
-        const rootReadGate = new Promise<void>((resolve) => {
-          releaseRootRead = resolve;
-        });
-        const originalReaddir = fsPromises.readdir.bind(fsPromises);
-        vi.spyOn(fsPromises, "readdir").mockImplementation((async (
-          ...args: Parameters<typeof fsPromises.readdir>
-        ) => {
-          if (args[0] === cwd) {
-            rootReadCount += 1;
-            await rootReadGate;
-          }
-          return originalReaddir(...args);
-        }) as typeof fsPromises.readdir);
+        const result = yield* searchWorkspaceEntries({ cwd, query: "compoesr", limit: 10 });
 
-        const searches = yield* Effect.all(
-          [
-            searchWorkspaceEntries({ cwd, query: "", limit: 100 }),
-            searchWorkspaceEntries({ cwd, query: "comp", limit: 100 }),
-            searchWorkspaceEntries({ cwd, query: "src", limit: 100 }),
-          ],
-          { concurrency: "unbounded" },
-        ).pipe(Effect.forkScoped);
-        for (let attempt = 0; attempt < 50; attempt += 1) {
-          if (rootReadCount > 0) {
-            break;
-          }
-          yield* Effect.yieldNow;
-        }
-        releaseRootRead?.();
-        yield* Fiber.join(searches);
-
-        expect(rootReadCount).toBe(1);
+        expect(result.entries).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ path: "src/components/Composer.tsx" }),
+          ]),
+        );
       }),
     );
 
-    it.effect("limits concurrent directory reads while walking the filesystem", () =>
+    it.effect("rebuilds the cached index after refresh fails", () =>
       Effect.gen(function* () {
-        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-read-concurrency-" });
-        yield* Effect.forEach(
-          Array.from({ length: 80 }, (_, index) => index),
-          (index) => writeTextFile(cwd, `group-${index}/entry-${index}.ts`, "export {};"),
-          { discard: true },
-        );
+        const cwd = yield* makeTempDir({ prefix: "t3code-workspace-refresh-failure-" });
+        yield* writeTextFile(cwd, "src/index.ts", "export {};\n");
 
-        let activeReads = 0;
-        let peakReads = 0;
-        let releaseReads: (() => void) | undefined;
-        const readsGate = new Promise<void>((resolve) => {
-          releaseReads = resolve;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
+        const createSpy = vi.spyOn(FileFinder, "create");
+        yield* workspaceEntries.list({ cwd });
+        expect(createSpy).toHaveBeenCalledTimes(1);
+
+        vi.spyOn(FileFinder.prototype, "scanFiles").mockReturnValueOnce({
+          ok: false,
+          error: "scan failed",
         });
-        const originalReaddir = fsPromises.readdir.bind(fsPromises);
-        vi.spyOn(fsPromises, "readdir").mockImplementation((async (
-          ...args: Parameters<typeof fsPromises.readdir>
-        ) => {
-          const target = args[0];
-          if (typeof target === "string" && target.startsWith(cwd)) {
-            activeReads += 1;
-            peakReads = Math.max(peakReads, activeReads);
-            await readsGate;
-            try {
-              return await originalReaddir(...args);
-            } finally {
-              activeReads -= 1;
-            }
-          }
-          return originalReaddir(...args);
-        }) as typeof fsPromises.readdir);
+        yield* workspaceEntries.refresh(cwd);
 
-        const search = yield* searchWorkspaceEntries({ cwd, query: "", limit: 200 }).pipe(
-          Effect.forkScoped,
-        );
-        for (let attempt = 0; attempt < 50; attempt += 1) {
-          if (activeReads > 0) {
-            break;
-          }
-          yield* Effect.yieldNow;
-        }
-        releaseReads?.();
-        yield* Fiber.join(search);
-
-        expect(peakReads).toBeLessThanOrEqual(32);
+        yield* workspaceEntries.list({ cwd });
+        expect(createSpy).toHaveBeenCalledTimes(2);
       }),
     );
   });
@@ -316,7 +289,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
   describe("browse", () => {
     it.effect("returns matching directories and excludes files", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
         const path = yield* Path.Path;
         const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-prefix-" });
         yield* writeTextFile(cwd, "alphabet.txt", "ignore me");
@@ -339,17 +312,18 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("shows dot directories in directory mode and hidden-prefix mode", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
         const path = yield* Path.Path;
         const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-hidden-" });
         yield* writeTextFile(cwd, ".config/settings.json", "{}");
         yield* writeTextFile(cwd, "config/settings.json", "{}");
+        const cwdWithSeparator = yield* appendSeparator(cwd);
 
         const directoryResult = yield* workspaceEntries.browse({
-          partialPath: appendSeparator(cwd),
+          partialPath: cwdWithSeparator,
         });
         const hiddenPrefixResult = yield* workspaceEntries.browse({
-          partialPath: `${appendSeparator(cwd)}.c`,
+          partialPath: `${cwdWithSeparator}.c`,
         });
 
         expect(directoryResult.entries.map((entry) => entry.name)).toEqual([".config", "config"]);
@@ -362,7 +336,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("supports relative paths when cwd is provided", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
         const path = yield* Path.Path;
         const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-relative-" });
         yield* writeTextFile(cwd, "packages/pkg.json", "{}");
@@ -381,7 +355,7 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("rejects relative paths without cwd", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
 
         const error = yield* workspaceEntries
           .browse({
@@ -395,14 +369,14 @@ it.layer(TestLayer)("WorkspaceEntriesLive", (it) => {
 
     it.effect("returns an empty listing when the OS denies directory access", () =>
       Effect.gen(function* () {
-        const workspaceEntries = yield* WorkspaceEntries;
+        const workspaceEntries = yield* WorkspaceEntries.WorkspaceEntries;
         const cwd = yield* makeTempDir({ prefix: "t3code-workspace-browse-eacces-" });
 
         const denied = Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
         vi.spyOn(fsPromises, "readdir").mockRejectedValueOnce(denied);
 
         const result = yield* workspaceEntries.browse({
-          partialPath: appendSeparator(cwd),
+          partialPath: yield* appendSeparator(cwd),
         });
         expect(result).toEqual({ parentPath: cwd, entries: [] });
       }),

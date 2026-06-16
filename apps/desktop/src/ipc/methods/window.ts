@@ -142,7 +142,9 @@ export const openThreadWindow = makeIpcMethod({
   result: Schema.Void,
   handler: Effect.fn("desktop.ipc.window.openThreadWindow")(function* (input) {
     const desktopWindow = yield* DesktopWindow.DesktopWindow;
-    const route = `/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
+    const route = input.projectId
+      ? `/${encodeURIComponent(input.environmentId)}/projects/${encodeURIComponent(input.projectId)}/threads/${encodeURIComponent(input.threadId)}`
+      : `/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
     yield* desktopWindow.createNew(route);
   }),
 });

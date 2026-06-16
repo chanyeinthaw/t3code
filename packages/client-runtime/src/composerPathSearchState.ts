@@ -84,11 +84,14 @@ export function getComposerPathSearchTargetKey(target: ComposerPathSearchTarget)
 function toSearchEntries(
   entries: ProjectSearchEntriesResult["entries"],
 ): ReadonlyArray<ComposerPathSearchEntry> {
-  return entries.map((entry) => ({
-    path: entry.path,
-    kind: entry.kind === "directory" ? "directory" : "file",
-    ...(entry.parentPath !== undefined ? { parentPath: entry.parentPath } : {}),
-  }));
+  return entries.map((entry) => {
+    const parentPath = (entry as { readonly parentPath?: unknown }).parentPath;
+    return {
+      path: entry.path,
+      kind: entry.kind === "directory" ? "directory" : "file",
+      ...(typeof parentPath === "string" ? { parentPath } : {}),
+    };
+  });
 }
 
 export function createComposerPathSearchManager(config: {

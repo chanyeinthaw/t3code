@@ -58,7 +58,7 @@ const SettingsSidebarChromeHeader = memo(function SettingsSidebarChromeHeader() 
   );
 
   return isElectron ? (
-    <SidebarHeader className="drag-region h-[52px] flex-row items-center gap-2 px-4 py-0 pl-[90px] electron-full-screen:pl-4 wco:h-[env(titlebar-area-height)] wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-4">
+    <SidebarHeader className="h-[52px] flex-row items-center gap-2 px-4 py-0 pl-[90px] electron-full-screen:pl-4 wco:h-[env(titlebar-area-height)] wco:pl-[calc(env(titlebar-area-x)+1em)] electron-full-screen:wco:pl-4">
       {wordmark}
     </SidebarHeader>
   ) : (

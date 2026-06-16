@@ -65,6 +65,7 @@ function makeFakeBrowserWindow() {
     once: vi.fn(),
     restore: vi.fn(),
     setBackgroundColor: vi.fn(),
+    setAutoHideCursor: vi.fn(),
     setTitle: vi.fn(),
     setTitleBarOverlay: vi.fn(),
     show: vi.fn(),
@@ -75,6 +76,7 @@ function makeFakeBrowserWindow() {
     window: window as unknown as Electron.BrowserWindow,
     loadURL: window.loadURL,
     openDevTools: webContents.openDevTools,
+    setAutoHideCursor: window.setAutoHideCursor,
   };
 }
 
@@ -185,10 +187,12 @@ describe("DesktopWindow", () => {
       const fakeWindow = makeFakeBrowserWindow();
       const createCount = yield* Ref.make(0);
       const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
+      const createOptions = yield* Ref.make<readonly Electron.BrowserWindowConstructorOptions[]>([]);
       const layer = makeTestLayer({
         window: fakeWindow.window,
         createCount,
         mainWindow,
+        createOptions,
       });
 
       yield* Effect.gen(function* () {
@@ -198,6 +202,9 @@ describe("DesktopWindow", () => {
 
         yield* desktopWindow.handleBackendReady;
         assert.equal(yield* Ref.get(createCount), 1);
+        const createdWindowOptions = yield* Ref.get(createOptions);
+        assert.isTrue(createdWindowOptions[0]?.disableAutoHideCursor);
+        assert.deepEqual(fakeWindow.setAutoHideCursor.mock.calls, [[false]]);
         assert.deepEqual(fakeWindow.loadURL.mock.calls[0], ["http://127.0.0.1:5733/"]);
         assert.equal(fakeWindow.openDevTools.mock.calls.length, 1);
       }).pipe(Effect.provide(layer));

@@ -121,6 +121,7 @@ interface TimelineRowSharedState {
   resolvedTheme: "light" | "dark";
   workspaceRoot: string | undefined;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
+  bottomInsetPx?: number;
   activeThreadEnvironmentId: EnvironmentId;
   onRevertUserMessage: (messageId: MessageId) => void;
   onImageExpand: (preview: ExpandedImagePreview) => void;
@@ -137,6 +138,7 @@ interface TimelineRowActivityState {
 const TimelineRowCtx = createContext<TimelineRowSharedState>(null!);
 const TimelineRowActivityCtx = createContext<TimelineRowActivityState>(null!);
 const TIMELINE_LIST_HEADER = <div className="h-3 sm:h-4" />;
+const TIMELINE_LIST_FOOTER = <div className="h-3 sm:h-4" />;
 const EMPTY_TIMELINE_SKILLS: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">> = [];
 
 // ---------------------------------------------------------------------------
@@ -163,7 +165,7 @@ interface MessagesTimelineProps {
   timestampFormat: TimestampFormat;
   workspaceRoot: string | undefined;
   skills?: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  bottomInsetPx: number;
+  bottomInsetPx?: number;
   onIsAtEndChange: (isAtEnd: boolean) => void;
 }
 
@@ -191,7 +193,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   timestampFormat,
   workspaceRoot,
   skills = EMPTY_TIMELINE_SKILLS,
-  bottomInsetPx,
+  bottomInsetPx = 0,
   onIsAtEndChange,
 }: MessagesTimelineProps) {
   const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<TurnId>>(new Set());
@@ -284,10 +286,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
   const rows = useStableRows(rawRows);
-  const listFooter = useMemo(
-    () => <div style={{ height: `${Math.max(0, bottomInsetPx)}px` }} />,
-    [bottomInsetPx],
-  );
 
   const handleScroll = useCallback(() => {
     const state = listRef.current?.getState?.();
@@ -363,6 +361,11 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     [],
   );
 
+  const timelineListFooter = useMemo(
+    () => <div style={{ height: `${Math.max(0, bottomInsetPx)}px` }} />,
+    [bottomInsetPx],
+  );
+
   if (rows.length === 0 && !isWorking) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -389,7 +392,7 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           onScroll={handleScroll}
           className="scrollbar-gutter-both h-full overflow-x-hidden overscroll-y-contain px-3 sm:px-5"
           ListHeaderComponent={TIMELINE_LIST_HEADER}
-          ListFooterComponent={listFooter}
+          ListFooterComponent={timelineListFooter}
         />
       </TimelineRowActivityCtx>
     </TimelineRowCtx>
@@ -1043,6 +1046,7 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   text: string;
   terminalContexts: ParsedTerminalContextEntry[];
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
+  bottomInsetPx?: number;
   markdownCwd: string | undefined;
   footer?: ReactNode;
 }) {
@@ -1111,6 +1115,7 @@ const UserMessageBody = memo(function UserMessageBody(props: {
   text: string;
   terminalContexts: ParsedTerminalContextEntry[];
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
+  bottomInsetPx?: number;
   markdownCwd: string | undefined;
 }) {
   const ctx = use(TimelineRowCtx);

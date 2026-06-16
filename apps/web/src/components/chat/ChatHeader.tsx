@@ -130,50 +130,54 @@ export const ChatHeader = memo(function ChatHeader({
             {...(draftId ? { draftId } : {})}
           />
         )}
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                className="shrink-0"
-                pressed={terminalOpen}
-                onPressedChange={onToggleTerminal}
-                aria-label="Toggle terminal drawer"
-                variant="ghost"
-                size="xs"
-                disabled={!terminalAvailable}
-              >
-                <PanelBottomIcon className="size-3.5" />
-              </Toggle>
-            }
-          />
-          <TooltipPopup side="bottom">
-            {terminalAvailable
-              ? `Toggle terminal drawer${terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""}`
-              : "Terminal drawer is unavailable"}
-          </TooltipPopup>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Toggle
-                className="shrink-0"
-                pressed={rightPanelOpen}
-                onPressedChange={onToggleRightPanel}
-                aria-label="Toggle right panel"
-                variant="ghost"
-                size="xs"
-                disabled={!rightPanelAvailable}
-              >
-                <PanelRightIcon className="size-3.5" />
-              </Toggle>
-            }
-          />
-          <TooltipPopup side="bottom">
-            {rightPanelAvailable
-              ? `Toggle right panel${rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""}`
-              : "Right panel is unavailable"}
-          </TooltipPopup>
-        </Tooltip>
+        {!rightPanelOpen ? (
+          <>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Toggle
+                    className="shrink-0"
+                    pressed={terminalOpen}
+                    onPressedChange={onToggleTerminal}
+                    aria-label="Toggle terminal drawer"
+                    variant="outline"
+                    size="xs"
+                    disabled={!terminalAvailable}
+                  >
+                    <PanelBottomIcon className="size-3.5" />
+                  </Toggle>
+                }
+              />
+              <TooltipPopup side="bottom">
+                {terminalAvailable
+                  ? `Toggle terminal drawer${terminalShortcutLabel ? ` (${terminalShortcutLabel})` : ""}`
+                  : "Terminal drawer is unavailable"}
+              </TooltipPopup>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Toggle
+                    className="shrink-0"
+                    pressed={rightPanelOpen}
+                    onPressedChange={onToggleRightPanel}
+                    aria-label="Toggle right panel"
+                    variant="outline"
+                    size="xs"
+                    disabled={!rightPanelAvailable}
+                  >
+                    <PanelRightIcon className="size-3.5" />
+                  </Toggle>
+                }
+              />
+              <TooltipPopup side="bottom">
+                {rightPanelAvailable
+                  ? `Toggle right panel${rightPanelShortcutLabel ? ` (${rightPanelShortcutLabel})` : ""}`
+                  : "Right panel is unavailable"}
+              </TooltipPopup>
+            </Tooltip>
+          </>
+        ) : null}
       </div>
     </div>
   );

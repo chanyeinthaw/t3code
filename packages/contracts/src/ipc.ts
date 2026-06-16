@@ -22,6 +22,10 @@ import type { ReviewDiffPreviewInput, ReviewDiffPreviewResult } from "./review.t
 import type { FilesystemBrowseInput, FilesystemBrowseResult } from "./filesystem.ts";
 import type { AssetCreateUrlInput, AssetCreateUrlResult } from "./assets.ts";
 import type {
+  ProjectListEntriesInput,
+  ProjectListEntriesResult,
+  ProjectReadFileInput,
+  ProjectReadFileResult,
   ProjectSearchEntriesInput,
   ProjectSearchEntriesResult,
   ProjectWriteFileInput,
@@ -189,11 +193,13 @@ export interface DesktopAppBranding {
 
 export interface DesktopOpenThreadWindowInput {
   environmentId: string;
+  projectId?: string;
   threadId: string;
 }
 
 export const DesktopOpenThreadWindowInputSchema = Schema.Struct({
   environmentId: Schema.String,
+  projectId: Schema.optionalKey(Schema.String),
   threadId: Schema.String,
 });
 
@@ -953,7 +959,9 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
-  openThreadWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
+  openThreadWindow?: (input: DesktopOpenThreadWindowInput) => Promise<void>;
+  getWindowFullScreenState?: () => boolean;
+  onWindowFullScreenChange?: (listener: (isFullScreen: boolean) => void) => () => void;
   createCloudAuthRequest: () => Promise<string>;
   getCloudAuthToken: () => Promise<string | null>;
   setCloudAuthToken: (token: string) => Promise<boolean>;
@@ -1054,6 +1062,7 @@ export interface LocalApi {
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
+    openThreadInNewWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   };
   contextMenu: {
     show: <T extends string>(
@@ -1129,6 +1138,8 @@ export interface EnvironmentApi {
     ) => () => void;
   };
   projects: {
+    listEntries: (input: ProjectListEntriesInput) => Promise<ProjectListEntriesResult>;
+    readFile: (input: ProjectReadFileInput) => Promise<ProjectReadFileResult>;
     searchEntries: (input: ProjectSearchEntriesInput) => Promise<ProjectSearchEntriesResult>;
     writeFile: (input: ProjectWriteFileInput) => Promise<ProjectWriteFileResult>;
   };

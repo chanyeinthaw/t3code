@@ -53,7 +53,7 @@ import {
   resetSavedEnvironmentRuntimeStoreForTests,
   useSavedEnvironmentRegistryStore,
   useSavedEnvironmentRuntimeStore,
-} from "../environments/runtime";
+} from "../environments/runtime/catalog";
 import {
   INLINE_TERMINAL_CONTEXT_PLACEHOLDER,
   removeInlineTerminalContextPlaceholder,
@@ -100,6 +100,7 @@ vi.mock("../lib/vcsStatusState", () => {
   };
 
   return {
+    getVcsStatusDataForTarget: (state: typeof status) => state.data,
     getVcsStatusSnapshot: () => status,
     useVcsStatus: () => status,
     useVcsStatuses: () => new Map(),
@@ -1538,6 +1539,18 @@ function dispatchChatNewShortcut(): void {
       shiftKey: true,
       metaKey: useMetaForMod,
       ctrlKey: !useMetaForMod,
+      bubbles: true,
+      cancelable: true,
+    }),
+  );
+}
+
+function dispatchConfiguredDiffToggleShortcut(): void {
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      key: "g",
+      shiftKey: true,
+      altKey: true,
       bubbles: true,
       cancelable: true,
     }),

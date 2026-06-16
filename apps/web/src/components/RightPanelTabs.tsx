@@ -3,29 +3,37 @@ import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
 import {
   ClipboardList,
   FileDiff,
+  Files,
   Globe2,
+  Maximize2,
+  Minimize2,
+  PanelBottomIcon,
+  PanelRightIcon,
   Plus,
   TerminalSquare,
   X,
 } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactElement, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { isElectron } from "~/env";
 import type { RightPanelSurface } from "~/rightPanelStore";
 import { cn } from "~/lib/utils";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "~/components/ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "~/components/ui/menu";
+import { ScrollArea } from "~/components/ui/scroll-area";
+import { Toggle } from "~/components/ui/toggle";
 import { faviconUrlForOrigin } from "~/lib/favicon";
+import { useTheme } from "~/hooks/useTheme";
 
-import {
-  PreviewPanelShell,
-  type PreviewPanelMode,
-} from "./preview/PreviewPanelShell";
+import { PreviewPanelShell, type PreviewPanelMode } from "./preview/PreviewPanelShell";
+import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 
 interface RightPanelTabsProps {
   mode: PreviewPanelMode;
+  maximized?: boolean;
   surfaces: readonly RightPanelSurface[];
   activeSurfaceId: string | null;
+  pendingSurfaceIds: ReadonlySet<string>;
   previewSessions: Readonly<Record<string, PreviewSessionSnapshot>>;
   terminalLabelsById: ReadonlyMap<string, string>;
   onActivate: (surface: RightPanelSurface) => void;
@@ -33,17 +41,66 @@ interface RightPanelTabsProps {
   onAddBrowser: () => void;
   onAddTerminal: () => void;
   onAddDiff: () => void;
+  onAddFiles: () => void;
   browserAvailable: boolean;
   diffAvailable: boolean;
+  filesAvailable: boolean;
+  terminalAvailable: boolean;
+  terminalOpen: boolean;
+  terminalShortcutLabel: string | null;
+  rightPanelAvailable: boolean;
+  rightPanelOpen: boolean;
+  rightPanelShortcutLabel: string | null;
+  rightPanelMaximized: boolean;
+  canMaximizeRightPanel: boolean;
+  onToggleTerminal: () => void;
+  onToggleRightPanel: () => void;
+  onToggleRightPanelMaximized: () => void;
   children: ReactNode;
+}
+
+const SURFACE_DISABLED_REASONS = {
+  browser: "Browser previews are only available in the T3 Code desktop app.",
+  files: "Files are only available when a project is open.",
+  diff: "Diff is only available for server threads in Git repositories.",
+} as const;
+
+function DisabledReasonTooltip(props: { reason: string; trigger: ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={props.trigger} />
+      <TooltipPopup side="top">{props.reason}</TooltipPopup>
+    </Tooltip>
+  );
+}
+
+function SurfaceMenuItem(props: {
+  available: boolean;
+  disabledReason?: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  const item = (
+    <MenuItem
+      className={!props.available ? "data-disabled:pointer-events-auto" : undefined}
+      onClick={props.onClick}
+      disabled={!props.available}
+    >
+      {props.children}
+    </MenuItem>
+  );
+  if (props.available || !props.disabledReason) return item;
+  return <DisabledReasonTooltip reason={props.disabledReason} trigger={item} />;
 }
 
 function RightPanelEmptyState(props: {
   onAddBrowser: () => void;
   onAddTerminal: () => void;
   onAddDiff: () => void;
+  onAddFiles: () => void;
   browserAvailable: boolean;
   diffAvailable: boolean;
+  filesAvailable: boolean;
 }) {
   const actions = [
     {
@@ -51,6 +108,7 @@ function RightPanelEmptyState(props: {
       description: "Open a local app or URL.",
       icon: Globe2,
       available: props.browserAvailable,
+      disabledReason: SURFACE_DISABLED_REASONS.browser,
       onClick: props.onAddBrowser,
     },
     {
@@ -58,13 +116,23 @@ function RightPanelEmptyState(props: {
       description: "Start a shell in this workspace.",
       icon: TerminalSquare,
       available: true,
+      disabledReason: null,
       onClick: props.onAddTerminal,
+    },
+    {
+      label: "Files",
+      description: "Browse and read workspace files.",
+      icon: Files,
+      available: props.filesAvailable,
+      disabledReason: SURFACE_DISABLED_REASONS.files,
+      onClick: props.onAddFiles,
     },
     {
       label: "Diff",
       description: "Review changes in this thread.",
       icon: FileDiff,
       available: props.diffAvailable,
+      disabledReason: SURFACE_DISABLED_REASONS.diff,
       onClick: props.onAddDiff,
     },
   ] as const;
@@ -73,30 +141,50 @@ function RightPanelEmptyState(props: {
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
       <div className="w-full max-w-xl">
         <div className="mb-5 text-center">
-          <h3 className="text-sm font-medium text-foreground">
-            Open a surface
-          </h3>
+          <h3 className="text-sm font-medium text-foreground">Open a surface</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose what to show in the right panel.
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-2">
           {actions.map((action) => {
             const Icon = action.icon;
-            return (
-              <button
-                key={action.label}
-                type="button"
-                disabled={!action.available}
-                onClick={action.onClick}
-                className="flex min-h-28 flex-col items-start rounded-lg border border-border/80 bg-card/40 p-4 text-left transition hover:border-border hover:bg-accent/60 disabled:cursor-not-allowed disabled:opacity-40"
-              >
+            const content = (
+              <>
                 <Icon className="mb-3 size-5" />
                 <span className="text-sm font-medium">{action.label}</span>
                 <span className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {action.description}
                 </span>
+              </>
+            );
+            if (action.available) {
+              return (
+                <button
+                  key={action.label}
+                  type="button"
+                  onClick={action.onClick}
+                  className="flex min-h-28 w-full flex-col items-start rounded-lg border border-border/80 bg-card/40 p-4 text-left transition hover:border-border hover:bg-accent/60"
+                >
+                  {content}
+                </button>
+              );
+            }
+            const disabledCard = (
+              <button
+                type="button"
+                className="flex min-h-28 w-full cursor-not-allowed flex-col items-start rounded-lg border border-border/80 bg-card/40 p-4 text-left opacity-40"
+                aria-disabled="true"
+              >
+                {content}
               </button>
+            );
+            return (
+              <DisabledReasonTooltip
+                key={action.label}
+                reason={action.disabledReason}
+                trigger={disabledCard}
+              />
             );
           })}
         </div>
@@ -113,6 +201,10 @@ function surfaceTitle(
   switch (surface.kind) {
     case "diff":
       return "Diff";
+    case "files":
+      return "Files";
+    case "file":
+      return surface.relativePath.slice(surface.relativePath.lastIndexOf("/") + 1);
     case "terminal":
       return (
         terminalLabelsById.get(surface.activeTerminalId) ??
@@ -123,8 +215,7 @@ function surfaceTitle(
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
-      if (snapshot.navStatus.title.trim().length > 0)
-        return snapshot.navStatus.title;
+      if (snapshot.navStatus.title.trim().length > 0) return snapshot.navStatus.title;
       try {
         return new URL(snapshot.navStatus.url).host || "Browser";
       } catch {
@@ -137,8 +228,7 @@ function surfaceTitle(
 function PreviewFavicon({ url }: { url: string | null }) {
   const faviconUrl = faviconUrlForOrigin(url, 32);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  if (!faviconUrl || failedUrl === faviconUrl)
-    return <Globe2 className="size-3.5 shrink-0" />;
+  if (!faviconUrl || failedUrl === faviconUrl) return <Globe2 className="size-3.5 shrink-0" />;
   return (
     <img
       src={faviconUrl}
@@ -154,21 +244,31 @@ function PreviewFavicon({ url }: { url: string | null }) {
 function SurfaceIcon({
   surface,
   sessions,
+  theme,
 }: {
   surface: RightPanelSurface;
   sessions: Readonly<Record<string, PreviewSessionSnapshot>>;
+  theme: "light" | "dark";
 }) {
   switch (surface.kind) {
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
-      const url =
-        !snapshot || snapshot.navStatus._tag === "Idle"
-          ? null
-          : snapshot.navStatus.url;
+      const url = !snapshot || snapshot.navStatus._tag === "Idle" ? null : snapshot.navStatus.url;
       return <PreviewFavicon url={url} />;
     }
     case "diff":
       return <FileDiff className="size-3.5 shrink-0" />;
+    case "files":
+      return <Files className="size-3.5 shrink-0" />;
+    case "file":
+      return (
+        <PierreEntryIcon
+          pathValue={surface.relativePath}
+          kind="file"
+          theme={theme}
+          className="size-3.5"
+        />
+      );
     case "terminal":
       return <TerminalSquare className="size-3.5 shrink-0" />;
     case "plan":
@@ -178,95 +278,209 @@ function SurfaceIcon({
 
 export function RightPanelTabs(props: RightPanelTabsProps) {
   const ownsDesktopTitleBar = isElectron && props.mode === "inline";
+  const { resolvedTheme } = useTheme();
+  const tabListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const activeTab = tabListRef.current?.querySelector<HTMLElement>("[data-active-tab='true']");
+    activeTab?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [props.activeSurfaceId]);
 
   return (
-    <PreviewPanelShell mode={props.mode}>
+    <PreviewPanelShell
+      mode={props.mode}
+      {...(props.maximized !== undefined ? { maximized: props.maximized } : {})}
+    >
       <div
         className={cn(
-          "flex shrink-0 items-center px-2",
-          ownsDesktopTitleBar
-            ? "h-[52px] wco:h-[env(titlebar-area-height)] wco:pr-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+1em)]"
-            : "h-10",
+          "gap-2 px-2",
+          props.mode === "inline" ? "workspace-topbar" : "flex h-10 shrink-0 items-center",
+          ownsDesktopTitleBar && "wco:pr-[var(--workspace-native-controls-inset)]",
         )}
+        data-right-panel-tabbar
       >
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
-          {props.surfaces.map((surface) => {
-            const active = surface.id === props.activeSurfaceId;
-            const title = surfaceTitle(
-              surface,
-              props.previewSessions,
-              props.terminalLabelsById,
-            );
-            return (
-              <div
-                key={surface.id}
-                className={cn(
-                  "group flex h-7 min-w-0 max-w-52 items-center gap-1.5 rounded-md px-2 text-sm",
-                  active
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                )}
-              >
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <button
-                        type="button"
-                        className="flex min-w-0 flex-1 items-center gap-1.5"
-                        onClick={() => props.onActivate(surface)}
-                      >
-                        <SurfaceIcon
-                          surface={surface}
-                          sessions={props.previewSessions}
-                        />
-                        <span className="truncate">{title}</span>
-                      </button>
-                    }
-                  />
-                  <TooltipPopup>{title}</TooltipPopup>
-                </Tooltip>
-                <button
-                  type="button"
-                  className="rounded p-0.5 opacity-0 hover:bg-muted group-hover:opacity-100 focus:opacity-100"
-                  aria-label={`Close ${title}`}
-                  onClick={() => props.onCloseSurface(surface)}
+        <ScrollArea
+          ref={tabListRef}
+          hideScrollbars
+          scrollFade
+          className="min-w-0 flex-1 rounded-none"
+          data-right-panel-tab-list
+        >
+          <div className="flex h-full w-max min-w-full items-center gap-1">
+            {props.surfaces.map((surface) => {
+              const active = surface.id === props.activeSurfaceId;
+              const pending = props.pendingSurfaceIds.has(surface.id);
+              const title = surfaceTitle(surface, props.previewSessions, props.terminalLabelsById);
+              return (
+                <div
+                  key={surface.id}
+                  data-active-tab={active}
+                  className={cn(
+                    "group flex h-7 min-w-25 max-w-44 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm",
+                    active
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                  )}
                 >
-                  <X className="size-3" />
-                </button>
-              </div>
-            );
-          })}
+                  <Tooltip>
+                    <TooltipTrigger
+                      render={
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-center gap-1.5"
+                          onClick={() => props.onActivate(surface)}
+                        >
+                          <SurfaceIcon
+                            surface={surface}
+                            sessions={props.previewSessions}
+                            theme={resolvedTheme}
+                          />
+                          <span className="truncate">{title}</span>
+                        </button>
+                      }
+                    />
+                    <TooltipPopup>{title}</TooltipPopup>
+                  </Tooltip>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative flex size-4 shrink-0 items-center justify-center rounded hover:bg-muted focus:opacity-100",
+                      pending ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                    )}
+                    aria-label={`Close ${title}`}
+                    onClick={() => props.onCloseSurface(surface)}
+                  >
+                    {pending ? (
+                      <>
+                        <span
+                          className="size-2 rounded-full bg-current group-hover:hidden"
+                          aria-hidden
+                        />
+                        <X className="hidden size-3 group-hover:block" />
+                      </>
+                    ) : (
+                      <X className="size-3" />
+                    )}
+                  </button>
+                </div>
+              );
+            })}
+            {props.surfaces.length > 0 ? (
+              <Menu>
+                <MenuTrigger
+                  className="relative inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Add panel surface"
+                >
+                  <Plus className="size-4" />
+                </MenuTrigger>
+                <MenuPopup align="start" side="bottom" sideOffset={6} className="min-w-44">
+                  <SurfaceMenuItem
+                    available={props.browserAvailable}
+                    disabledReason={SURFACE_DISABLED_REASONS.browser}
+                    onClick={props.onAddBrowser}
+                  >
+                    <Globe2 />
+                    Browser
+                  </SurfaceMenuItem>
+                  <SurfaceMenuItem available onClick={props.onAddTerminal}>
+                    <TerminalSquare />
+                    Terminal
+                  </SurfaceMenuItem>
+                  <SurfaceMenuItem
+                    available={props.filesAvailable}
+                    disabledReason={SURFACE_DISABLED_REASONS.files}
+                    onClick={props.onAddFiles}
+                  >
+                    <Files />
+                    Files
+                  </SurfaceMenuItem>
+                  <SurfaceMenuItem
+                    available={props.diffAvailable}
+                    disabledReason={SURFACE_DISABLED_REASONS.diff}
+                    onClick={props.onAddDiff}
+                  >
+                    <FileDiff />
+                    Diff
+                  </SurfaceMenuItem>
+                </MenuPopup>
+              </Menu>
+            ) : null}
+          </div>
+        </ScrollArea>
+        <div className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]">
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Toggle
+                  className="shrink-0 [-webkit-app-region:no-drag]"
+                  pressed={props.rightPanelMaximized}
+                  onPressedChange={props.onToggleRightPanelMaximized}
+                  aria-label={props.rightPanelMaximized ? "Restore panel size" : "Maximize panel"}
+                  variant="outline"
+                  size="xs"
+                  disabled={!props.canMaximizeRightPanel}
+                >
+                  {props.rightPanelMaximized ? (
+                    <Minimize2 className="size-3.5" />
+                  ) : (
+                    <Maximize2 className="size-3.5" />
+                  )}
+                </Toggle>
+              }
+            />
+            <TooltipPopup side="bottom">
+              {props.canMaximizeRightPanel
+                ? props.rightPanelMaximized
+                  ? "Restore panel size"
+                  : "Maximize panel"
+                : "Panel maximization is unavailable at this width"}
+            </TooltipPopup>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Toggle
+                  className="shrink-0 [-webkit-app-region:no-drag]"
+                  pressed={props.terminalOpen}
+                  onPressedChange={props.onToggleTerminal}
+                  aria-label="Toggle terminal drawer"
+                  variant="outline"
+                  size="xs"
+                  disabled={!props.terminalAvailable}
+                >
+                  <PanelBottomIcon className="size-3.5" />
+                </Toggle>
+              }
+            />
+            <TooltipPopup side="bottom">
+              {props.terminalAvailable
+                ? `Toggle terminal drawer${props.terminalShortcutLabel ? ` (${props.terminalShortcutLabel})` : ""}`
+                : "Terminal drawer is unavailable"}
+            </TooltipPopup>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Toggle
+                  className="shrink-0 [-webkit-app-region:no-drag]"
+                  pressed={props.rightPanelOpen}
+                  onPressedChange={props.onToggleRightPanel}
+                  aria-label="Toggle right panel"
+                  variant="outline"
+                  size="xs"
+                  disabled={!props.rightPanelAvailable}
+                >
+                  <PanelRightIcon className="size-3.5" />
+                </Toggle>
+              }
+            />
+            <TooltipPopup side="bottom">
+              {props.rightPanelAvailable
+                ? `Toggle right panel${props.rightPanelShortcutLabel ? ` (${props.rightPanelShortcutLabel})` : ""}`
+                : "Right panel is unavailable"}
+            </TooltipPopup>
+          </Tooltip>
         </div>
-        <Menu>
-          <MenuTrigger
-            className="relative ml-1 inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Add panel surface"
-          >
-            <Plus className="size-4" />
-          </MenuTrigger>
-          <MenuPopup
-            align="start"
-            side="bottom"
-            sideOffset={6}
-            className="min-w-44"
-          >
-            <MenuItem
-              onClick={props.onAddBrowser}
-              disabled={!props.browserAvailable}
-            >
-              <Globe2 />
-              Browser
-            </MenuItem>
-            <MenuItem onClick={props.onAddTerminal}>
-              <TerminalSquare />
-              Terminal
-            </MenuItem>
-            <MenuItem onClick={props.onAddDiff} disabled={!props.diffAvailable}>
-              <FileDiff />
-              Diff
-            </MenuItem>
-          </MenuPopup>
-        </Menu>
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         {props.activeSurfaceId === null ? (
@@ -274,8 +488,10 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             onAddBrowser={props.onAddBrowser}
             onAddTerminal={props.onAddTerminal}
             onAddDiff={props.onAddDiff}
+            onAddFiles={props.onAddFiles}
             browserAvailable={props.browserAvailable}
             diffAvailable={props.diffAvailable}
+            filesAvailable={props.filesAvailable}
           />
         ) : (
           props.children

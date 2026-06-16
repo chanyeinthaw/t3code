@@ -1,20 +1,13 @@
 import type { ReactNode } from "react";
 
-import { isElectron } from "~/env";
 import { cn } from "~/lib/utils";
 
 import { Skeleton } from "./ui/skeleton";
 
-export type DiffPanelMode = "inline" | "sheet" | "sidebar";
+export type DiffPanelMode = "inline" | "sheet" | "sidebar" | "embedded";
 
-function getDiffPanelHeaderRowClassName(mode: DiffPanelMode) {
-  const shouldUseDragRegion = isElectron && mode !== "sheet";
-  return cn(
-    "flex items-center justify-between gap-2 px-4",
-    shouldUseDragRegion
-      ? "drag-region h-[52px] border-b border-border wco:h-[env(titlebar-area-height)] wco:pr-[calc(100vw-env(titlebar-area-width)-env(titlebar-area-x)+1em)]"
-      : "h-12 wco:max-h-[env(titlebar-area-height)]",
-  );
+function getDiffPanelHeaderRowClassName(_mode: DiffPanelMode) {
+  return cn("surface-subheader justify-between gap-2 px-4");
 }
 
 export function DiffPanelShell(props: {
@@ -22,8 +15,6 @@ export function DiffPanelShell(props: {
   header: ReactNode;
   children: ReactNode;
 }) {
-  const shouldUseDragRegion = isElectron && props.mode !== "sheet";
-
   return (
     <div
       className={cn(
@@ -33,13 +24,9 @@ export function DiffPanelShell(props: {
           : "w-full",
       )}
     >
-      {shouldUseDragRegion ? (
-        <div className={getDiffPanelHeaderRowClassName(props.mode)}>{props.header}</div>
-      ) : (
-        <div className="border-b border-border">
-          <div className={getDiffPanelHeaderRowClassName(props.mode)}>{props.header}</div>
-        </div>
-      )}
+      <div className={getDiffPanelHeaderRowClassName(props.mode)} data-surface-subheader>
+        {props.header}
+      </div>
       {props.children}
     </div>
   );

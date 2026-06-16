@@ -37,6 +37,7 @@ import { useShallow } from "zustand/react/shallow";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { Button } from "./ui/button";
 import { Menu, MenuGroup, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "./ui/menu";
+import { ScrollArea } from "./ui/scroll-area";
 import { Sheet, SheetDescription, SheetHeader, SheetPopup, SheetTitle } from "./ui/sheet";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { useCommandPaletteStore } from "../commandPaletteStore";
@@ -408,7 +409,11 @@ function ProjectShellChrome({
       );
 
       if (clicked === "open-new-window") {
-        await api.shell.openThreadInNewWindow(threadRef);
+        await api.shell.openThreadInNewWindow({
+          environmentId: threadRef.environmentId,
+          projectId: thread.projectId,
+          threadId: threadRef.threadId,
+        });
         return;
       }
       if (clicked === "rename") {
@@ -805,18 +810,24 @@ function ProjectShellChrome({
         <div className="w-0.5 h-4 bg-secondary" />
       )}
       <div className="flex h-full min-w-0 flex-1 items-stretch overflow-hidden gap-2">
-        <div className="no-drag-region scrollbar-none flex h-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {openedTabs.map((thread) => (
-            <ProjectThreadTab
-              key={threadKey(scopeThreadRef(thread.environmentId, thread.id))}
-              active={context.activeThreadId === thread.id}
-              thread={thread}
-              onSelect={() => void navigateToThread(thread)}
-              onClose={() => void closeTabAndNavigate(thread)}
-              onContextMenu={(event) => handleTabContextMenu(event, thread)}
-            />
-          ))}
-        </div>
+        <ScrollArea
+          hideScrollbars
+          scrollFade
+          className="no-drag-region h-full w-fit min-w-0 shrink rounded-none"
+        >
+          <div className="flex h-full items-center gap-1">
+            {openedTabs.map((thread) => (
+              <ProjectThreadTab
+                key={threadKey(scopeThreadRef(thread.environmentId, thread.id))}
+                active={context.activeThreadId === thread.id}
+                thread={thread}
+                onSelect={() => void navigateToThread(thread)}
+                onClose={() => void closeTabAndNavigate(thread)}
+                onContextMenu={(event) => handleTabContextMenu(event, thread)}
+              />
+            ))}
+          </div>
+        </ScrollArea>
         {showProjectScopedActions && (
           <div className="self-center flex flex-row items-center gap-2">
             <div className="w-0.5 h-4 bg-secondary" />

@@ -63,8 +63,6 @@ it.effect("rejects calls when no focused owner exists", () =>
     expect(error).toBeInstanceOf(PreviewAutomationNoFocusedOwnerError);
   }),
 );
-<<<<<<< HEAD:apps/server/src/mcp/Layers/PreviewAutomationBroker.test.ts
-=======
 
 it.effect("routes interactive commands to a hidden durable browser host", () =>
   Effect.scoped(
@@ -89,4 +87,3 @@ it.effect("routes interactive commands to a hidden durable browser host", () =>
     }),
   ),
 );
->>>>>>> f7c422d58 (Refactor MCP services into top-level modules):apps/server/src/mcp/PreviewAutomationBroker.test.ts

@@ -102,6 +102,15 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     }),
   openExternal: (url: string) => ipcRenderer.invoke(IpcChannels.OPEN_EXTERNAL_CHANNEL, url),
   openThreadWindow: (input) => ipcRenderer.invoke(IpcChannels.OPEN_THREAD_WINDOW_CHANNEL, input),
+  getWindowFullScreenState: () =>
+    ipcRenderer.sendSync(IpcChannels.GET_WINDOW_FULL_SCREEN_STATE_CHANNEL) as boolean,
+  onWindowFullScreenChange: (listener) => {
+    const wrappedListener = (_event: Electron.IpcRendererEvent, isFullScreen: unknown) => {
+      listener(Boolean(isFullScreen));
+    };
+    ipcRenderer.on("desktop:window-full-screen-change", wrappedListener);
+    return () => ipcRenderer.removeListener("desktop:window-full-screen-change", wrappedListener);
+  },
   createCloudAuthRequest: () => ipcRenderer.invoke(IpcChannels.CREATE_CLOUD_AUTH_REQUEST_CHANNEL),
   getCloudAuthToken: () => ipcRenderer.invoke(IpcChannels.GET_CLOUD_AUTH_TOKEN_CHANNEL),
   setCloudAuthToken: (token: string) =>

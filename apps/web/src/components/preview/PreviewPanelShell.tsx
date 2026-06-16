@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
 
-import { isElectron } from "~/env";
 import { useResizableWidth } from "~/hooks/useResizableWidth";
 import { cn } from "~/lib/utils";
 
@@ -21,8 +20,11 @@ const PREVIEW_PANEL_DEFAULT_WIDTH = 540;
  * via a drag handle on the left edge; width persists per browser. In
  * sheet/sidebar modes the parent owns the size.
  */
-export function PreviewPanelShell(props: { mode: PreviewPanelMode; children: ReactNode }) {
-  const useDragRegion = isElectron && props.mode !== "sheet";
+export function PreviewPanelShell(props: {
+  mode: PreviewPanelMode;
+  maximized?: boolean;
+  children: ReactNode;
+}) {
   const isInline = props.mode === "inline";
   const maxWidth = useViewportClampedMaxWidth();
   const { width, handlers } = useResizableWidth({
@@ -36,14 +38,18 @@ export function PreviewPanelShell(props: { mode: PreviewPanelMode; children: Rea
   return (
     <div
       className={cn(
-        "relative flex h-full min-w-0 flex-col bg-background",
-        isInline ? "shrink-0 border-l border-border" : "w-full",
+        "relative flex h-full min-h-0 min-w-0 flex-col self-stretch bg-background",
+        isInline
+          ? props.maximized
+            ? "flex-1 border-l border-border"
+            : "shrink-0 border-l border-border"
+          : "w-full",
       )}
-      style={isInline ? { width: `${width}px` } : undefined}
+      style={isInline && !props.maximized ? { width: `${width}px` } : undefined}
       data-preview-panel-mode={props.mode}
+      data-preview-panel-maximized={props.maximized ? "true" : "false"}
     >
-      {isInline ? <RightPanelResizeHandle handlers={handlers} /> : null}
-      {useDragRegion ? <div className="electron-drag-region h-0 w-full" aria-hidden /> : null}
+      {isInline && !props.maximized ? <RightPanelResizeHandle handlers={handlers} /> : null}
       {props.children}
     </div>
   );
