@@ -28,17 +28,6 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 
-const FFF_NATIVE_BINARY_OPTIONAL_DEPENDENCIES = {
-  "@ff-labs/fff-bin-darwin-arm64": "0.9.4",
-  "@ff-labs/fff-bin-darwin-x64": "0.9.4",
-  "@ff-labs/fff-bin-linux-arm64-gnu": "0.9.4",
-  "@ff-labs/fff-bin-linux-arm64-musl": "0.9.4",
-  "@ff-labs/fff-bin-linux-x64-gnu": "0.9.4",
-  "@ff-labs/fff-bin-linux-x64-musl": "0.9.4",
-  "@ff-labs/fff-bin-win32-arm64": "0.9.4",
-  "@ff-labs/fff-bin-win32-x64": "0.9.4",
-} as const;
-
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
 
@@ -49,11 +38,19 @@ const WorkspaceConfig = Schema.Struct({
 });
 type WorkspaceConfig = typeof WorkspaceConfig.Type;
 
+const StageWorkspaceConfig = Schema.Struct({
+  supportedArchitectures: Schema.Struct({
+    os: Schema.Array(Schema.String),
+    cpu: Schema.Array(Schema.String),
+  }),
+});
+
 const RepoRoot = Effect.service(Path.Path).pipe(
   Effect.flatMap((path) => path.fromFileUrl(new URL("..", import.meta.url))),
 );
 const encodeJsonString = Schema.encodeEffect(Schema.UnknownFromJsonString);
 const decodeWorkspaceConfig = Schema.decodeEffect(fromYaml(WorkspaceConfig));
+const encodeStageWorkspaceConfig = Schema.encodeEffect(fromYaml(StageWorkspaceConfig));
 
 const readWorkspaceConfig = Effect.fn("readWorkspaceConfig")(function* () {
   const fs = yield* FileSystem.FileSystem;
@@ -284,13 +281,53 @@ interface StagePackageJson {
   readonly main: string;
   readonly build: Record<string, unknown>;
   readonly dependencies: Record<string, unknown>;
-  readonly optionalDependencies?: Record<string, string>;
   readonly devDependencies: {
     readonly electron: string;
   };
   readonly overrides: Record<string, unknown>;
   readonly pnpm?: {
     readonly patchedDependencies?: Record<string, string>;
+  };
+}
+
+export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
+export const DESKTOP_ASAR_UNPACK = ["node_modules/@ff-labs/fff-bin-*/**/*"] as const;
+
+export function resolveFffNativeDependencies(
+  platform: typeof BuildPlatform.Type,
+  arch: typeof BuildArch.Type,
+  version: string,
+): Record<string, string> {
+  const architectures = arch === "universal" ? (["arm64", "x64"] as const) : [arch];
+
+  if (platform === "mac") {
+    return Object.fromEntries(
+      architectures.map((architecture) => [`@ff-labs/fff-bin-darwin-${architecture}`, version]),
+    );
+  }
+
+  if (platform === "win") {
+    return Object.fromEntries(
+      architectures.map((architecture) => [`@ff-labs/fff-bin-win32-${architecture}`, version]),
+    );
+  }
+
+  return Object.fromEntries(
+    architectures.flatMap((architecture) =>
+      ["gnu", "musl"].map((libc) => [`@ff-labs/fff-bin-linux-${architecture}-${libc}`, version]),
+    ),
+  );
+}
+
+export function createStageWorkspaceConfig(
+  platform: typeof BuildPlatform.Type,
+  arch: typeof BuildArch.Type,
+): typeof StageWorkspaceConfig.Type {
+  return {
+    supportedArchitectures: {
+      os: [platform === "mac" ? "darwin" : platform === "win" ? "win32" : "linux"],
+      cpu: arch === "universal" ? ["arm64", "x64"] : [arch],
+    },
   };
 }
 
@@ -628,59 +665,6 @@ function validateBundledClientAssets(clientDir: string) {
   });
 }
 
-export function resolveDesktopArtifactOptionalDependencies(): Record<string, string> {
-  return { ...FFF_NATIVE_BINARY_OPTIONAL_DEPENDENCIES };
-}
-
-const FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET = `        if (existsSync(binaryPath)) {\n            return binaryPath;\n        }`;
-const FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_REPLACEMENT = `        if (existsSync(binaryPath)) {\n            const unpackedBinaryPath = binaryPath.replace(/([\\\\/])app\\.asar([\\\\/])/, "$1app.asar.unpacked$2");\n            if (unpackedBinaryPath !== binaryPath && existsSync(unpackedBinaryPath)) {\n                return unpackedBinaryPath;\n            }\n            return binaryPath;\n        }`;
-
-export function patchFffNodeBinaryResolverForElectronAsar(source: string): string {
-  if (source.includes("app.asar.unpacked")) {
-    return source;
-  }
-
-  if (!source.includes(FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET)) {
-    throw new Error("Could not find @ff-labs/fff-node binary resolver patch target.");
-  }
-
-  return source.replace(
-    FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET,
-    FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_REPLACEMENT,
-  );
-}
-
-const patchStagedFffNodeBinaryResolver = Effect.fn("patchStagedFffNodeBinaryResolver")(function* (
-  stageAppDir: string,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const resolverPath = path.join(
-    stageAppDir,
-    "node_modules/@ff-labs/fff-node/dist/src/binary.js",
-  );
-
-  if (!(yield* fs.exists(resolverPath))) {
-    return yield* new BuildScriptError({
-      message: `Missing staged @ff-labs/fff-node binary resolver at ${resolverPath}.`,
-    });
-  }
-
-  const source = yield* fs.readFileString(resolverPath);
-  const patchedSource = yield* Effect.try({
-    try: () => patchFffNodeBinaryResolverForElectronAsar(source),
-    catch: (cause) =>
-      new BuildScriptError({
-        message: "Could not patch @ff-labs/fff-node binary resolver for Electron asar.",
-        cause,
-      }),
-  });
-
-  if (patchedSource !== source) {
-    yield* fs.writeFileString(resolverPath, patchedSource);
-  }
-});
-
 export function resolveDesktopRuntimeDependencies(
   dependencies: Record<string, string> | undefined,
   catalog: Record<string, string>,
@@ -767,6 +751,7 @@ const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     appId: "com.t3tools.t3code",
     productName: resolveDesktopProductName(version),
     artifactName: "T3-Code-${version}-${arch}.${ext}",
+    asarUnpack: [...DESKTOP_ASAR_UNPACK],
     directories: {
       buildResources: "apps/desktop/resources",
     },
@@ -974,6 +959,11 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const stageDependencies = {
     ...resolvedServerDependencies,
     ...resolvedDesktopRuntimeDependencies,
+    ...resolveFffNativeDependencies(
+      options.platform,
+      options.arch,
+      serverPackageJson.dependencies["@ff-labs/fff-node"],
+    ),
   };
   const stagePnpmConfig = createStagePnpmConfig(workspacePatchedDependencies, stageDependencies);
   const stagePackageJson: StagePackageJson = {
@@ -995,7 +985,6 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       options.mockUpdateServerPort,
     ),
     dependencies: stageDependencies,
-    optionalDependencies: resolveDesktopArtifactOptionalDependencies(),
     devDependencies: {
       electron: electronVersion,
     },
@@ -1005,16 +994,19 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
 
   const stagePackageJsonString = yield* encodeJsonString(stagePackageJson);
   yield* fs.writeFileString(path.join(stageAppDir, "package.json"), `${stagePackageJsonString}\n`);
+  const stageWorkspaceConfig = createStageWorkspaceConfig(options.platform, options.arch);
+  const stageWorkspaceConfigString = yield* encodeStageWorkspaceConfig(stageWorkspaceConfig);
+  yield* fs.writeFileString(
+    path.join(stageAppDir, "pnpm-workspace.yaml"),
+    stageWorkspaceConfigString,
+  );
 
   if (Object.keys(workspacePatchedDependencies).length > 0) {
     yield* fs.copy(path.join(repoRoot, "patches"), path.join(stageAppDir, "patches"));
   }
 
   yield* Effect.log("[desktop-artifact] Installing staged production dependencies...");
-  // Keep optional dependencies enabled: several runtime packages (for example `ffi-rs`) ship
-  // platform-specific native bindings exclusively via optional dependencies. Omitting them makes
-  // packaged desktop builds start with MODULE_NOT_FOUND for the native binding package.
-  const installCommand = yield* resolveSpawnCommand("vp", ["install", "--prod"]);
+  const installCommand = yield* resolveSpawnCommand("vp", [...STAGE_INSTALL_ARGS]);
   yield* runCommand(
     ChildProcess.make(installCommand.command, installCommand.args, {
       cwd: stageAppDir,
@@ -1022,11 +1014,6 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     }),
     { label: "vp install --prod", verbose: options.verbose },
   );
-
-  yield* Effect.log(
-    "[desktop-artifact] Patching @ff-labs/fff-node binary resolver for Electron asar...",
-  );
-  yield* patchStagedFffNodeBinaryResolver(stageAppDir);
 
   // electron-builder treats several set-but-empty variables (e.g. CSC_LINK="")
   // as enabled, so copy the host env and scrub empty values instead of relying
