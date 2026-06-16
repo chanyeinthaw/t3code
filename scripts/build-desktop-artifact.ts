@@ -28,6 +28,17 @@ import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 
+const FFF_NATIVE_BINARY_OPTIONAL_DEPENDENCIES = {
+  "@ff-labs/fff-bin-darwin-arm64": "0.9.4",
+  "@ff-labs/fff-bin-darwin-x64": "0.9.4",
+  "@ff-labs/fff-bin-linux-arm64-gnu": "0.9.4",
+  "@ff-labs/fff-bin-linux-arm64-musl": "0.9.4",
+  "@ff-labs/fff-bin-linux-x64-gnu": "0.9.4",
+  "@ff-labs/fff-bin-linux-x64-musl": "0.9.4",
+  "@ff-labs/fff-bin-win32-arm64": "0.9.4",
+  "@ff-labs/fff-bin-win32-x64": "0.9.4",
+} as const;
+
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
 
@@ -273,6 +284,7 @@ interface StagePackageJson {
   readonly main: string;
   readonly build: Record<string, unknown>;
   readonly dependencies: Record<string, unknown>;
+  readonly optionalDependencies?: Record<string, string>;
   readonly devDependencies: {
     readonly electron: string;
   };
@@ -616,6 +628,59 @@ function validateBundledClientAssets(clientDir: string) {
   });
 }
 
+export function resolveDesktopArtifactOptionalDependencies(): Record<string, string> {
+  return { ...FFF_NATIVE_BINARY_OPTIONAL_DEPENDENCIES };
+}
+
+const FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET = `        if (existsSync(binaryPath)) {\n            return binaryPath;\n        }`;
+const FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_REPLACEMENT = `        if (existsSync(binaryPath)) {\n            const unpackedBinaryPath = binaryPath.replace(/([\\\\/])app\\.asar([\\\\/])/, "$1app.asar.unpacked$2");\n            if (unpackedBinaryPath !== binaryPath && existsSync(unpackedBinaryPath)) {\n                return unpackedBinaryPath;\n            }\n            return binaryPath;\n        }`;
+
+export function patchFffNodeBinaryResolverForElectronAsar(source: string): string {
+  if (source.includes("app.asar.unpacked")) {
+    return source;
+  }
+
+  if (!source.includes(FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET)) {
+    throw new Error("Could not find @ff-labs/fff-node binary resolver patch target.");
+  }
+
+  return source.replace(
+    FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_TARGET,
+    FFF_NODE_BINARY_RESOLVER_ASAR_PATCH_REPLACEMENT,
+  );
+}
+
+const patchStagedFffNodeBinaryResolver = Effect.fn("patchStagedFffNodeBinaryResolver")(function* (
+  stageAppDir: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const resolverPath = path.join(
+    stageAppDir,
+    "node_modules/@ff-labs/fff-node/dist/src/binary.js",
+  );
+
+  if (!(yield* fs.exists(resolverPath))) {
+    return yield* new BuildScriptError({
+      message: `Missing staged @ff-labs/fff-node binary resolver at ${resolverPath}.`,
+    });
+  }
+
+  const source = yield* fs.readFileString(resolverPath);
+  const patchedSource = yield* Effect.try({
+    try: () => patchFffNodeBinaryResolverForElectronAsar(source),
+    catch: (cause) =>
+      new BuildScriptError({
+        message: "Could not patch @ff-labs/fff-node binary resolver for Electron asar.",
+        cause,
+      }),
+  });
+
+  if (patchedSource !== source) {
+    yield* fs.writeFileString(resolverPath, patchedSource);
+  }
+});
+
 export function resolveDesktopRuntimeDependencies(
   dependencies: Record<string, string> | undefined,
   catalog: Record<string, string>,
@@ -930,6 +995,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       options.mockUpdateServerPort,
     ),
     dependencies: stageDependencies,
+    optionalDependencies: resolveDesktopArtifactOptionalDependencies(),
     devDependencies: {
       electron: electronVersion,
     },
@@ -956,6 +1022,11 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     }),
     { label: "vp install --prod", verbose: options.verbose },
   );
+
+  yield* Effect.log(
+    "[desktop-artifact] Patching @ff-labs/fff-node binary resolver for Electron asar...",
+  );
+  yield* patchStagedFffNodeBinaryResolver(stageAppDir);
 
   // electron-builder treats several set-but-empty variables (e.g. CSC_LINK="")
   // as enabled, so copy the host env and scrub empty values instead of relying

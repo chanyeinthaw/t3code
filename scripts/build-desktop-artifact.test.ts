@@ -7,6 +7,8 @@ import * as Option from "effect/Option";
 
 import {
   createStagePnpmConfig,
+  patchFffNodeBinaryResolverForElectronAsar,
+  resolveDesktopArtifactOptionalDependencies,
   resolveDesktopRuntimeDependencies,
   resolveBuildOptions,
   resolveDesktopBuildIconAssets,
@@ -107,6 +109,29 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         effect: "4.0.0-beta.59",
       },
     );
+  });
+
+  it("keeps fff platform packages as top-level optional dependencies for Electron packaging", () => {
+    assert.deepStrictEqual(resolveDesktopArtifactOptionalDependencies(), {
+      "@ff-labs/fff-bin-darwin-arm64": "0.9.4",
+      "@ff-labs/fff-bin-darwin-x64": "0.9.4",
+      "@ff-labs/fff-bin-linux-arm64-gnu": "0.9.4",
+      "@ff-labs/fff-bin-linux-arm64-musl": "0.9.4",
+      "@ff-labs/fff-bin-linux-x64-gnu": "0.9.4",
+      "@ff-labs/fff-bin-linux-x64-musl": "0.9.4",
+      "@ff-labs/fff-bin-win32-arm64": "0.9.4",
+      "@ff-labs/fff-bin-win32-x64": "0.9.4",
+    });
+  });
+
+  it("patches fff-node native binary resolution to prefer Electron asar-unpacked paths", () => {
+    const source = `        if (existsSync(binaryPath)) {\n            return binaryPath;\n        }`;
+    const patched = patchFffNodeBinaryResolverForElectronAsar(source);
+
+    assert.match(patched, /app\.asar\.unpacked/);
+    assert.match(patched, /existsSync\(unpackedBinaryPath\)/);
+    assert.match(patched, /return unpackedBinaryPath/);
+    assert.equal(patchFffNodeBinaryResolverForElectronAsar(patched), patched);
   });
 
   it("carries only staged dependency patch metadata into staged desktop installs", () => {

@@ -3,7 +3,6 @@ import {
   CheckIcon,
   ChevronRightIcon,
   CopyIcon,
-  GlobeIcon,
   Maximize2Icon,
   Minimize2Icon,
   WrapTextIcon,
@@ -760,11 +759,6 @@ function normalizeMarkdownLinkHrefKey(href: string): string {
   return rewriteMarkdownFileUriHref(normalizedHref) ?? normalizedHref;
 }
 
-const MARKDOWN_LINK_FAVICON_CLASS_NAME = "block size-full shrink-0 select-none";
-
-/** Hosts whose favicon request already failed this session — skip straight to the globe. */
-const failedFaviconHosts = new Set<string>();
-
 function resolveExternalLinkHost(href: string | undefined): string | null {
   if (!href) return null;
   try {
@@ -774,64 +768,6 @@ function resolveExternalLinkHost(href: string | undefined): string | null {
   } catch {
     return null;
   }
-}
-
-const MarkdownLinkFavicon = memo(function MarkdownLinkFavicon({ host }: { host: string }) {
-  const [failedHost, setFailedHost] = useState<string | null>(null);
-  return (
-    <span className="chat-markdown-link-favicon" aria-hidden>
-      {failedHost === host || failedFaviconHosts.has(host) ? (
-        <GlobeIcon className={MARKDOWN_LINK_FAVICON_CLASS_NAME} />
-      ) : (
-        <img
-          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`}
-          alt=""
-          loading="lazy"
-          draggable={false}
-          className={cn(MARKDOWN_LINK_FAVICON_CLASS_NAME, "rounded-sm")}
-          onError={() => {
-            failedFaviconHosts.add(host);
-            setFailedHost(host);
-          }}
-        />
-      )}
-    </span>
-  );
-});
-
-function leadingExternalLinkTextLength(text: string): number {
-  const protocol = /^(?:https?:\/\/)/i.exec(text)?.[0];
-  if (protocol) return protocol.length;
-  return Math.min(text.length, 1);
-}
-
-function breakableExternalLinkText(text: string): ReactNode[] {
-  return Array.from(text, (character, index) => (
-    <React.Fragment key={`${index}:${character}`}>
-      {character}
-      <wbr />
-    </React.Fragment>
-  ));
-}
-
-function plainHastText(node: unknown): string | null {
-  if (!node || typeof node !== "object" || !("children" in node) || !Array.isArray(node.children)) {
-    return null;
-  }
-  const parts = node.children.map((child) => {
-    if (
-      child &&
-      typeof child === "object" &&
-      "type" in child &&
-      child.type === "text" &&
-      "value" in child &&
-      typeof child.value === "string"
-    ) {
-      return child.value;
-    }
-    return null;
-  });
-  return parts.every((part) => part !== null) ? parts.join("") : null;
 }
 
 const SANITIZED_FRAGMENT_PREFIX = "user-content-";
@@ -892,56 +828,6 @@ function handleMarkdownFragmentClick(event: ReactMouseEvent<HTMLAnchorElement>, 
   nextUrl.hash = href.slice(1);
   window.history.pushState(window.history.state, "", nextUrl);
   target.scrollIntoView({ block: "nearest" });
-}
-
-function MarkdownExternalLinkContent({
-  host,
-  plainText,
-  children,
-}: {
-  host: string;
-  plainText: string | null;
-  children: ReactNode;
-}) {
-  if (plainText) {
-    const leadingLength = leadingExternalLinkTextLength(plainText);
-    return (
-      <>
-        <span className="chat-markdown-link-leading">
-          <MarkdownLinkFavicon host={host} />
-          {plainText.slice(0, leadingLength)}
-        </span>
-        {breakableExternalLinkText(plainText.slice(leadingLength))}
-      </>
-    );
-  }
-
-  const childNodes = Children.toArray(children);
-  const firstChild = childNodes[0];
-
-  if (typeof firstChild === "string" && firstChild.length > 0) {
-    const leadingLength = leadingExternalLinkTextLength(firstChild);
-    return (
-      <>
-        <span className="chat-markdown-link-leading">
-          <MarkdownLinkFavicon host={host} />
-          {firstChild.slice(0, leadingLength)}
-        </span>
-        {breakableExternalLinkText(firstChild.slice(leadingLength))}
-        {childNodes.slice(1)}
-      </>
-    );
-  }
-
-  return (
-    <>
-      <span className="chat-markdown-link-leading">
-        <MarkdownLinkFavicon host={host} />
-        {firstChild}
-      </span>
-      {childNodes.slice(1)}
-    </>
-  );
 }
 
 function MarkdownExternalLink({
@@ -1215,14 +1101,14 @@ function ChatMarkdown({
         const normalizedHref = href ? normalizeMarkdownLinkHrefKey(href) : "";
         const fileLinkMeta = normalizedHref ? markdownFileLinkMetaByHref.get(normalizedHref) : null;
         if (!fileLinkMeta) {
-          const faviconHost = resolveExternalLinkHost(href);
+          const externalLinkHost = resolveExternalLinkHost(href);
           const isSameDocumentLink = href?.startsWith("#") ?? false;
           const onClick = props.onClick;
-          const link = (
+          return (
             <MarkdownExternalLink
               {...props}
               href={href ?? ""}
-              threadRef={faviconHost && isPreviewSupportedInRuntime() ? threadRef : undefined}
+              threadRef={externalLinkHost && isPreviewSupportedInRuntime() ? threadRef : undefined}
               target={isSameDocumentLink ? undefined : "_blank"}
               rel={isSameDocumentLink ? undefined : "noopener noreferrer"}
               onClick={(event) => {
@@ -1232,28 +1118,8 @@ function ChatMarkdown({
                 }
               }}
             >
-              {faviconHost ? (
-                <MarkdownExternalLinkContent host={faviconHost} plainText={plainHastText(node)}>
-                  {children}
-                </MarkdownExternalLinkContent>
-              ) : (
-                children
-              )}
+              {children}
             </MarkdownExternalLink>
-          );
-          if (!faviconHost || !href) {
-            return link;
-          }
-          return (
-            <Tooltip>
-              <TooltipTrigger render={link} />
-              <TooltipPopup
-                side="top"
-                className="max-w-[min(36rem,calc(100vw-2rem))] whitespace-normal leading-tight wrap-anywhere"
-              >
-                {href}
-              </TooltipPopup>
-            </Tooltip>
           );
         }
 
