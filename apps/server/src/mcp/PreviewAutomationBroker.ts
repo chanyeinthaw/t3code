@@ -120,6 +120,8 @@ const makeResponseError = (
   }
 };
 
+let activeBroker: PreviewAutomationBrokerShape | undefined;
+
 const make = Effect.gen(function* PreviewAutomationBrokerMake() {
   const state = yield* SynchronizedRef.make<BrokerState>({
     clients: new Map(),
@@ -236,24 +238,18 @@ const make = Effect.gen(function* PreviewAutomationBrokerMake() {
       .sort((left, right) => right.focusedAt.localeCompare(left.focusedAt));
     const owner = candidates[0];
     if (!owner) {
+      const ownerCount = current.owners.size;
+      const automationOwners = Array.from(current.owners.values()).filter(
+        (owner) => owner.supportsAutomation,
+      ).length;
       return yield* new PreviewAutomationNoFocusedOwnerError({
-        message: "No desktop browser host is available for this thread.",
+        message: `No desktop browser host is available for this thread (environmentId=${input.scope.environmentId}, threadId=${input.scope.threadId}, owners=${ownerCount}, automationOwners=${automationOwners}).`,
       });
     }
     const connection = current.clients.get(owner.clientId);
     if (!connection) {
       return yield* new PreviewAutomationUnavailableError({
         message: "The browser host is not connected.",
-      });
-    }
-    if (
-      input.operation !== "open" &&
-      input.operation !== "status" &&
-      !owner.tabId &&
-      !input.tabId
-    ) {
-      return yield* new PreviewAutomationTabNotFoundError({
-        message: "The browser host does not have an active tab.",
       });
     }
     const timeoutMs = input.timeoutMs ?? 15_000;
@@ -274,7 +270,10 @@ const make = Effect.gen(function* PreviewAutomationBrokerMake() {
       const offered = yield* Queue.offer(connection.queue, {
         requestId,
         threadId: input.scope.threadId,
-        tabId: input.tabId ?? owner.tabId ?? undefined,
+        // Do not fill this from owner.tabId. The owner report can lag behind
+        // a human tab switch; when no explicit tab is requested, let the
+        // renderer resolve its current active tab at handling time.
+        tabId: input.tabId ?? undefined,
         operation: input.operation,
         input: input.input,
         timeoutMs,
@@ -298,10 +297,16 @@ const make = Effect.gen(function* PreviewAutomationBrokerMake() {
     return yield* awaitResponse().pipe(Effect.ensuring(removePending));
   });
 
-  return PreviewAutomationBroker.of({ connect, reportOwner, clearOwner, respond, invoke });
+  const broker = PreviewAutomationBroker.of({ connect, reportOwner, clearOwner, respond, invoke });
+  activeBroker = broker;
+  return broker;
 }).pipe(Effect.withSpan("PreviewAutomationBroker.make"));
 
 export const layer = Layer.effect(PreviewAutomationBroker, make);
+
+export function getActivePreviewAutomationBroker(): PreviewAutomationBrokerShape | undefined {
+  return activeBroker;
+}
 
 /** Exposed for tests. */
 export const __testing = {

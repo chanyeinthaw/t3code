@@ -36,7 +36,7 @@ import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 
 interface Props {
   threadRef: ScopedThreadRef;
-  tabId?: string | null;
+  tabId?: string | null | undefined;
   configuredUrls?: ReadonlyArray<string> | undefined;
   visible: boolean;
 }

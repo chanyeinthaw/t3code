@@ -2,6 +2,7 @@
 
 import { scopedThreadKey } from "@t3tools/client-runtime";
 import type {
+  DesktopPreviewBridge,
   PreviewAutomationNavigateInput,
   PreviewAutomationOpenInput,
   PreviewAutomationRequest,
@@ -13,7 +14,7 @@ import { useCallback, useEffect, useId, useRef } from "react";
 
 import { ensureEnvironmentApi } from "~/environmentApi";
 import { selectThreadPreviewState, usePreviewStateStore } from "~/previewStateStore";
-import { useRightPanelStore } from "~/rightPanelStore";
+import { selectActiveRightPanelSurface, useRightPanelStore } from "~/rightPanelStore";
 import { resolveBrowserNavigationTarget } from "~/browser/browserTargetResolver";
 import {
   startBrowserRecording,
@@ -21,7 +22,7 @@ import {
   useBrowserRecordingStore,
 } from "~/browser/browserRecording";
 
-import { previewBridge } from "./previewBridge";
+import { getPreviewBridge } from "./previewBridge";
 
 const waitForDesktopOverlay = async (
   threadRef: ScopedThreadRef,
@@ -31,8 +32,9 @@ const waitForDesktopOverlay = async (
   while (Date.now() <= deadline) {
     const state = selectThreadPreviewState(usePreviewStateStore.getState().byThreadKey, threadRef);
     const tabId = state.snapshot?.tabId;
-    if (tabId && state.desktopOverlay && previewBridge) {
-      const status = await previewBridge.automation.status(tabId);
+    const bridge = getPreviewBridge();
+    if (tabId && state.desktopOverlay && bridge) {
+      const status = await bridge.automation.status(tabId);
       if (status.available) return;
     }
     await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
@@ -47,16 +49,17 @@ const waitForNavigationReadiness = async (
   readiness: PreviewAutomationNavigateInput["readiness"],
   timeoutMs: number,
 ): Promise<void> => {
-  if (!previewBridge || readiness === "none") return;
+  const bridge = getPreviewBridge();
+  if (!bridge || readiness === "none") return;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() <= deadline) {
     if (readiness === "domContentLoaded") {
-      const readyState = await previewBridge.automation.evaluate(tabId, {
+      const readyState = await bridge.automation.evaluate(tabId, {
         expression: "document.readyState",
       });
       if (readyState === "interactive" || readyState === "complete") return;
     } else {
-      const status = await previewBridge.automation.status(tabId);
+      const status = await bridge.automation.status(tabId);
       if (!status.loading) return;
     }
     await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
@@ -66,19 +69,37 @@ const waitForNavigationReadiness = async (
   throw error;
 };
 
+const readActivePreviewTabId = (
+  threadRef: ScopedThreadRef,
+  fallbackTabId: string | null = null,
+): string | null => {
+  const activeSurface = selectActiveRightPanelSurface(
+    useRightPanelStore.getState().byThreadKey,
+    threadRef,
+  );
+  if (activeSurface?.kind === "preview" && activeSurface.resourceId)
+    return activeSurface.resourceId;
+
+  const state = selectThreadPreviewState(usePreviewStateStore.getState().byThreadKey, threadRef);
+  return state.activeTabId ?? state.snapshot?.tabId ?? fallbackTabId;
+};
+
 const currentStatus = async (
   threadRef: ScopedThreadRef,
   visible: boolean,
 ): Promise<PreviewAutomationStatus> => {
   const state = selectThreadPreviewState(usePreviewStateStore.getState().byThreadKey, threadRef);
-  const tabId = state.snapshot?.tabId ?? null;
-  if (tabId && previewBridge && state.desktopOverlay) {
-    const status = await previewBridge.automation.status(tabId);
+  const tabId = readActivePreviewTabId(threadRef);
+  const bridge = getPreviewBridge();
+  const desktopOverlay = tabId ? (state.desktopByTabId[tabId] ?? null) : null;
+  if (tabId && bridge && desktopOverlay) {
+    const status = await bridge.automation.status(tabId);
     return { ...status, visible };
   }
-  const navStatus = state.snapshot?.navStatus;
+  const snapshot = tabId ? (state.sessions[tabId] ?? state.snapshot) : state.snapshot;
+  const navStatus = snapshot?.navStatus;
   return {
-    available: Boolean(previewBridge?.automation),
+    available: Boolean(bridge?.automation),
     visible,
     tabId,
     url: navStatus && navStatus._tag !== "Idle" ? navStatus.url : null,
@@ -129,18 +150,20 @@ export function PreviewAutomationOwner(props: {
         throw error;
       }
       const api = ensureEnvironmentApi(threadRef.environmentId);
-      const state = selectThreadPreviewState(
-        usePreviewStateStore.getState().byThreadKey,
-        threadRef,
-      );
-      const tabId = request.tabId ?? state.snapshot?.tabId ?? null;
+      // Prefer the renderer's active browser surface over request.tabId. The
+      // broker's owner report can lag behind a user clicking another preview
+      // tab, and the preview store snapshot can also lag if tab activation and
+      // server session replay race. The right-panel active surface is the UI
+      // source of truth for the tab the human is looking at.
+      const tabId = readActivePreviewTabId(threadRef, request.tabId ?? null);
+      const bridge = getPreviewBridge();
       switch (request.operation) {
         case "status":
           return currentStatus(threadRef, visible);
         case "open": {
           const input = request.input as PreviewAutomationOpenInput;
           let activeTabId =
-            (input.reuseExistingTab ?? true) ? (state.snapshot?.tabId ?? null) : null;
+            (input.reuseExistingTab ?? true) ? readActivePreviewTabId(threadRef) : null;
           if (!activeTabId) {
             const snapshot = await api.preview.open({
               threadId: threadRef.threadId,
@@ -148,8 +171,8 @@ export function PreviewAutomationOwner(props: {
             });
             usePreviewStateStore.getState().applyServerSnapshot(threadRef, snapshot);
             activeTabId = snapshot.tabId;
-          } else if (input.url && previewBridge) {
-            await previewBridge.navigate(activeTabId, input.url);
+          } else if (input.url && bridge) {
+            await bridge.navigate(activeTabId, input.url);
           }
           if (input.show ?? true) {
             useRightPanelStore.getState().openBrowser(threadRef, activeTabId);
@@ -158,13 +181,13 @@ export function PreviewAutomationOwner(props: {
           return currentStatus(threadRef, input.show ?? true);
         }
         case "navigate": {
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
           const input = request.input as PreviewAutomationNavigateInput;
           const resolution = resolveBrowserNavigationTarget(
             threadRef.environmentId,
             input.target ?? { kind: "url", url: input.url! },
           );
-          await previewBridge.navigate(tabId, resolution.resolvedUrl);
+          await bridge.navigate(tabId, resolution.resolvedUrl);
           await waitForNavigationReadiness(
             tabId,
             input.readiness ?? "load",
@@ -173,43 +196,43 @@ export function PreviewAutomationOwner(props: {
           return currentStatus(threadRef, visible);
         }
         case "snapshot":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.snapshot(tabId);
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.snapshot(tabId);
         case "click":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.click(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.click(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.click>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["click"]>[1],
           );
         case "type":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.type(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.type(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.type>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["type"]>[1],
           );
         case "press":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.press(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.press(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.press>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["press"]>[1],
           );
         case "scroll":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.scroll(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.scroll(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.scroll>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["scroll"]>[1],
           );
         case "evaluate":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.evaluate(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.evaluate(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.evaluate>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["evaluate"]>[1],
           );
         case "waitFor":
-          if (!previewBridge || !tabId) throw new Error("Preview tab is not initialized.");
-          return previewBridge.automation.waitFor(
+          if (!bridge || !tabId) throw new Error("Preview tab is not initialized.");
+          return bridge.automation.waitFor(
             tabId,
-            request.input as Parameters<typeof previewBridge.automation.waitFor>[1],
+            request.input as Parameters<DesktopPreviewBridge["automation"]["waitFor"]>[1],
           );
         case "recordingStart": {
           if (!tabId) throw new Error("Preview tab is not initialized.");
@@ -257,17 +280,13 @@ export function PreviewAutomationOwner(props: {
       {
         onResubscribe: () => {
           const ownerState = ownerStateRef.current;
-          const state = selectThreadPreviewState(
-            usePreviewStateStore.getState().byThreadKey,
-            ownerState.threadRef,
-          );
           void api.preview.automation.reportOwner({
             clientId: automationClientId,
             environmentId: ownerState.threadRef.environmentId,
             threadId: ownerState.threadRef.threadId,
-            tabId: state.snapshot?.tabId ?? null,
+            tabId: readActivePreviewTabId(ownerState.threadRef),
             visible: ownerState.visible,
-            supportsAutomation: Boolean(previewBridge?.automation),
+            supportsAutomation: Boolean(getPreviewBridge()?.automation),
             focusedAt: new Date().toISOString(),
           });
         },
@@ -278,31 +297,37 @@ export function PreviewAutomationOwner(props: {
   useEffect(() => {
     const api = ensureEnvironmentApi(threadRef.environmentId);
     const report = () => {
-      const state = selectThreadPreviewState(
-        usePreviewStateStore.getState().byThreadKey,
-        threadRef,
-      );
       void api.preview.automation.reportOwner({
         clientId: automationClientId,
         environmentId: threadRef.environmentId,
         threadId: threadRef.threadId,
-        tabId: state.snapshot?.tabId ?? null,
+        tabId: readActivePreviewTabId(threadRef),
         visible,
-        supportsAutomation: Boolean(previewBridge?.automation),
+        supportsAutomation: Boolean(getPreviewBridge()?.automation),
         focusedAt: new Date().toISOString(),
       });
     };
     report();
     window.addEventListener("focus", report);
-    const unsubscribe = usePreviewStateStore.subscribe((state, previous) => {
+    const unsubscribePreview = usePreviewStateStore.subscribe((state, previous) => {
       const key = scopedThreadKey(threadRef);
-      if (state.byThreadKey[key]?.snapshot?.tabId !== previous.byThreadKey[key]?.snapshot?.tabId) {
+      if (
+        state.byThreadKey[key]?.activeTabId !== previous.byThreadKey[key]?.activeTabId ||
+        state.byThreadKey[key]?.snapshot?.tabId !== previous.byThreadKey[key]?.snapshot?.tabId
+      ) {
+        report();
+      }
+    });
+    const unsubscribeRightPanel = useRightPanelStore.subscribe((state, previous) => {
+      const key = scopedThreadKey(threadRef);
+      if (state.byThreadKey[key]?.activeSurfaceId !== previous.byThreadKey[key]?.activeSurfaceId) {
         report();
       }
     });
     return () => {
       window.removeEventListener("focus", report);
-      unsubscribe();
+      unsubscribePreview();
+      unsubscribeRightPanel();
       void api.preview.automation.clearOwner({ clientId: automationClientId });
     };
   }, [automationClientId, threadRef, visible]);

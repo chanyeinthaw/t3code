@@ -1,18 +1,25 @@
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Sink from "effect/Sink";
 import * as Stream from "effect/Stream";
+import * as Path from "effect/Path";
 import type * as Types from "effect/Types";
 import { McpSchema, McpServer, Tool } from "effect/unstable/ai";
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
 
 import packageJson from "../../package.json" with { type: "json" };
+import { ServerConfig } from "../config.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 import * as McpSessionRegistry from "./McpSessionRegistry.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
+import {
+  makePreviewAutomationSnapshotToolView,
+  safePreviewAutomationJsonText,
+} from "./PreviewAutomationSnapshotArtifacts.ts";
 import {
   PreviewSnapshotToolkitHandlersLive,
   PreviewStandardToolkitHandlersLive,
@@ -91,6 +98,9 @@ const McpAuthMiddlewareLive = HttpRouter.middleware<{
 const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot")(function* () {
   const server = yield* McpServer.McpServer;
   const broker = yield* PreviewAutomationBroker.PreviewAutomationBroker;
+  const serverConfig = yield* ServerConfig;
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
   const built = yield* PreviewSnapshotToolkit;
   const tool = PreviewSnapshotTool;
   yield* server.addTool({
@@ -122,12 +132,14 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
           Effect.flatMap(Effect.fromOption),
           Effect.provideService(PreviewAutomationBroker.PreviewAutomationBroker, broker),
           Effect.provideService(McpInvocationContext.McpInvocationContext, invocation),
-          Effect.matchCause({
+          Effect.matchCauseEffect({
             onFailure: (cause) =>
-              new McpSchema.CallToolResult({
-                isError: true,
-                content: [{ type: "text", text: Cause.pretty(cause) }],
-              }),
+              Effect.succeed(
+                new McpSchema.CallToolResult({
+                  isError: true,
+                  content: [{ type: "text", text: Cause.pretty(cause) }],
+                }),
+              ),
             onSuccess: ({ encodedResult }) => {
               const snapshot = encodedResult as {
                 readonly screenshot: {
@@ -138,27 +150,32 @@ const registerPreviewSnapshot = Effect.fn("McpHttpServer.registerPreviewSnapshot
                 };
                 readonly [key: string]: unknown;
               };
-              const { screenshot, ...page } = snapshot;
-              const metadata = {
-                ...page,
-                screenshot: {
-                  mimeType: screenshot.mimeType,
-                  width: screenshot.width,
-                  height: screenshot.height,
-                },
-              };
-              return new McpSchema.CallToolResult({
-                isError: false,
-                structuredContent: metadata,
-                content: [
-                  { type: "text", text: JSON.stringify(metadata) },
-                  {
-                    type: "image",
-                    data: new Uint8Array(Buffer.from(screenshot.data, "base64")),
-                    mimeType: screenshot.mimeType,
-                  },
-                ],
-              });
+              return makePreviewAutomationSnapshotToolView({
+                stateDir: serverConfig.stateDir,
+                threadId: invocation.threadId,
+                snapshot,
+              }).pipe(
+                Effect.provideService(FileSystem.FileSystem, fileSystem),
+                Effect.provideService(Path.Path, path),
+                Effect.map(
+                  (snapshotView) =>
+                    new McpSchema.CallToolResult({
+                      isError: false,
+                      structuredContent: snapshotView.value as Record<string, unknown>,
+                      content: [
+                        {
+                          type: "text",
+                          text: `${safePreviewAutomationJsonText(snapshotView.value)}\n\nInline snapshot output is truncated to avoid overflowing the model context. The complete snapshot JSON${snapshotView.artifact ? ` was saved at ${snapshotView.artifact.artifactPath}` : " could not be saved"}. Read fullSnapshotArtifact.artifactPath if you need the full accessibility tree or untruncated snapshot data.`,
+                        },
+                        {
+                          type: "image",
+                          data: new Uint8Array(Buffer.from(snapshot.screenshot.data, "base64")),
+                          mimeType: snapshot.screenshot.mimeType,
+                        },
+                      ],
+                    }),
+                ),
+              );
             },
           }),
         );

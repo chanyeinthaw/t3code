@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest";
-import { NodeHttpServer } from "@effect/platform-node";
+import { NodeHttpServer, NodeServices } from "@effect/platform-node";
 import { EnvironmentId, PreviewTabId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -7,6 +7,7 @@ import * as Stream from "effect/Stream";
 import { McpSchema, McpServer } from "effect/unstable/ai";
 import { HttpBody, HttpClient, HttpRouter, HttpServerResponse } from "effect/unstable/http";
 
+import { ServerConfig } from "../config.ts";
 import * as McpHttpServer from "./McpHttpServer.ts";
 import * as McpInvocationContext from "./McpInvocationContext.ts";
 import * as PreviewAutomationBroker from "./PreviewAutomationBroker.ts";
@@ -35,6 +36,8 @@ const client = McpSchema.McpServerClient.of({
 const TestLayer = McpHttpServer.PreviewToolkitRegistrationLive.pipe(
   Layer.provideMerge(McpServer.McpServer.layer),
   Layer.provideMerge(PreviewAutomationBroker.layer),
+  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-http-test-" })),
+  Layer.provideMerge(NodeServices.layer),
 );
 
 it("normalizes empty successful notification responses to accepted", () => {
@@ -121,6 +124,9 @@ it.effect("registers annotated tools and preserves authenticated request context
                   visibleText: "Example",
                   interactiveElements: [],
                   accessibilityTree: {},
+                  consoleEntries: [],
+                  networkEntries: [],
+                  actionTimeline: [],
                   screenshot: {
                     mimeType: "image/png",
                     data: Buffer.from("png").toString("base64"),

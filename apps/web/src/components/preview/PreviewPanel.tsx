@@ -10,11 +10,12 @@ import { PreviewView } from "./PreviewView";
 interface Props {
   mode: PreviewPanelMode;
   threadRef: ScopedThreadRef;
+  tabId?: string | null | undefined;
   configuredUrls?: ReadonlyArray<string> | undefined;
   visible: boolean;
 }
 
-export function PreviewPanel({ mode, threadRef, configuredUrls, visible }: Props) {
+export function PreviewPanel({ mode, threadRef, tabId, configuredUrls, visible }: Props) {
   if (!isPreviewSupportedInRuntime()) {
     return (
       <PreviewPanelShell mode={mode}>
@@ -29,7 +30,12 @@ export function PreviewPanel({ mode, threadRef, configuredUrls, visible }: Props
 
   return (
     <PreviewPanelShell mode={mode}>
-      <PreviewView threadRef={threadRef} configuredUrls={configuredUrls} visible={visible} />
+      <PreviewView
+        threadRef={threadRef}
+        tabId={tabId}
+        configuredUrls={configuredUrls}
+        visible={visible}
+      />
     </PreviewPanelShell>
   );
 }

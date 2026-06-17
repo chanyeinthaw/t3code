@@ -5191,6 +5191,7 @@ function ChatViewContent(props: ChatViewProps) {
               <PreviewPanel
                 mode="sidebar"
                 threadRef={activeThreadRef}
+                tabId={activeRightPanelSurface.resourceId}
                 configuredUrls={configuredPreviewUrls}
                 visible
               />
@@ -5297,6 +5298,7 @@ function ChatViewContent(props: ChatViewProps) {
                 <PreviewPanel
                   mode="sidebar"
                   threadRef={activeThreadRef}
+                  tabId={activeRightPanelSurface.resourceId}
                   configuredUrls={configuredPreviewUrls}
                   visible
                 />

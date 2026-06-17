@@ -253,6 +253,29 @@ describe("previewStateStore (single-tab)", () => {
     expect(state.desktopOverlay?.canGoBack).toBe(true);
   });
 
+  it("does not let replayed server snapshots steal the active tab", () => {
+    const first = makeSnapshot({ tabId: "tab_a" });
+    const second = makeSnapshot({
+      tabId: "tab_b",
+      updatedAt: "2026-01-01T00:00:01.000Z",
+    });
+    const third = makeSnapshot({
+      tabId: "tab_c",
+      updatedAt: "2026-01-01T00:00:02.000Z",
+    });
+    const store = usePreviewStateStore.getState();
+    store.applyServerSnapshot(ref, first);
+    store.applyServerSnapshot(ref, second);
+    store.applyServerSnapshot(ref, third);
+    store.setActiveTab(ref, first.tabId);
+
+    store.applyServerSnapshot(ref, third);
+
+    const state = selectThreadPreviewState(usePreviewStateStore.getState().byThreadKey, ref);
+    expect(state.activeTabId).toBe(first.tabId);
+    expect(state.snapshot?.tabId).toBe(first.tabId);
+  });
+
   it("applyServerSnapshot null clears snapshot for a thread that had one", () => {
     const snapshot = makeSnapshot();
     const store = usePreviewStateStore.getState();

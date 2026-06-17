@@ -1,4 +1,5 @@
 import {
+  EnvironmentId,
   EventId,
   ProviderDriverKind,
   ProviderInstanceId,
@@ -15,6 +16,7 @@ import {
   TurnId,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
+import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
@@ -25,6 +27,7 @@ import * as Ref from "effect/Ref";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
 import * as FileSystem from "effect/FileSystem";
+import * as Path from "effect/Path";
 import type {
   AgentSession,
   AgentSessionEvent,
@@ -39,6 +42,7 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 import { resolveAttachmentPath } from "../../attachmentStore.ts";
+import { makePreviewAutomationSnapshotToolView } from "../../mcp/PreviewAutomationSnapshotArtifacts.ts";
 import { ServerConfig } from "../../config.ts";
 import {
   ProviderAdapterProcessError,
@@ -50,6 +54,7 @@ import type { PiAdapterShape } from "../Services/PiAdapter.ts";
 import type { PiSettings } from "@t3tools/contracts";
 import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { PI_SLASH_COMMANDS, piSkillToServerProviderSkill } from "./PiProvider.ts";
+import { makePiT3Tools, T3_PI_TOOL_NAMES } from "./PiT3Tools.ts";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 const DEFAULT_PI_THINKING_LEVEL = "medium";
@@ -146,9 +151,10 @@ interface PiAdapterOptions {
   readonly authStorage?: AuthStorage;
   readonly modelRegistry: ModelRegistry;
   readonly nativeEventLogger?: EventNdjsonLogger;
+  readonly environmentId: EnvironmentId;
 }
 
-export type PiAdapterEnv = Crypto.Crypto | FileSystem.FileSystem | ServerConfig;
+export type PiAdapterEnv = Crypto.Crypto | FileSystem.FileSystem | Path.Path | ServerConfig;
 
 const nowIso = Effect.map(DateTime.now, DateTime.formatIso);
 
@@ -798,10 +804,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   const nativeEventLogger = options.nativeEventLogger;
   const serverConfig = yield* ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
   const crypto = yield* Crypto.Crypto;
   const runtimeEvents = yield* Queue.unbounded<ProviderRuntimeEvent>();
   const effectContext = yield* Effect.context<never>();
   const runFork = Effect.runForkWith(effectContext);
+  const runPromise = Effect.runPromiseWith(effectContext);
   const randomUUIDv4 = crypto.randomUUIDv4.pipe(
     Effect.mapError(
       (cause) =>
@@ -1426,6 +1434,28 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
       ? SessionManager.open(resumeSessionFile, undefined, cwd)
       : undefined;
     const sessionScope = yield* Scope.make();
+    const environmentId = options.environmentId;
+    const providerSessionId = yield* randomUUIDv4;
+    const issuedAt = yield* Clock.currentTimeMillis;
+    const piT3Tools = makePiT3Tools({
+      environmentId,
+      threadId: input.threadId,
+      providerInstanceId: boundInstanceId,
+      providerSessionId,
+      makeSnapshotToolView: (snapshot) =>
+        runPromise(
+          makePreviewAutomationSnapshotToolView({
+            stateDir: serverConfig.stateDir,
+            threadId: input.threadId,
+            snapshot,
+          }).pipe(
+            Effect.provideService(FileSystem.FileSystem, fileSystem),
+            Effect.provideService(Path.Path, path),
+          ),
+        ),
+      issuedAt,
+      expiresAt: issuedAt + 8 * 60 * 60 * 1_000,
+    });
     const created = yield* Effect.tryPromise({
       try: () =>
         withTemporaryProcessEnvironment(options.environment, async () => {
@@ -1440,13 +1470,16 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             modelRegistry: options.modelRegistry,
             model,
             ...(sessionManager ? { sessionManager } : {}),
-            ...(piSettings.tools.length > 0 ? { tools: [...piSettings.tools] } : {}),
+            ...(piSettings.tools.length > 0
+              ? { tools: [...new Set([...piSettings.tools, ...T3_PI_TOOL_NAMES])] }
+              : {}),
             ...(piSettings.excludeTools.length > 0
               ? { excludeTools: [...piSettings.excludeTools] }
               : {}),
             ...(piSettings.noTools === "all" || piSettings.noTools === "builtin"
               ? { noTools: piSettings.noTools }
               : {}),
+            customTools: piT3Tools,
           });
           await created.session.bindExtensions({});
           return created;
