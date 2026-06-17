@@ -64,6 +64,8 @@ import { openDiscoveredPort } from "./preview/openDiscoveredPort";
 
 const MIN_DRAWER_HEIGHT = 180;
 const MAX_DRAWER_HEIGHT_RATIO = 0.75;
+const MIN_TERMINAL_SPLIT_SIZE = 120;
+const SPLIT_RESIZE_HANDLE_SIZE = 6;
 const MULTI_CLICK_SELECTION_ACTION_DELAY_MS = 260;
 
 function maxDrawerHeight(): number {
@@ -75,6 +77,63 @@ function clampDrawerHeight(height: number): number {
   const safeHeight = Number.isFinite(height) ? height : DEFAULT_THREAD_TERMINAL_HEIGHT;
   const maxHeight = maxDrawerHeight();
   return Math.min(Math.max(Math.round(safeHeight), MIN_DRAWER_HEIGHT), maxHeight);
+}
+
+function equalFractions(left: readonly number[], right: readonly number[]): boolean {
+  if (left.length !== right.length) return false;
+  for (let index = 0; index < left.length; index += 1) {
+    if (Math.abs((left[index] ?? 0) - (right[index] ?? 0)) > 0.001) return false;
+  }
+  return true;
+}
+
+function normalizeSplitFractions(
+  fractions: readonly number[] | undefined,
+  paneCount: number,
+): number[] {
+  if (paneCount <= 0) return [];
+  if (!fractions || fractions.length !== paneCount) {
+    return Array.from({ length: paneCount }, () => 1);
+  }
+  return fractions.map((fraction) => (Number.isFinite(fraction) && fraction > 0 ? fraction : 1));
+}
+
+export function resizeTerminalSplitFractions(input: {
+  fractions: readonly number[];
+  dividerIndex: number;
+  deltaPx: number;
+  totalSizePx: number;
+  minPaneSizePx?: number;
+}): number[] {
+  const fractions = normalizeSplitFractions(input.fractions, input.fractions.length);
+  const leftIndex = input.dividerIndex;
+  const rightIndex = input.dividerIndex + 1;
+  if (
+    fractions.length < 2 ||
+    leftIndex < 0 ||
+    rightIndex >= fractions.length ||
+    !Number.isFinite(input.totalSizePx) ||
+    input.totalSizePx <= 0 ||
+    !Number.isFinite(input.deltaPx)
+  ) {
+    return fractions;
+  }
+
+  const totalFraction = fractions.reduce((sum, fraction) => sum + fraction, 0);
+  const requestedDeltaFraction = (input.deltaPx / input.totalSizePx) * totalFraction;
+  const minPaneFraction = Math.min(
+    totalFraction / fractions.length,
+    ((input.minPaneSizePx ?? MIN_TERMINAL_SPLIT_SIZE) / input.totalSizePx) * totalFraction,
+  );
+  const leftFraction = fractions[leftIndex] ?? 1;
+  const rightFraction = fractions[rightIndex] ?? 1;
+  const minDelta = minPaneFraction - leftFraction;
+  const maxDelta = rightFraction - minPaneFraction;
+  const deltaFraction = Math.max(minDelta, Math.min(requestedDeltaFraction, maxDelta));
+  const nextFractions = [...fractions];
+  nextFractions[leftIndex] = leftFraction + deltaFraction;
+  nextFractions[rightIndex] = rightFraction - deltaFraction;
+  return nextFractions;
 }
 
 function writeSystemMessage(terminal: Terminal, message: string): void {
@@ -861,6 +920,7 @@ interface ThreadTerminalDrawerProps {
   onHeightChange: (height: number) => void;
   onAddTerminalContext: (selection: TerminalContextSelection) => void;
   keybindings: ResolvedKeybindingsConfig;
+  emptyStateMessage?: string;
   /** Prefer server-provided tab titles when present (e.g. active subprocess name). */
   terminalLabelsById?: ReadonlyMap<string, string>;
   /** Prefer per-session launch locations when the server already knows a terminal. */
@@ -922,12 +982,16 @@ export default function ThreadTerminalDrawer({
   onHeightChange,
   onAddTerminalContext,
   keybindings,
+  emptyStateMessage = "No terminal sessions for this thread yet.",
   terminalLabelsById,
   terminalLaunchLocationsById,
 }: ThreadTerminalDrawerProps) {
   const isPanel = mode === "panel";
   const [drawerHeight, setDrawerHeight] = useState(() => clampDrawerHeight(height));
   const [resizeEpoch, setResizeEpoch] = useState(0);
+  const [splitFractionsByGroupKey, setSplitFractionsByGroupKey] = useState<
+    Record<string, number[]>
+  >({});
   const drawerHeightRef = useRef(drawerHeight);
   const lastSyncedHeightRef = useRef(clampDrawerHeight(height));
   const onHeightChangeRef = useRef(onHeightChange);
@@ -935,6 +999,14 @@ export default function ThreadTerminalDrawer({
     pointerId: number;
     startY: number;
     startHeight: number;
+  } | null>(null);
+  const splitGridRef = useRef<HTMLDivElement | null>(null);
+  const splitResizeStateRef = useRef<{
+    pointerId: number;
+    dividerIndex: number;
+    startClient: number;
+    startFractions: number[];
+    totalSizePx: number;
   } | null>(null);
   const didResizeDuringDragRef = useRef(false);
 
@@ -1042,11 +1114,16 @@ export default function ThreadTerminalDrawer({
     return indexByTerminal >= 0 ? indexByTerminal : 0;
   }, [activeTerminalGroupId, resolvedActiveTerminalId, resolvedTerminalGroups]);
 
+  const activeTerminalGroup = resolvedTerminalGroups[resolvedActiveGroupIndex] ?? null;
   const visibleTerminalIds =
-    resolvedTerminalGroups[resolvedActiveGroupIndex]?.terminalIds ??
+    activeTerminalGroup?.terminalIds ??
     (normalizedTerminalIds.length > 0 ? [resolvedActiveTerminalId] : []);
-  const splitDirection =
-    resolvedTerminalGroups[resolvedActiveGroupIndex]?.splitDirection ?? "horizontal";
+  const splitDirection = activeTerminalGroup?.splitDirection ?? "horizontal";
+  const activeSplitGroupKey = `${activeTerminalGroup?.id ?? "fallback"}:${splitDirection}:${visibleTerminalIds.join("|")}`;
+  const activeSplitFractions = normalizeSplitFractions(
+    splitFractionsByGroupKey[activeSplitGroupKey],
+    visibleTerminalIds.length,
+  );
   const hasTerminalSidebar = normalizedTerminalIds.length > 1;
   const isSplitView = visibleTerminalIds.length > 1;
   const showGroupHeaders =
@@ -1116,6 +1193,23 @@ export default function ThreadTerminalDrawer({
   }, [onHeightChange]);
 
   useEffect(() => {
+    if (visibleTerminalIds.length <= 1) return;
+    setSplitFractionsByGroupKey((current) => {
+      const normalizedFractions = normalizeSplitFractions(
+        current[activeSplitGroupKey],
+        visibleTerminalIds.length,
+      );
+      if (equalFractions(current[activeSplitGroupKey] ?? [], normalizedFractions)) {
+        return current;
+      }
+      return {
+        ...current,
+        [activeSplitGroupKey]: normalizedFractions,
+      };
+    });
+  }, [activeSplitGroupKey, visibleTerminalIds.length]);
+
+  useEffect(() => {
     drawerHeightRef.current = drawerHeight;
   }, [drawerHeight]);
 
@@ -1177,6 +1271,62 @@ export default function ThreadTerminalDrawer({
     [syncHeight],
   );
 
+  const handleSplitResizePointerDown = useCallback(
+    (dividerIndex: number) => (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return;
+      const grid = splitGridRef.current;
+      if (!grid) return;
+      const bounds = grid.getBoundingClientRect();
+      const totalSizePx = splitDirection === "vertical" ? bounds.height : bounds.width;
+      if (totalSizePx <= 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      splitResizeStateRef.current = {
+        pointerId: event.pointerId,
+        dividerIndex,
+        startClient: splitDirection === "vertical" ? event.clientY : event.clientX,
+        startFractions: activeSplitFractions,
+        totalSizePx,
+      };
+    },
+    [activeSplitFractions, splitDirection],
+  );
+
+  const handleSplitResizePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const resizeState = splitResizeStateRef.current;
+      if (!resizeState || resizeState.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const currentClient = splitDirection === "vertical" ? event.clientY : event.clientX;
+      const nextFractions = resizeTerminalSplitFractions({
+        fractions: resizeState.startFractions,
+        dividerIndex: resizeState.dividerIndex,
+        deltaPx: currentClient - resizeState.startClient,
+        totalSizePx: resizeState.totalSizePx,
+      });
+      setSplitFractionsByGroupKey((current) => {
+        if (equalFractions(current[activeSplitGroupKey] ?? [], nextFractions)) return current;
+        return {
+          ...current,
+          [activeSplitGroupKey]: nextFractions,
+        };
+      });
+    },
+    [activeSplitGroupKey, splitDirection],
+  );
+
+  const handleSplitResizePointerEnd = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const resizeState = splitResizeStateRef.current;
+    if (!resizeState || resizeState.pointerId !== event.pointerId) return;
+    splitResizeStateRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setResizeEpoch((value) => value + 1);
+  }, []);
+
   useEffect(() => {
     if (!visible) {
       return;
@@ -1233,7 +1383,7 @@ export default function ThreadTerminalDrawer({
           />
         ) : null}
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>No terminal sessions for this thread yet.</p>
+          <p>{emptyStateMessage}</p>
           <button
             type="button"
             className="rounded-md border border-border/80 bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
@@ -1318,23 +1468,28 @@ export default function ThreadTerminalDrawer({
           <div className="min-w-0 flex-1">
             {isSplitView ? (
               <div
+                ref={splitGridRef}
                 className="grid h-full w-full min-w-0 gap-0 overflow-hidden"
                 style={
                   splitDirection === "vertical"
                     ? {
-                        gridTemplateRows: `repeat(${visibleTerminalIds.length}, minmax(0, 1fr))`,
+                        gridTemplateRows: activeSplitFractions
+                          .map((fraction) => `minmax(0, ${fraction}fr)`)
+                          .join(" "),
                       }
                     : {
-                        gridTemplateColumns: `repeat(${visibleTerminalIds.length}, minmax(0, 1fr))`,
+                        gridTemplateColumns: activeSplitFractions
+                          .map((fraction) => `minmax(0, ${fraction}fr)`)
+                          .join(" "),
                       }
                 }
               >
-                {visibleTerminalIds.map((terminalId) => {
+                {visibleTerminalIds.map((terminalId, terminalIndex) => {
                   const terminalLaunchLocation = resolveTerminalLaunchLocation(terminalId);
                   return (
                     <div
                       key={terminalId}
-                      className={`min-h-0 min-w-0 ${
+                      className={`relative min-h-0 min-w-0 ${
                         splitDirection === "vertical"
                           ? "border-t first:border-t-0"
                           : "border-l first:border-l-0"
@@ -1349,6 +1504,30 @@ export default function ThreadTerminalDrawer({
                         }
                       }}
                     >
+                      {terminalIndex > 0 ? (
+                        <div
+                          role="separator"
+                          aria-orientation={
+                            splitDirection === "vertical" ? "horizontal" : "vertical"
+                          }
+                          aria-label="Resize terminal split"
+                          className={cn(
+                            "absolute z-30 touch-none bg-transparent transition-colors hover:bg-primary/20",
+                            splitDirection === "vertical"
+                              ? "inset-x-0 top-0 -translate-y-1/2 cursor-row-resize"
+                              : "inset-y-0 left-0 -translate-x-1/2 cursor-col-resize",
+                          )}
+                          style={
+                            splitDirection === "vertical"
+                              ? { height: `${SPLIT_RESIZE_HANDLE_SIZE}px` }
+                              : { width: `${SPLIT_RESIZE_HANDLE_SIZE}px` }
+                          }
+                          onPointerDown={handleSplitResizePointerDown(terminalIndex - 1)}
+                          onPointerMove={handleSplitResizePointerMove}
+                          onPointerUp={handleSplitResizePointerEnd}
+                          onPointerCancel={handleSplitResizePointerEnd}
+                        />
+                      ) : null}
                       <div className="h-full p-1">
                         <TerminalViewport
                           threadRef={threadRef}

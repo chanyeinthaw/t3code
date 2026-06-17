@@ -7,11 +7,38 @@ import {
   selectThreadTerminalUiState,
   useTerminalUiStateStore,
 } from "./terminalUiStateStore";
+import { resizeTerminalSplitFractions } from "./components/ThreadTerminalDrawer";
 import { DEFAULT_THREAD_TERMINAL_ID } from "./types";
 
 const THREAD_ID = ThreadId.make("thread-1");
 const THREAD_REF = scopeThreadRef("environment-a" as never, THREAD_ID);
 const OTHER_THREAD_REF = scopeThreadRef("environment-b" as never, THREAD_ID);
+
+describe("resizeTerminalSplitFractions", () => {
+  it("resizes adjacent terminal split fractions while preserving total size", () => {
+    expect(
+      resizeTerminalSplitFractions({
+        fractions: [1, 1],
+        dividerIndex: 0,
+        deltaPx: 50,
+        totalSizePx: 400,
+        minPaneSizePx: 120,
+      }),
+    ).toEqual([1.25, 0.75]);
+  });
+
+  it("clamps terminal split resizing at the minimum pane size", () => {
+    expect(
+      resizeTerminalSplitFractions({
+        fractions: [1, 1],
+        dividerIndex: 0,
+        deltaPx: 300,
+        totalSizePx: 400,
+        minPaneSizePx: 120,
+      }),
+    ).toEqual([1.4, 0.6]);
+  });
+});
 
 describe("terminalUiStateStore actions", () => {
   beforeEach(() => {

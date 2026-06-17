@@ -5,7 +5,7 @@ import {
   type ProjectId,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
-import { nextTerminalId, resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabels";
+import { nextTerminalId } from "@t3tools/shared/terminalLabels";
 import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
@@ -13,6 +13,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 
 import { readEnvironmentApi } from "../environmentApi";
 import { projectTerminalThreadId } from "../lib/projectTerminal";
+import { buildOwnerScopedTerminalLabels } from "../lib/terminalOwnerLabels";
 import { selectProjectByRef, useStore } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
 import { useKnownTerminalSessions } from "../terminalSessionState";
@@ -37,7 +38,7 @@ const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { t
     >
       <div className="min-w-0 flex-1">
         <h2 className="truncate text-sm font-medium text-foreground" title={title}>
-          Terminal: {title}
+          Terminal
         </h2>
       </div>
     </header>
@@ -58,8 +59,10 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
   const terminalUiState = useTerminalUiStateStore((state) =>
     selectThreadTerminalUiState(state.terminalUiStateByThreadKey, terminalThreadRef),
   );
-  const storeEnsureTerminal = useTerminalUiStateStore((state) => state.ensureTerminal);
   const storeSplitTerminal = useTerminalUiStateStore((state) => state.splitTerminal);
+  const storeSplitTerminalVertical = useTerminalUiStateStore(
+    (state) => state.splitTerminalVertical,
+  );
   const storeNewTerminal = useTerminalUiStateStore((state) => state.newTerminal);
   const storeSetActiveTerminal = useTerminalUiStateStore((state) => state.setActiveTerminal);
   const storeCloseTerminal = useTerminalUiStateStore((state) => state.closeTerminal);
@@ -73,15 +76,14 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
     [knownTerminalSessions],
   );
   const terminalLabelsById = useMemo(() => {
-    const next = new Map<string, string>();
-    for (const session of knownTerminalSessions) {
-      next.set(
-        session.target.terminalId,
-        resolveTerminalSessionLabel(session.target.terminalId, session.state.summary),
-      );
-    }
-    return next;
-  }, [knownTerminalSessions]);
+    const summaryByTerminalId = new Map(
+      knownTerminalSessions.map((session) => [session.target.terminalId, session.state.summary]),
+    );
+    return buildOwnerScopedTerminalLabels({
+      terminalIds: terminalUiState.terminalIds,
+      summaryByTerminalId,
+    });
+  }, [knownTerminalSessions, terminalUiState.terminalIds]);
   const [focusRequestId, setFocusRequestId] = useState(0);
   const runtimeEnv = useMemo(
     () => (project ? projectScriptRuntimeEnv({ project: { cwd: project.cwd } }) : {}),
@@ -112,30 +114,19 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
     [environmentId, project, runtimeEnv, terminalThreadId],
   );
 
-  useEffect(() => {
-    const terminalId = terminalUiState.activeTerminalId || serverOrderedTerminalIds[0] || "term-1";
-    storeEnsureTerminal(terminalThreadRef, terminalId, {
-      open: true,
-      active: true,
-    });
-    if (project) {
-      void openTerminal(terminalId).catch(() => undefined);
-    }
-  }, [
-    openTerminal,
-    project,
-    serverOrderedTerminalIds,
-    storeEnsureTerminal,
-    terminalThreadRef,
-    terminalUiState.activeTerminalId,
-  ]);
-
   const splitTerminal = useCallback(() => {
     const terminalId = nextTerminalId(terminalUiState.terminalIds);
     storeSplitTerminal(terminalThreadRef, terminalId);
     setFocusRequestId((value) => value + 1);
     void openTerminal(terminalId).catch(() => undefined);
   }, [openTerminal, storeSplitTerminal, terminalThreadRef, terminalUiState.terminalIds]);
+
+  const splitTerminalVertical = useCallback(() => {
+    const terminalId = nextTerminalId(terminalUiState.terminalIds);
+    storeSplitTerminalVertical(terminalThreadRef, terminalId);
+    setFocusRequestId((value) => value + 1);
+    void openTerminal(terminalId).catch(() => undefined);
+  }, [openTerminal, storeSplitTerminalVertical, terminalThreadRef, terminalUiState.terminalIds]);
 
   const createNewTerminal = useCallback(() => {
     const terminalId = nextTerminalId(terminalUiState.terminalIds);
@@ -219,13 +210,14 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
           activeTerminalGroupId={terminalUiState.activeTerminalGroupId}
           focusRequestId={focusRequestId}
           onSplitTerminal={splitTerminal}
-          onSplitTerminalVertical={splitTerminal}
+          onSplitTerminalVertical={splitTerminalVertical}
           onNewTerminal={createNewTerminal}
           onActiveTerminalChange={activateTerminal}
           onCloseTerminal={closeTerminal}
           onHeightChange={() => undefined}
           onAddTerminalContext={() => undefined}
           keybindings={keybindings}
+          emptyStateMessage="No project terminal sessions yet."
           terminalLabelsById={terminalLabelsById}
         />
       </div>
