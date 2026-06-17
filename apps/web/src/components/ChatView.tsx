@@ -3698,28 +3698,25 @@ function ChatViewContent(props: ChatViewProps) {
       interactionMode === "plan" ? "default" : "plan",
     );
   }, [handleInteractionModeChange, interactionMode]);
+  const dismissPlanSidebarForCurrentTurn = useCallback(() => {
+    planSidebarDismissedForTurnRef.current =
+      activePlan?.turnId ?? sidebarProposedPlan?.turnId ?? "__dismissed__";
+  }, [activePlan?.turnId, sidebarProposedPlan?.turnId]);
   const togglePlanSidebar = useCallback(() => {
     if (!activeThreadRef) return;
     if (planSidebarOpen) {
-      planSidebarDismissedForTurnRef.current =
-        activePlan?.turnId ?? sidebarProposedPlan?.turnId ?? "__dismissed__";
+      dismissPlanSidebarForCurrentTurn();
     } else {
       planSidebarDismissedForTurnRef.current = null;
     }
     useRightPanelStore.getState().toggle(activeThreadRef, "plan");
-  }, [
-    activePlan?.turnId,
-    activeThreadRef,
-    planSidebarOpen,
-    sidebarProposedPlan?.turnId,
-  ]);
+  }, [activeThreadRef, dismissPlanSidebarForCurrentTurn, planSidebarOpen]);
   const closePlanSidebar = useCallback(() => {
     if (!activeThreadRef) return;
     setMaximizedRightPanelThreadKey(null);
     useRightPanelStore.getState().close(activeThreadRef);
-    planSidebarDismissedForTurnRef.current =
-      activePlan?.turnId ?? sidebarProposedPlan?.turnId ?? "__dismissed__";
-  }, [activePlan?.turnId, activeThreadRef, sidebarProposedPlan?.turnId]);
+    dismissPlanSidebarForCurrentTurn();
+  }, [activeThreadRef, dismissPlanSidebarForCurrentTurn]);
   const closePreviewPanel = useCallback(() => {
     if (!activeThreadRef) return;
     setMaximizedRightPanelThreadKey(null);
@@ -3728,9 +3725,12 @@ function ChatViewContent(props: ChatViewProps) {
   const activateRightPanelSurface = useCallback(
     (surface: RightPanelSurface) => {
       if (!activeThreadRef) return;
-      useRightPanelStore
-        .getState()
-        .activateSurface(activeThreadRef, surface.id);
+      if (surface.kind === "plan") {
+        planSidebarDismissedForTurnRef.current = null;
+      } else if (planSidebarOpen) {
+        dismissPlanSidebarForCurrentTurn();
+      }
+      useRightPanelStore.getState().activateSurface(activeThreadRef, surface.id);
       if (surface.kind === "preview" && surface.resourceId) {
         usePreviewStateStore
           .getState()
@@ -3768,19 +3768,26 @@ function ChatViewContent(props: ChatViewProps) {
       activeRouteProjectId,
       activeThreadRef,
       diffOpen,
+      dismissPlanSidebarForCurrentTurn,
       environmentId,
       navigate,
       onDiffPanelOpen,
+      planSidebarOpen,
       threadId,
     ],
   );
   const toggleRightPanel = useCallback(() => {
     if (!activeThreadRef) return;
     if (rightPanelOpen) {
-      setMaximizedRightPanelThreadKey(null);
+      if (planSidebarOpen) {
+        closePlanSidebar();
+      } else {
+        closePreviewPanel();
+      }
+      return;
     }
     useRightPanelStore.getState().toggleVisibility(activeThreadRef);
-  }, [activeThreadRef, rightPanelOpen]);
+  }, [activeThreadRef, closePlanSidebar, closePreviewPanel, planSidebarOpen, rightPanelOpen]);
   const toggleRightPanelMaximized = useCallback(() => {
     if (!canMaximizeRightPanel) return;
     setMaximizedRightPanelThreadKey((threadKey) =>
@@ -3790,6 +3797,9 @@ function ChatViewContent(props: ChatViewProps) {
   const cleanupRightPanelSurfaces = useCallback(
     (surfaces: readonly RightPanelSurface[]) => {
       if (!activeThreadRef) return;
+      if (surfaces.some((surface) => surface.kind === "plan")) {
+        dismissPlanSidebarForCurrentTurn();
+      }
 
       const api = readEnvironmentApi(activeThreadRef.environmentId);
       for (const surface of surfaces) {
@@ -3836,6 +3846,7 @@ function ChatViewContent(props: ChatViewProps) {
       activeRouteProjectId,
       activeThreadRef,
       diffOpen,
+      dismissPlanSidebarForCurrentTurn,
       environmentId,
       navigate,
       threadId,
@@ -5523,6 +5534,7 @@ function ChatViewContent(props: ChatViewProps) {
     return <NoActiveThreadState />;
   }
 
+
   return (
     <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background">
       {isElectron && activeThreadRef ? (
@@ -5869,6 +5881,18 @@ function ChatViewContent(props: ChatViewProps) {
                 <DiffPanel mode="embedded" composerDraftTarget={composerDraftTarget} />
               </Suspense>
             </DiffWorkerPoolProvider>
+          ) : activeRightPanelSurface?.kind === "plan" ? (
+            <PlanSidebar
+              activePlan={activePlan}
+              activeProposedPlan={sidebarProposedPlan}
+              label={planSidebarLabel}
+              environmentId={environmentId}
+              threadRef={activeThreadRef}
+              markdownCwd={gitCwd ?? undefined}
+              workspaceRoot={activeWorkspaceRoot}
+              timestampFormat={timestampFormat}
+              mode="embedded"
+            />
           ) : (activeRightPanelSurface?.kind === "files" ||
               activeRightPanelSurface?.kind === "file") &&
             activeProject &&
@@ -5976,7 +6000,6 @@ function ChatViewContent(props: ChatViewProps) {
                 workspaceRoot={activeWorkspaceRoot}
                 timestampFormat={timestampFormat}
                 mode="embedded"
-                onClose={closePlanSidebar}
               />
             ) : (activeRightPanelSurface?.kind === "files" ||
                 activeRightPanelSurface?.kind === "file") &&
@@ -6001,19 +6024,6 @@ function ChatViewContent(props: ChatViewProps) {
                   onPendingChange={handleFilePendingChange}
                 />
               </Suspense>
-            ) : activeRightPanelSurface?.kind === "plan" ? (
-              <PlanSidebar
-                activePlan={activePlan}
-                activeProposedPlan={sidebarProposedPlan}
-                label={planSidebarLabel}
-                environmentId={environmentId}
-                threadRef={activeThreadRef}
-                markdownCwd={gitCwd ?? undefined}
-                workspaceRoot={activeWorkspaceRoot}
-                timestampFormat={timestampFormat}
-                mode="sidebar"
-                onClose={closePlanSidebar}
-              />
             ) : null}
           </RightPanelTabs>
         </RightPanelSheet>

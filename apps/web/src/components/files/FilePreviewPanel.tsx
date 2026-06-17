@@ -266,14 +266,30 @@ function EditableFileSurface({
       onDismiss: () => setSelectedRange(null),
     });
   }, [editor, hasOpenCommentForm]);
+  const handleLineSelectionChange = useCallback(
+    (range: SelectedLineRange | null) => {
+      if (hasOpenCommentForm) return;
+      setSelectedRange(range);
+    },
+    [hasOpenCommentForm],
+  );
   const handleLineSelectionEnd = useCallback(
     (range: SelectedLineRange | null) => {
+      if (hasOpenCommentForm) return;
       setSelectedRange(range);
       if (range) {
         beginComment(range);
       }
     },
-    [beginComment],
+    [beginComment, hasOpenCommentForm],
+  );
+  const handleGutterUtilityClick = useCallback(
+    (range: SelectedLineRange) => {
+      if (hasOpenCommentForm) return;
+      setSelectedRange(range);
+      beginComment(range);
+    },
+    [beginComment, hasOpenCommentForm],
   );
 
   return (
@@ -296,8 +312,8 @@ function EditableFileSurface({
               disableFileHeader: true,
               enableGutterUtility: !hasOpenCommentForm,
               enableLineSelection: !hasOpenCommentForm,
-              onGutterUtilityClick: setSelectedRange,
-              onLineSelectionChange: setSelectedRange,
+              onGutterUtilityClick: handleGutterUtilityClick,
+              onLineSelectionChange: handleLineSelectionChange,
               onLineSelectionEnd: handleLineSelectionEnd,
               overflow: "scroll",
               theme: resolveDiffThemeName(resolvedTheme),
@@ -489,7 +505,7 @@ export default function FilePreviewPanel({
                       setRenderedMarkdownPath(pressed ? relativePath : null)
                     }
                     aria-label={renderMarkdown ? "Show markdown source" : "Show rendered markdown"}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                   >
                     {renderMarkdown ? <Code2 className="size-3.5" /> : <Eye className="size-3.5" />}
@@ -510,7 +526,7 @@ export default function FilePreviewPanel({
                     pressed={false}
                     onPressedChange={handleOpenInBrowser}
                     aria-label="Open file in preview browser"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                   >
                     <Globe2 className="size-3.5" />
