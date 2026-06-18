@@ -130,6 +130,8 @@ export type ModelCapabilities = typeof ModelCapabilities.Type;
 const CODEX_DRIVER_KIND = ProviderDriverKind.make("codex");
 const OPENCODE_DRIVER_KIND = ProviderDriverKind.make("opencode");
 const PI_DRIVER_KIND = ProviderDriverKind.make("pi");
+const CLAUDEAGENT_DRIVER_KIND = ProviderDriverKind.make("claudeAgent");
+const GROK_DRIVER_KIND = ProviderDriverKind.make("grok");
 
 export const DEFAULT_MODEL = "gpt-5.4";
 export const DEFAULT_GIT_TEXT_GENERATION_MODEL = "gpt-5.4-mini";
@@ -138,6 +140,8 @@ export const DEFAULT_MODEL_BY_PROVIDER: Partial<Record<ProviderDriverKind, strin
   [CODEX_DRIVER_KIND]: DEFAULT_MODEL,
   [OPENCODE_DRIVER_KIND]: "openai/gpt-5",
   [PI_DRIVER_KIND]: "openai/gpt-5",
+  [CLAUDEAGENT_DRIVER_KIND]: "claude-sonnet-4-6",
+  [GROK_DRIVER_KIND]: "grok-build",
 };
 
 /** Per-provider text generation model defaults. */
@@ -162,6 +166,10 @@ export const MODEL_SLUG_ALIASES_BY_PROVIDER: Partial<
   },
   [OPENCODE_DRIVER_KIND]: {},
   [PI_DRIVER_KIND]: {},
+  [CLAUDEAGENT_DRIVER_KIND]: {
+    sonnet: "claude-sonnet-4-6",
+  },
+  [GROK_DRIVER_KIND]: {},
 };
 
 // ── Provider display names ────────────────────────────────────────────
