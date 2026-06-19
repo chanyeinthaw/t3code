@@ -246,7 +246,10 @@ const ComposerFooterModeControls = memo(function ComposerFooterModeControls(prop
       ) : null}
 
       {showAccessModeToggle ? (
-        <Select value={props.runtimeMode} onValueChange={(value) => props.onRuntimeModeChange(value!)}>
+        <Select
+          value={props.runtimeMode}
+          onValueChange={(value) => props.onRuntimeModeChange(value!)}
+        >
           <SelectTrigger
             variant="ghost"
             size="xs"

@@ -1,7 +1,4 @@
-import type {
-  ContextMenuItem,
-  PreviewSessionSnapshot,
-} from "@t3tools/contracts";
+import type { ContextMenuItem, PreviewSessionSnapshot } from "@t3tools/contracts";
 import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
 import {
   ClipboardList,
@@ -37,10 +34,7 @@ import { Toggle } from "~/components/ui/toggle";
 import { faviconUrlForOrigin } from "~/lib/favicon";
 import { useTheme } from "~/hooks/useTheme";
 
-import {
-  PreviewPanelShell,
-  type PreviewPanelMode,
-} from "./preview/PreviewPanelShell";
+import { PreviewPanelShell, type PreviewPanelMode } from "./preview/PreviewPanelShell";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
 
 interface RightPanelTabsProps {
@@ -85,17 +79,9 @@ const SURFACE_DISABLED_REASONS = {
   diff: "Diff is only available for server threads in Git repositories.",
 } as const;
 
-type TabContextMenuAction =
-  | "copy-path"
-  | "close"
-  | "close-others"
-  | "close-to-right"
-  | "close-all";
+type TabContextMenuAction = "copy-path" | "close" | "close-others" | "close-to-right" | "close-all";
 
-function DisabledReasonTooltip(props: {
-  reason: string;
-  trigger: ReactElement;
-}) {
+function DisabledReasonTooltip(props: { reason: string; trigger: ReactElement }) {
   return (
     <Tooltip>
       <TooltipTrigger render={props.trigger} />
@@ -112,9 +98,7 @@ function SurfaceMenuItem(props: {
 }) {
   const item = (
     <MenuItem
-      className={
-        !props.available ? "data-disabled:pointer-events-auto" : undefined
-      }
+      className={!props.available ? "data-disabled:pointer-events-auto" : undefined}
       onClick={props.onClick}
       disabled={!props.available}
     >
@@ -173,9 +157,7 @@ function RightPanelEmptyState(props: {
     <div className="flex min-h-0 flex-1 items-center justify-center p-6">
       <div className="w-full max-w-xl">
         <div className="mb-5 text-center">
-          <h3 className="text-sm font-medium text-foreground">
-            Open a surface
-          </h3>
+          <h3 className="text-sm font-medium text-foreground">Open a surface</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose what to show in the right panel.
           </p>
@@ -238,9 +220,7 @@ function surfaceTitle(
     case "files":
       return "Files";
     case "file":
-      return surface.relativePath.slice(
-        surface.relativePath.lastIndexOf("/") + 1,
-      );
+      return surface.relativePath.slice(surface.relativePath.lastIndexOf("/") + 1);
     case "terminal":
       return (
         terminalLabelsById.get(surface.activeTerminalId) ??
@@ -251,8 +231,7 @@ function surfaceTitle(
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
       if (!snapshot || snapshot.navStatus._tag === "Idle") return "Browser";
-      if (snapshot.navStatus.title.trim().length > 0)
-        return snapshot.navStatus.title;
+      if (snapshot.navStatus.title.trim().length > 0) return snapshot.navStatus.title;
       try {
         return new URL(snapshot.navStatus.url).host || "Browser";
       } catch {
@@ -265,8 +244,7 @@ function surfaceTitle(
 function PreviewFavicon({ url }: { url: string | null }) {
   const faviconUrl = faviconUrlForOrigin(url, 32);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  if (!faviconUrl || failedUrl === faviconUrl)
-    return <Globe2 className="size-3.5 shrink-0" />;
+  if (!faviconUrl || failedUrl === faviconUrl) return <Globe2 className="size-3.5 shrink-0" />;
   return (
     <img
       src={faviconUrl}
@@ -291,10 +269,7 @@ function SurfaceIcon({
   switch (surface.kind) {
     case "preview": {
       const snapshot = surface.resourceId ? sessions[surface.resourceId] : null;
-      const url =
-        !snapshot || snapshot.navStatus._tag === "Idle"
-          ? null
-          : snapshot.navStatus.url;
+      const url = !snapshot || snapshot.navStatus._tag === "Idle" ? null : snapshot.navStatus.url;
       return <PreviewFavicon url={url} />;
     }
     case "diff":
@@ -330,9 +305,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       const api = readLocalApi();
       if (!api) return;
 
-      const surfaceIndex = props.surfaces.findIndex(
-        (entry) => entry.id === surface.id,
-      );
+      const surfaceIndex = props.surfaces.findIndex((entry) => entry.id === surface.id);
       if (surfaceIndex < 0) return;
 
       const items: ContextMenuItem<TabContextMenuAction>[] = [];
@@ -364,8 +337,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       });
       switch (action) {
         case "copy-path":
-          if (surface.kind === "file")
-            props.onCopyFilePath(surface.relativePath);
+          if (surface.kind === "file") props.onCopyFilePath(surface.relativePath);
           break;
         case "close":
           props.onCloseSurface(surface);
@@ -387,9 +359,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
   );
 
   useEffect(() => {
-    const activeTab = tabListRef.current?.querySelector<HTMLElement>(
-      "[data-active-tab='true']",
-    );
+    const activeTab = tabListRef.current?.querySelector<HTMLElement>("[data-active-tab='true']");
     activeTab?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [props.activeSurfaceId]);
 
@@ -401,11 +371,8 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
       <div
         className={cn(
           "gap-2 px-2",
-          props.mode === "inline"
-            ? "workspace-topbar"
-            : "flex h-10 shrink-0 items-center",
-          ownsDesktopTitleBar &&
-            "wco:pr-[var(--workspace-native-controls-inset)]",
+          props.mode === "inline" ? "workspace-topbar" : "flex h-10 shrink-0 items-center",
+          ownsDesktopTitleBar && "wco:pr-[var(--workspace-native-controls-inset)]",
         )}
         data-right-panel-tabbar
       >
@@ -420,18 +387,12 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
             {props.surfaces.map((surface) => {
               const active = surface.id === props.activeSurfaceId;
               const pending = props.pendingSurfaceIds.has(surface.id);
-              const title = surfaceTitle(
-                surface,
-                props.previewSessions,
-                props.terminalLabelsById,
-              );
+              const title = surfaceTitle(surface, props.previewSessions, props.terminalLabelsById);
               return (
                 <div
                   key={surface.id}
                   data-active-tab={active}
-                  onContextMenu={(event) =>
-                    void handleTabContextMenu(event, surface)
-                  }
+                  onContextMenu={(event) => void handleTabContextMenu(event, surface)}
                   className={cn(
                     "group flex h-7 min-w-25 max-w-44 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm",
                     active
@@ -462,9 +423,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                     type="button"
                     className={cn(
                       "relative flex size-4 shrink-0 items-center justify-center rounded-full hover:bg-background/50 focus:opacity-100",
-                      pending
-                        ? "opacity-100"
-                        : "opacity-0 group-hover:opacity-100",
+                      pending ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                       active ? "opacity-100" : "",
                     )}
                     aria-label={`Close ${title}`}
@@ -493,12 +452,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                 >
                   <Plus className="size-4" />
                 </MenuTrigger>
-                <MenuPopup
-                  align="start"
-                  side="bottom"
-                  sideOffset={6}
-                  className="min-w-44"
-                >
+                <MenuPopup align="start" side="bottom" sideOffset={6} className="min-w-44">
                   <SurfaceMenuItem
                     available={props.browserAvailable}
                     disabledReason={SURFACE_DISABLED_REASONS.browser}
@@ -540,11 +494,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
                   className="shrink-0 [-webkit-app-region:no-drag]"
                   pressed={props.rightPanelMaximized}
                   onPressedChange={props.onToggleRightPanelMaximized}
-                  aria-label={
-                    props.rightPanelMaximized
-                      ? "Restore panel size"
-                      : "Maximize panel"
-                  }
+                  aria-label={props.rightPanelMaximized ? "Restore panel size" : "Maximize panel"}
                   variant="outline"
                   size="xs"
                   disabled={!props.canMaximizeRightPanel}

@@ -12,106 +12,96 @@ import {
   MenuTrigger,
 } from "../ui/menu";
 
-export const CompactComposerControlsMenu = memo(
-  function CompactComposerControlsMenu(props: {
-    activePlan: boolean;
-    interactionMode: ProviderInteractionMode;
-    planSidebarLabel: string;
-    planSidebarOpen: boolean;
-    runtimeMode: RuntimeMode;
-    supportedAccessModes?: readonly RuntimeMode[];
-    showInteractionModeToggle: boolean;
-    traitsMenuContent?: ReactNode;
-    onToggleInteractionMode: () => void;
-    onTogglePlanSidebar: () => void;
-    onRuntimeModeChange: (mode: RuntimeMode) => void;
-  }) {
-    const supportedAccessModes = props.supportedAccessModes ?? [
-      "approval-required",
-      "auto-accept-edits",
-      "full-access",
-    ];
+export const CompactComposerControlsMenu = memo(function CompactComposerControlsMenu(props: {
+  activePlan: boolean;
+  interactionMode: ProviderInteractionMode;
+  planSidebarLabel: string;
+  planSidebarOpen: boolean;
+  runtimeMode: RuntimeMode;
+  supportedAccessModes?: readonly RuntimeMode[];
+  showInteractionModeToggle: boolean;
+  traitsMenuContent?: ReactNode;
+  onToggleInteractionMode: () => void;
+  onTogglePlanSidebar: () => void;
+  onRuntimeModeChange: (mode: RuntimeMode) => void;
+}) {
+  const supportedAccessModes = props.supportedAccessModes ?? [
+    "approval-required",
+    "auto-accept-edits",
+    "full-access",
+  ];
 
-    return (
-      <Menu>
-        <MenuTrigger
-          render={
-            <Button
-              size="xs"
-              variant="ghost"
-              className="shrink-0 px-2 text-muted-foreground/70 hover:text-foreground/80"
-              aria-label="More composer controls"
-            />
-          }
-        >
-          <EllipsisIcon aria-hidden="true" className="size-4" />
-        </MenuTrigger>
-        <MenuPopup align="start">
-          {props.traitsMenuContent ? (
-            <>
-              {props.traitsMenuContent}
-              <MenuDivider />
-            </>
-          ) : null}
-          {props.showInteractionModeToggle ? (
-            <>
-              <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
-                Mode
-              </div>
-              <MenuRadioGroup
-                value={props.interactionMode}
-                onValueChange={(value) => {
-                  if (!value || value === props.interactionMode) return;
-                  props.onToggleInteractionMode();
-                }}
-              >
-                <MenuRadioItem value="default">Chat</MenuRadioItem>
-                <MenuRadioItem value="plan">Plan</MenuRadioItem>
-              </MenuRadioGroup>
-              <MenuDivider />
-            </>
-          ) : null}
-          {supportedAccessModes.length > 1 ? (
-            <>
-              <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">
-                Access
-              </div>
-              <MenuRadioGroup
-                value={props.runtimeMode}
-                onValueChange={(value) => {
-                  if (!value || value === props.runtimeMode) return;
-                  props.onRuntimeModeChange(value as RuntimeMode);
-                }}
-              >
-                {supportedAccessModes.includes("approval-required") ? (
-                  <MenuRadioItem value="approval-required">
-                    Supervised
-                  </MenuRadioItem>
-                ) : null}
-                {supportedAccessModes.includes("auto-accept-edits") ? (
-                  <MenuRadioItem value="auto-accept-edits">
-                    Auto-accept edits
-                  </MenuRadioItem>
-                ) : null}
-                {supportedAccessModes.includes("full-access") ? (
-                  <MenuRadioItem value="full-access">Full access</MenuRadioItem>
-                ) : null}
-              </MenuRadioGroup>
-            </>
-          ) : null}
-          {props.activePlan ? (
-            <>
-              <MenuDivider />
-              <MenuItem onClick={props.onTogglePlanSidebar}>
-                <ListTodoIcon className="size-4 shrink-0" />
-                {props.planSidebarOpen
-                  ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
-                  : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`}
-              </MenuItem>
-            </>
-          ) : null}
-        </MenuPopup>
-      </Menu>
-    );
-  },
-);
+  return (
+    <Menu>
+      <MenuTrigger
+        render={
+          <Button
+            size="xs"
+            variant="ghost"
+            className="shrink-0 px-2 text-muted-foreground/70 hover:text-foreground/80"
+            aria-label="More composer controls"
+          />
+        }
+      >
+        <EllipsisIcon aria-hidden="true" className="size-4" />
+      </MenuTrigger>
+      <MenuPopup align="start">
+        {props.traitsMenuContent ? (
+          <>
+            {props.traitsMenuContent}
+            <MenuDivider />
+          </>
+        ) : null}
+        {props.showInteractionModeToggle ? (
+          <>
+            <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Mode</div>
+            <MenuRadioGroup
+              value={props.interactionMode}
+              onValueChange={(value) => {
+                if (!value || value === props.interactionMode) return;
+                props.onToggleInteractionMode();
+              }}
+            >
+              <MenuRadioItem value="default">Chat</MenuRadioItem>
+              <MenuRadioItem value="plan">Plan</MenuRadioItem>
+            </MenuRadioGroup>
+            <MenuDivider />
+          </>
+        ) : null}
+        {supportedAccessModes.length > 1 ? (
+          <>
+            <div className="px-2 py-1.5 font-medium text-muted-foreground text-xs">Access</div>
+            <MenuRadioGroup
+              value={props.runtimeMode}
+              onValueChange={(value) => {
+                if (!value || value === props.runtimeMode) return;
+                props.onRuntimeModeChange(value as RuntimeMode);
+              }}
+            >
+              {supportedAccessModes.includes("approval-required") ? (
+                <MenuRadioItem value="approval-required">Supervised</MenuRadioItem>
+              ) : null}
+              {supportedAccessModes.includes("auto-accept-edits") ? (
+                <MenuRadioItem value="auto-accept-edits">Auto-accept edits</MenuRadioItem>
+              ) : null}
+              {supportedAccessModes.includes("full-access") ? (
+                <MenuRadioItem value="full-access">Full access</MenuRadioItem>
+              ) : null}
+            </MenuRadioGroup>
+          </>
+        ) : null}
+        {props.activePlan ? (
+          <>
+            <MenuDivider />
+            <MenuItem onClick={props.onTogglePlanSidebar}>
+              <ListTodoIcon className="size-4 shrink-0" />
+              {props.planSidebarOpen
+                ? `Hide ${props.planSidebarLabel.toLowerCase()} sidebar`
+                : `Show ${props.planSidebarLabel.toLowerCase()} sidebar`}
+            </MenuItem>
+          </>
+        ) : null}
+      </MenuPopup>
+    </Menu>
+  );
+});

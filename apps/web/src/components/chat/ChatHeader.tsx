@@ -7,14 +7,13 @@ import {
 } from "@t3tools/contracts";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import { memo } from "react";
-import GitActionsControl from "../GitActionsControl";
 import { type DraftId } from "~/composerDraftStore";
 import { PanelBottomIcon, PanelRightIcon } from "lucide-react";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import ProjectScriptsControl, { type NewProjectScriptInput } from "../ProjectScriptsControl";
+import { type NewProjectScriptInput } from "../ProjectScriptsControl";
 import { Toggle } from "../ui/toggle";
 import { SidebarTrigger } from "../ui/sidebar";
-import { OpenInPicker } from "./OpenInPicker";
+import { ProjectHeaderActions } from "../ProjectHeaderActions";
 import { usePrimaryEnvironmentId } from "../../environments/primary";
 import { shortcutLabelForCommand } from "../../keybindings";
 
@@ -33,7 +32,6 @@ interface ChatHeaderProps {
   terminalOpen: boolean;
   rightPanelAvailable: boolean;
   rightPanelOpen: boolean;
-  gitCwd: string | null;
   onRunProjectScript: (script: ProjectScript) => void;
   onAddProjectScript: (input: NewProjectScriptInput) => Promise<void>;
   onUpdateProjectScript: (scriptId: string, input: NewProjectScriptInput) => Promise<void>;
@@ -69,7 +67,6 @@ export const ChatHeader = memo(function ChatHeader({
   terminalOpen,
   rightPanelAvailable,
   rightPanelOpen,
-  gitCwd,
   onRunProjectScript,
   onAddProjectScript,
   onUpdateProjectScript,
@@ -105,31 +102,22 @@ export const ChatHeader = memo(function ChatHeader({
         </Tooltip>
       </div>
       <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 sm:shrink-0 sm:justify-end @3xl/header-actions:gap-3">
-        {activeProjectScripts && (
-          <ProjectScriptsControl
-            scripts={activeProjectScripts}
-            keybindings={keybindings}
-            preferredScriptId={preferredScriptId}
-            onRunScript={onRunProjectScript}
-            onAddScript={onAddProjectScript}
-            onUpdateScript={onUpdateProjectScript}
-            onDeleteScript={onDeleteProjectScript}
-          />
-        )}
-        {showOpenInPicker && (
-          <OpenInPicker
-            keybindings={keybindings}
-            availableEditors={availableEditors}
-            openInCwd={openInCwd}
-          />
-        )}
-        {activeProjectName && (
-          <GitActionsControl
-            gitCwd={gitCwd}
-            activeThreadRef={scopeThreadRef(activeThreadEnvironmentId, activeThreadId)}
-            {...(draftId ? { draftId } : {})}
-          />
-        )}
+        <ProjectHeaderActions
+          gitCwd={openInCwd}
+          gitThreadRef={
+            activeProjectName ? scopeThreadRef(activeThreadEnvironmentId, activeThreadId) : null
+          }
+          scripts={activeProjectScripts}
+          keybindings={keybindings}
+          availableEditors={availableEditors}
+          preferredScriptId={preferredScriptId}
+          showOpenInPicker={showOpenInPicker}
+          draftId={draftId}
+          onRunProjectScript={onRunProjectScript}
+          onAddProjectScript={onAddProjectScript}
+          onUpdateProjectScript={onUpdateProjectScript}
+          onDeleteProjectScript={onDeleteProjectScript}
+        />
         {!rightPanelOpen ? (
           <>
             <Tooltip>

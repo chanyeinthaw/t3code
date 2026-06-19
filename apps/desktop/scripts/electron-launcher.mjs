@@ -315,7 +315,9 @@ function buildMacLauncher(electronBinaryPath) {
 }
 
 function isLinuxSetuidSandboxConfigured(electronBinaryPath) {
-  if (process.platform !== "linux") {
+  // Scripts run outside Effect; reading the host OS directly is acceptable here.
+  // eslint-disable-next-line t3code/no-global-process-runtime
+  if (NodeOS.platform() !== "linux") {
     return true;
   }
 

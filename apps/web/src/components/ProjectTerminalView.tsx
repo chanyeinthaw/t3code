@@ -1,22 +1,29 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { scopeThreadRef } from "@t3tools/client-runtime";
 import {
   type EnvironmentId,
   type ProjectId,
+  type ProjectScript,
   type ResolvedKeybindingsConfig,
 } from "@t3tools/contracts";
 import { nextTerminalId } from "@t3tools/shared/terminalLabels";
 import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
+import { ProjectHeaderActions } from "./ProjectHeaderActions";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "./ui/empty";
 
 import { readEnvironmentApi } from "../environmentApi";
+import { usePrimaryEnvironmentId } from "../environments/primary";
+import { useLastInvokedProjectScript } from "../hooks/useLastInvokedProjectScript";
+import { useProjectScriptMutations } from "../hooks/useProjectScriptMutations";
 import { projectTerminalThreadId } from "../lib/projectTerminal";
 import { buildOwnerScopedTerminalLabels } from "../lib/terminalOwnerLabels";
+import { useServerAvailableEditors } from "../rpc/serverState";
 import { selectProjectByRef, useStore } from "../store";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { useKnownTerminalSessions } from "../terminalSessionState";
+import { useKnownTerminalSessions, useThreadRunningTerminalIds } from "../terminalSessionState";
+import { DEFAULT_THREAD_TERMINAL_ID } from "../types";
 import { isElectron } from "../env";
 import { cn } from "../lib/utils";
 
@@ -27,20 +34,33 @@ interface ProjectTerminalViewProps {
 }
 
 const PROJECT_TERMINAL_HEIGHT = 10_000;
+const PROJECT_TERMINAL_SCRIPT_COLS = 120;
+const PROJECT_TERMINAL_SCRIPT_ROWS = 30;
 
-const ProjectTerminalHeader = memo(function ProjectTerminalHeader({ title }: { title: string }) {
+const ProjectTerminalHeader = memo(function ProjectTerminalHeader({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
   return (
     <header
       className={cn(
-        "flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5",
+        "@container/header-actions flex h-[52px] shrink-0 items-center border-b border-border px-3 sm:px-5",
         isElectron && "wco:h-[env(titlebar-area-height)]",
       )}
     >
       <div className="min-w-0 flex-1">
         <h2 className="truncate text-sm font-medium text-foreground" title={title}>
-          Terminal
+          {title}
         </h2>
       </div>
+      {children ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 @3xl/header-actions:gap-3">
+          {children}
+        </div>
+      ) : null}
     </header>
   );
 });
@@ -88,6 +108,80 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
   const runtimeEnv = useMemo(
     () => (project ? projectScriptRuntimeEnv({ project: { cwd: project.cwd } }) : {}),
     [project],
+  );
+  const availableEditors = useServerAvailableEditors();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const showOpenInPicker = environmentId === primaryEnvironmentId;
+  const { saveProjectScript, updateProjectScript, deleteProjectScript } = useProjectScriptMutations(
+    { project, environmentId },
+  );
+  const [lastInvokedScriptByProjectId, setLastInvokedScriptByProjectId] =
+    useLastInvokedProjectScript();
+  const runningTerminalIds = useThreadRunningTerminalIds({
+    environmentId,
+    threadId: terminalThreadId,
+  });
+
+  const runProjectScript = useCallback(
+    async (script: ProjectScript) => {
+      const api = readEnvironmentApi(environmentId);
+      if (!api || !project) return;
+
+      setLastInvokedScriptByProjectId((current) => {
+        if (current[project.id] === script.id) return current;
+        return { ...current, [project.id]: script.id };
+      });
+
+      const baseTerminalId =
+        terminalUiState.activeTerminalId ||
+        serverOrderedTerminalIds[0] ||
+        DEFAULT_THREAD_TERMINAL_ID;
+      const isBaseTerminalBusy = runningTerminalIds.includes(baseTerminalId);
+      const shouldCreateNewTerminal = isBaseTerminalBusy;
+      const targetTerminalId = shouldCreateNewTerminal
+        ? nextTerminalId(serverOrderedTerminalIds)
+        : baseTerminalId;
+
+      if (shouldCreateNewTerminal) {
+        storeNewTerminal(terminalThreadRef, targetTerminalId);
+      } else {
+        storeSetActiveTerminal(terminalThreadRef, targetTerminalId);
+      }
+      setFocusRequestId((value) => value + 1);
+
+      try {
+        await api.terminal.open({
+          threadId: terminalThreadId,
+          terminalId: targetTerminalId,
+          cwd: project.cwd,
+          worktreePath: null,
+          env: runtimeEnv,
+          ...(shouldCreateNewTerminal
+            ? { cols: PROJECT_TERMINAL_SCRIPT_COLS, rows: PROJECT_TERMINAL_SCRIPT_ROWS }
+            : {}),
+        });
+        await api.terminal.write({
+          threadId: terminalThreadId,
+          terminalId: targetTerminalId,
+          data: `${script.command}\r`,
+        });
+      } catch {
+        // Failures are surfaced by the terminal itself.
+      }
+    },
+    [
+      environmentId,
+      project,
+      runningTerminalIds,
+      runtimeEnv,
+      serverOrderedTerminalIds,
+      setLastInvokedScriptByProjectId,
+      storeNewTerminal,
+      storeSetActiveTerminal,
+      terminalThreadId,
+      terminalThreadRef,
+      terminalUiState.activeTerminalId,
+    ],
   );
 
   useEffect(() => {
@@ -194,7 +288,21 @@ const ProjectTerminalView = memo(function ProjectTerminalView({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background text-foreground">
-      <ProjectTerminalHeader title={project.name} />
+      <ProjectTerminalHeader title={project.name}>
+        <ProjectHeaderActions
+          gitCwd={project.cwd}
+          gitThreadRef={terminalThreadRef}
+          scripts={project.scripts}
+          keybindings={keybindings}
+          availableEditors={availableEditors}
+          preferredScriptId={lastInvokedScriptByProjectId[project.id] ?? null}
+          showOpenInPicker={showOpenInPicker}
+          onRunProjectScript={runProjectScript}
+          onAddProjectScript={saveProjectScript}
+          onUpdateProjectScript={updateProjectScript}
+          onDeleteProjectScript={deleteProjectScript}
+        />
+      </ProjectTerminalHeader>
       <div className="min-h-0 flex-1 [&_.thread-terminal-drawer]:h-full! [&_.thread-terminal-drawer]:border-t-0">
         <ThreadTerminalDrawer
           threadRef={terminalThreadRef}

@@ -394,7 +394,6 @@ export const WsSourceControlPublishRepositoryRpc = Rpc.make(
   },
 );
 
-
 export const WsProjectsListEntriesRpc = Rpc.make(WS_METHODS.projectsListEntries, {
   payload: ProjectListEntriesInput,
   success: ProjectListEntriesResult,

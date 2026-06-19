@@ -78,7 +78,6 @@ export function formatChatTimestampTooltip(
   return `${time}, ${day}${ordinalSuffix(day)} ${month} ${year}`;
 }
 
-
 /**
  * Format a relative time string from an ISO date.
  * Returns `{ value: "20s", suffix: "ago" }` or `{ value: "just now", suffix: null }`

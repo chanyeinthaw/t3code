@@ -13,6 +13,7 @@
  */
 import { ThreadId, type DiscoveredLocalServer } from "@t3tools/contracts";
 import * as Net from "@t3tools/shared/Net";
+import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
 import { LSOF_LOCAL_HOST_TOKENS } from "@t3tools/shared/preview";
 import { Cause, Context, Duration, Effect, Layer, Ref, Schedule, Scope } from "effect";
 
@@ -214,6 +215,7 @@ const make = Effect.gen(function* PortDiscoveryMake() {
   });
 
   const scanOnce = Effect.fn("PortDiscovery.scan")(function* () {
+    const platform = yield* HostProcessPlatform;
     const state = yield* Ref.get(stateRef);
     const terminalByProcessId = new Map<number, TerminalProcessOwner>();
     for (const registration of state.terminalProcesses.values()) {
@@ -221,7 +223,7 @@ const make = Effect.gen(function* PortDiscoveryMake() {
         terminalByProcessId.set(processId, registration.owner);
       }
     }
-    if (process.platform === "win32") {
+    if (platform === "win32") {
       const command =
         'Get-NetTCPConnection -State Listen -ErrorAction Stop | ForEach-Object { $processName = (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName; Write-Output "$($_.LocalAddress)|$($_.LocalPort)|$($_.OwningProcess)|$processName" }';
       const listeners = yield* processRunner

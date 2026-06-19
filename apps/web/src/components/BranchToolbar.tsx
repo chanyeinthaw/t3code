@@ -4,10 +4,7 @@ import { memo, useMemo } from "react";
 
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { useStore } from "../store";
-import {
-  createProjectSelectorByRef,
-  createThreadSelectorByRef,
-} from "../storeSelectors";
+import { createProjectSelectorByRef, createThreadSelectorByRef } from "../storeSelectors";
 import {
   type EnvMode,
   type EnvironmentOption,
@@ -53,15 +50,10 @@ export const BranchToolbar = memo(function BranchToolbar({
     () => scopeThreadRef(environmentId, threadId),
     [environmentId, threadId],
   );
-  const serverThreadSelector = useMemo(
-    () => createThreadSelectorByRef(threadRef),
-    [threadRef],
-  );
+  const serverThreadSelector = useMemo(() => createThreadSelectorByRef(threadRef), [threadRef]);
   const serverThread = useStore(serverThreadSelector);
   const draftThread = useComposerDraftStore((store) =>
-    draftId
-      ? store.getDraftSession(draftId)
-      : store.getDraftThreadByRef(threadRef),
+    draftId ? store.getDraftSession(draftId) : store.getDraftThreadByRef(threadRef),
   );
   const activeProjectRef = serverThread
     ? scopeProjectRef(serverThread.environmentId, serverThread.projectId)
@@ -74,8 +66,7 @@ export const BranchToolbar = memo(function BranchToolbar({
   );
   const activeProject = useStore(activeProjectSelector);
   const hasActiveThread = serverThread !== undefined || draftThread !== null;
-  const activeWorktreePath =
-    serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
+  const activeWorktreePath = serverThread?.worktreePath ?? draftThread?.worktreePath ?? null;
   const effectiveEnvMode =
     effectiveEnvModeOverride ??
     resolveEffectiveEnvMode({
@@ -83,13 +74,10 @@ export const BranchToolbar = memo(function BranchToolbar({
       hasServerThread: serverThread !== undefined,
       draftThreadEnvMode: draftThread?.envMode,
     });
-  const envModeLocked =
-    envLocked || (serverThread !== undefined && activeWorktreePath !== null);
+  const envModeLocked = envLocked || (serverThread !== undefined && activeWorktreePath !== null);
 
   const showEnvironmentPicker = Boolean(
-    availableEnvironments &&
-    availableEnvironments.length > 1 &&
-    onEnvironmentChange,
+    availableEnvironments && availableEnvironments.length > 1 && onEnvironmentChange,
   );
 
   if (!hasActiveThread || !activeProject) return null;
@@ -98,19 +86,17 @@ export const BranchToolbar = memo(function BranchToolbar({
     <div className="w-full bg-background/60 backdrop-blur-sm mx-auto max-w-208 flex flex-row items-center justify-center md:justify-start pb-3 px-3.5 sm:px-6 -mt-[1px]">
       <div className="flex w-[95%] md:w-fit justify-between items-center gap-2 rounded-b-lg bg-background/60 backdrop-blur-sm border border-border border-t-[0px] p-0 md:p-0.5">
         <div className="flex min-w-0 shrink-0 items-center gap-1">
-          {showEnvironmentPicker &&
-            availableEnvironments &&
-            onEnvironmentChange && (
-              <>
-                <BranchToolbarEnvironmentSelector
-                  envLocked={envLocked}
-                  environmentId={environmentId}
-                  availableEnvironments={availableEnvironments}
-                  onEnvironmentChange={onEnvironmentChange}
-                />
-                <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
-              </>
-            )}
+          {showEnvironmentPicker && availableEnvironments && onEnvironmentChange && (
+            <>
+              <BranchToolbarEnvironmentSelector
+                envLocked={envLocked}
+                environmentId={environmentId}
+                availableEnvironments={availableEnvironments}
+                onEnvironmentChange={onEnvironmentChange}
+              />
+              <Separator orientation="vertical" className="mx-0.5 h-3.5!" />
+            </>
+          )}
           <BranchToolbarEnvModeSelector
             envLocked={envModeLocked}
             effectiveEnvMode={effectiveEnvMode}
@@ -129,15 +115,9 @@ export const BranchToolbar = memo(function BranchToolbar({
           {...(draftId ? { draftId } : {})}
           envLocked={envLocked}
           {...(effectiveEnvModeOverride ? { effectiveEnvModeOverride } : {})}
-          {...(activeThreadBranchOverride !== undefined
-            ? { activeThreadBranchOverride }
-            : {})}
-          {...(onActiveThreadBranchOverrideChange
-            ? { onActiveThreadBranchOverrideChange }
-            : {})}
-          {...(onCheckoutPullRequestRequest
-            ? { onCheckoutPullRequestRequest }
-            : {})}
+          {...(activeThreadBranchOverride !== undefined ? { activeThreadBranchOverride } : {})}
+          {...(onActiveThreadBranchOverrideChange ? { onActiveThreadBranchOverrideChange } : {})}
+          {...(onCheckoutPullRequestRequest ? { onCheckoutPullRequestRequest } : {})}
           {...(onComposerFocusRequest ? { onComposerFocusRequest } : {})}
         />
       </div>

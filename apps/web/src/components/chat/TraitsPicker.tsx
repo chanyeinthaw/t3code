@@ -90,29 +90,21 @@ function getSelectedTraits(
     selections: modelOptions,
   });
   const selectDescriptors = descriptors.filter(
-    (
-      descriptor,
-    ): descriptor is Extract<ProviderOptionDescriptor, { type: "select" }> =>
+    (descriptor): descriptor is Extract<ProviderOptionDescriptor, { type: "select" }> =>
       descriptor.type === "select",
   );
   const booleanDescriptors = descriptors.filter(
-    (
-      descriptor,
-    ): descriptor is Extract<ProviderOptionDescriptor, { type: "boolean" }> =>
+    (descriptor): descriptor is Extract<ProviderOptionDescriptor, { type: "boolean" }> =>
       descriptor.type === "boolean",
   );
   const primarySelectDescriptor = selectDescriptors[0] ?? null;
   const contextWindowDescriptor =
-    selectDescriptors.find((descriptor) => descriptor.id === "contextWindow") ??
-    null;
-  const agentDescriptor =
-    selectDescriptors.find((descriptor) => descriptor.id === "agent") ?? null;
+    selectDescriptors.find((descriptor) => descriptor.id === "contextWindow") ?? null;
+  const agentDescriptor = selectDescriptors.find((descriptor) => descriptor.id === "agent") ?? null;
   const fastModeDescriptor =
-    booleanDescriptors.find((descriptor) => descriptor.id === "fastMode") ??
-    null;
+    booleanDescriptors.find((descriptor) => descriptor.id === "fastMode") ?? null;
   const thinkingDescriptor =
-    booleanDescriptors.find((descriptor) => descriptor.id === "thinking") ??
-    null;
+    booleanDescriptors.find((descriptor) => descriptor.id === "thinking") ?? null;
 
   // Prompt-controlled effort (e.g. ultrathink in prompt text)
   const ultrathinkPromptControlled =
@@ -122,20 +114,15 @@ function getSelectedTraits(
 
   // Check if "ultrathink" appears in the body text (not just our prefix)
   const ultrathinkInBodyText =
-    ultrathinkPromptControlled &&
-    isClaudeUltrathinkPrompt(prompt.replace(/^Ultrathink:\s*/i, ""));
+    ultrathinkPromptControlled && isClaudeUltrathinkPrompt(prompt.replace(/^Ultrathink:\s*/i, ""));
   const effort =
     (ultrathinkPromptControlled
       ? "ultrathink"
       : getDescriptorStringValue(primarySelectDescriptor)) ?? null;
   const thinkingEnabled =
-    typeof thinkingDescriptor?.currentValue === "boolean"
-      ? thinkingDescriptor.currentValue
-      : null;
+    typeof thinkingDescriptor?.currentValue === "boolean" ? thinkingDescriptor.currentValue : null;
   const fastModeEnabled =
-    typeof fastModeDescriptor?.currentValue === "boolean"
-      ? fastModeDescriptor.currentValue
-      : false;
+    typeof fastModeDescriptor?.currentValue === "boolean" ? fastModeDescriptor.currentValue : false;
   const contextWindow = getDescriptorStringValue(contextWindowDescriptor);
   const selectedAgent = getDescriptorStringValue(agentDescriptor);
   const selectedAgentLabel = agentDescriptor
@@ -193,12 +180,7 @@ function getTraitsSectionVisibility(input: {
     showFastMode,
     showContextWindow,
     showAgent,
-    hasAnyControls:
-      showEffort ||
-      showThinking ||
-      showFastMode ||
-      showContextWindow ||
-      showAgent,
+    hasAnyControls: showEffort || showThinking || showFastMode || showContextWindow || showAgent,
   };
 }
 
@@ -237,9 +219,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
   allowPromptInjectedEffort = true,
   ...persistence
 }: TraitsMenuContentProps & TraitsPersistence) {
-  const setProviderModelOptions = useComposerDraftStore(
-    (store) => store.setProviderModelOptions,
-  );
+  const setProviderModelOptions = useComposerDraftStore((store) => store.setProviderModelOptions);
   const updateModelOptions = useCallback(
     (nextOptions: ProviderOptions | undefined) => {
       if ("onModelOptionsChange" in persistence) {
@@ -274,12 +254,8 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
     modelOptions,
     allowPromptInjectedEffort,
   });
-  const updateDescriptors = (
-    nextDescriptors: ReadonlyArray<ProviderOptionDescriptor>,
-  ) => {
-    updateModelOptions(
-      buildProviderOptionSelectionsFromDescriptors(nextDescriptors),
-    );
+  const updateDescriptors = (nextDescriptors: ReadonlyArray<ProviderOptionDescriptor>) => {
+    updateModelOptions(buildProviderOptionSelectionsFromDescriptors(nextDescriptors));
   };
 
   const handleSelectChange = (
@@ -295,18 +271,12 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
       onPromptChange(nextPrompt);
       return;
     }
-    if (ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id)
-      return;
-    if (
-      ultrathinkPromptControlled &&
-      descriptor.id === primarySelectDescriptor?.id
-    ) {
+    if (ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id) return;
+    if (ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id) {
       const stripped = prompt.replace(/^Ultrathink:\s*/i, "");
       onPromptChange(stripped);
     }
-    updateDescriptors(
-      replaceDescriptorCurrentValue(descriptors, descriptor.id, value),
-    );
+    updateDescriptors(replaceDescriptorCurrentValue(descriptors, descriptor.id, value));
   };
 
   if (!hasAnyControls) {
@@ -322,17 +292,15 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
             <div className="px-2 pt-1.5 pb-1 font-medium text-muted-foreground text-xs">
               {descriptor.label}
             </div>
-            {ultrathinkInBodyText &&
-            descriptor.id === primarySelectDescriptor?.id ? (
+            {ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id ? (
               <div className="px-2 pb-1.5 text-muted-foreground/80 text-xs">
-                Your prompt contains &quot;ultrathink&quot; in the text. Remove
-                it to change this option.
+                Your prompt contains &quot;ultrathink&quot; in the text. Remove it to change this
+                option.
               </div>
             ) : null}
             <MenuRadioGroup
               value={
-                ultrathinkPromptControlled &&
-                descriptor.id === primarySelectDescriptor?.id
+                ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id
                   ? "ultrathink"
                   : (getDescriptorStringValue(descriptor) ?? "")
               }
@@ -342,10 +310,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
                 <MenuRadioItem
                   key={option.id}
                   value={option.id}
-                  disabled={
-                    ultrathinkInBodyText &&
-                    descriptor.id === primarySelectDescriptor?.id
-                  }
+                  disabled={ultrathinkInBodyText && descriptor.id === primarySelectDescriptor?.id}
                 >
                   {option.label}
                   {option.isDefault ? " (default)" : ""}
@@ -366,11 +331,7 @@ export const TraitsMenuContent = memo(function TraitsMenuContentImpl({
               value={descriptor.currentValue === true ? "on" : "off"}
               onValueChange={(value) => {
                 updateDescriptors(
-                  replaceDescriptorCurrentValue(
-                    descriptors,
-                    descriptor.id,
-                    value === "on",
-                  ),
+                  replaceDescriptorCurrentValue(descriptors, descriptor.id, value === "on"),
                 );
               }}
             >
@@ -423,8 +384,7 @@ export const TraitsPicker = memo(function TraitsPicker({
   const triggerLabels: Array<string> = [];
   for (const descriptor of descriptors) {
     const label =
-      ultrathinkPromptControlled &&
-      descriptor.id === primarySelectDescriptor?.id
+      ultrathinkPromptControlled && descriptor.id === primarySelectDescriptor?.id
         ? "Ultrathink"
         : descriptor.type === "boolean"
           ? descriptor.id === "fastMode"
@@ -465,10 +425,7 @@ export const TraitsPicker = memo(function TraitsPicker({
         {isCodexStyle ? (
           <span className="flex min-w-0 w-full items-center gap-2 overflow-hidden">
             {triggerLabel}
-            <ChevronDownIcon
-              aria-hidden="true"
-              className="size-3 shrink-0 opacity-60"
-            />
+            <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 opacity-60" />
           </span>
         ) : (
           <>

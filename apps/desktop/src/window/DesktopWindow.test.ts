@@ -187,7 +187,9 @@ describe("DesktopWindow", () => {
       const fakeWindow = makeFakeBrowserWindow();
       const createCount = yield* Ref.make(0);
       const mainWindow = yield* Ref.make<Option.Option<Electron.BrowserWindow>>(Option.none());
-      const createOptions = yield* Ref.make<readonly Electron.BrowserWindowConstructorOptions[]>([]);
+      const createOptions = yield* Ref.make<readonly Electron.BrowserWindowConstructorOptions[]>(
+        [],
+      );
       const layer = makeTestLayer({
         window: fakeWindow.window,
         createCount,

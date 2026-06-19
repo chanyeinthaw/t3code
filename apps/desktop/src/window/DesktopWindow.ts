@@ -55,7 +55,9 @@ export type DesktopWindowError =
 
 export interface DesktopWindowShape {
   readonly createMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
-  readonly createNew: (routePath?: string) => Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
+  readonly createNew: (
+    routePath?: string,
+  ) => Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly ensureMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly revealOrCreateMain: Effect.Effect<Electron.BrowserWindow, DesktopWindowError>;
   readonly activate: Effect.Effect<void, DesktopWindowError>;
@@ -93,16 +95,21 @@ function getIconOption(
   });
 }
 
-function getInitialWindowBackgroundColor(shouldUseDarkColors: boolean): string {
-  if (process.platform === "darwin") return "#00000000";
+function getInitialWindowBackgroundColor(
+  shouldUseDarkColors: boolean,
+  platform: NodeJS.Platform,
+): string {
+  if (platform === "darwin") return "#00000000";
   return shouldUseDarkColors ? "#0a0a0a" : "#ffffff";
 }
 
-function getWindowTransparencyOptions(): Pick<
+function getWindowTransparencyOptions(
+  platform: NodeJS.Platform,
+): Pick<
   Electron.BrowserWindowConstructorOptions,
   "transparent" | "vibrancy" | "visualEffectState"
 > {
-  if (process.platform !== "darwin") return {};
+  if (platform !== "darwin") return {};
 
   return {
     transparent: true,
@@ -153,7 +160,7 @@ function syncWindowAppearance(
       return;
     }
 
-    window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors));
+    window.setBackgroundColor(getInitialWindowBackgroundColor(shouldUseDarkColors, platform));
     const { titleBarOverlay } = getWindowTitleBarOptions(shouldUseDarkColors, platform);
     if (typeof titleBarOverlay === "object") {
       window.setTitleBarOverlay(titleBarOverlay);
@@ -217,8 +224,8 @@ const make = Effect.gen(function* () {
       show: false,
       autoHideMenuBar: true,
       ...(environment.platform === "darwin" ? { disableAutoHideCursor: true } : {}),
-      backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors),
-      ...getWindowTransparencyOptions(),
+      backgroundColor: getInitialWindowBackgroundColor(shouldUseDarkColors, environment.platform),
+      ...getWindowTransparencyOptions(environment.platform),
       ...iconOption,
       title: environment.displayName,
       ...getWindowTitleBarOptions(shouldUseDarkColors, environment.platform),
