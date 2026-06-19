@@ -1,6 +1,6 @@
 "use client";
 
-import type { ScopedThreadRef } from "@t3tools/contracts";
+import type { ScopedThreadRef } from "@pulse/contracts";
 
 import { isPreviewSupportedInRuntime } from "~/previewStateStore";
 
@@ -21,7 +21,7 @@ export function PreviewPanel({ mode, threadRef, tabId, configuredUrls, visible }
       <PreviewPanelShell mode={mode}>
         <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
           <p className="max-w-sm text-sm text-muted-foreground">
-            Preview is only available in the T3 Code desktop app.
+            Preview is only available in the Pulse desktop app.
           </p>
         </div>
       </PreviewPanelShell>

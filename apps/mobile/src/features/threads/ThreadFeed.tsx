@@ -2,7 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { KeyboardAvoidingLegendList } from "@legendapp/list/keyboard";
 import { type LegendListRef } from "@legendapp/list/react-native";
-import type { ThreadId, TurnId } from "@t3tools/contracts";
+import type { ThreadId, TurnId } from "@pulse/contracts";
 import { SymbolView } from "expo-symbols";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -54,8 +54,8 @@ import {
 import { buildReviewParsedDiff } from "../review/reviewModel";
 import { cn } from "../../lib/cn";
 import type { MobileLayoutVariant } from "../../lib/mobileLayout";
-import { markdownFileIconSource } from "@t3tools/mobile-markdown-text/file-icons";
-import { resolveMarkdownLinkPresentation } from "@t3tools/mobile-markdown-text/links";
+import { markdownFileIconSource } from "@pulse/mobile-markdown-text/file-icons";
+import { resolveMarkdownLinkPresentation } from "@pulse/mobile-markdown-text/links";
 import {
   deriveThreadFeedPresentation,
   type ThreadFeedEntry,
@@ -684,7 +684,7 @@ function renderFeedEntry(
         hitSlop={4}
         className="mb-3 min-h-11 flex-row items-center gap-2 border-b border-neutral-200/80 px-2 dark:border-white/[0.08]"
       >
-        <Text className="font-t3-medium text-sm tabular-nums text-foreground-muted">
+        <Text className="font-pulse-medium text-sm tabular-nums text-foreground-muted">
           {entry.label}
         </Text>
         <SymbolView
@@ -757,7 +757,7 @@ function renderFeedEntry(
             })}
           </View>
           <View className="mt-1 flex-row items-center justify-end gap-1 pr-0.5">
-            <Text className="font-t3-medium text-xs tabular-nums text-neutral-600 dark:text-neutral-400">
+            <Text className="font-pulse-medium text-xs tabular-nums text-neutral-600 dark:text-neutral-400">
               {timestampLabel}
             </Text>
             {message.text.trim().length > 0 ? (
@@ -833,7 +833,7 @@ function renderFeedEntry(
               buttonSize={28}
               iconSize={13}
             />
-            <Text className="font-t3-medium text-xs tabular-nums text-neutral-600 dark:text-neutral-400">
+            <Text className="font-pulse-medium text-xs tabular-nums text-neutral-600 dark:text-neutral-400">
               {timestampLabel}
             </Text>
           </View>
@@ -853,13 +853,13 @@ function renderFeedEntry(
             {entry.queuedMessage.text}
           </Text>
           {entry.queuedMessage.attachments.length > 0 ? (
-            <Text className="font-t3-medium text-xs text-white/75">
+            <Text className="font-pulse-medium text-xs text-white/75">
               {entry.queuedMessage.attachments.length} image
               {entry.queuedMessage.attachments.length === 1 ? "" : "s"} attached
             </Text>
           ) : null}
         </View>
-        <Text className="mt-1.5 px-1 text-right font-t3-medium text-xs text-neutral-600 dark:text-neutral-400">
+        <Text className="mt-1.5 px-1 text-right font-pulse-medium text-xs text-neutral-600 dark:text-neutral-400">
           {entry.sending ? "dispatching" : `${relativeTime(entry.createdAt)} • pending`}
         </Text>
       </View>
@@ -886,7 +886,7 @@ function renderFeedEntry(
   return (
     <View className="mb-3 rounded-[16px] border border-neutral-300/70 bg-background px-2 py-2.5 dark:border-white/[0.1] dark:bg-white/[0.035]">
       <View className="mb-1.5 flex-row items-center justify-between gap-3 px-2">
-        <Text className="font-t3-medium text-xs text-foreground">{headerTitle}</Text>
+        <Text className="font-pulse-medium text-xs text-foreground">{headerTitle}</Text>
         {hasOverflow ? (
           <Pressable
             accessibilityRole="button"
@@ -894,7 +894,7 @@ function renderFeedEntry(
             onPress={() => props.onToggleWorkGroup(entry.id)}
             className="flex-row items-center gap-1"
           >
-            <Text className="font-t3-medium text-xs text-foreground-muted">
+            <Text className="font-pulse-medium text-xs text-foreground-muted">
               {isExpanded ? "Show less" : `Show ${hiddenCount} more`}
             </Text>
             <SymbolView
@@ -956,7 +956,7 @@ function renderFeedEntry(
               />
             ) : null}
             {props.copiedRowId === row.id ? (
-              <Text className="shrink-0 font-t3-medium text-[10px] text-emerald-600 dark:text-emerald-400">
+              <Text className="shrink-0 font-pulse-medium text-[10px] text-emerald-600 dark:text-emerald-400">
                 Copied
               </Text>
             ) : null}

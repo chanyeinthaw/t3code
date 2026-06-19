@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@pulse/contracts";
 
 import type { EnvironmentSession } from "./remote-runtime-types";
 

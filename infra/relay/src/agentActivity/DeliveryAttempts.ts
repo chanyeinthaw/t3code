@@ -56,7 +56,7 @@ export interface DeliveryAttemptsShape {
 }
 
 export class DeliveryAttempts extends Context.Service<DeliveryAttempts, DeliveryAttemptsShape>()(
-  "t3code-relay/agentActivity/DeliveryAttempts",
+  "pulse-relay/agentActivity/DeliveryAttempts",
 ) {}
 
 const SOURCE_JOB_CLAIM_LEASE_MINUTES = 10;

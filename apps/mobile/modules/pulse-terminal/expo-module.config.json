@@ -1,0 +1,10 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["PulseTerminalModule"],
+    "podspecPath": "PulseTerminalNative.podspec"
+  },
+  "android": {
+    "modules": ["expo.modules.pulseterminal.PulseTerminalModule"]
+  }
+}

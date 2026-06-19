@@ -4,8 +4,8 @@ import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeOS from "node:os";
 import path from "node:path";
-import { ProviderDriverKind } from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { ProviderDriverKind } from "@pulse/contracts";
+import { HostProcessPlatform } from "@pulse/shared/hostProcess";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import { HttpClient } from "effect/unstable/http";
@@ -162,7 +162,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
     "switches package-managed providers to vite-plus updates when the resolved binary lives in vite-plus global bin",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-vite-plus-capabilities");
+        const tempDir = yield* makeTempDir("pulse-vite-plus-capabilities");
         const vitePlusBinDir = path.join(tempDir, ".vite-plus", "bin");
         mkdirSync(vitePlusBinDir, { recursive: true });
         const packageToolPath = path.join(vitePlusBinDir, "package-tool");
@@ -199,7 +199,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
     "switches package-managed providers to bun updates when the resolved binary lives in bun's global bin",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-bun-capabilities");
+        const tempDir = yield* makeTempDir("pulse-bun-capabilities");
         const bunBinDir = path.join(tempDir, ".bun", "bin");
         mkdirSync(bunBinDir, { recursive: true });
         writeFileSync(path.join(bunBinDir, "native-package-tool.exe"), "MZ");
@@ -235,7 +235,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
     "switches package-managed providers to pnpm updates when the resolved binary lives in pnpm's global bin",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-pnpm-capabilities");
+        const tempDir = yield* makeTempDir("pulse-pnpm-capabilities");
         const pnpmHomeDir = path.join(tempDir, ".local", "share", "pnpm");
         mkdirSync(pnpmHomeDir, { recursive: true });
         const scopedPackageToolPath = path.join(pnpmHomeDir, "scoped-package-tool");
@@ -295,7 +295,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
     "switches native-package-tool to native updates when the binary resolves through the native installer",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-native-package-tool-native-capabilities");
+        const tempDir = yield* makeTempDir("pulse-native-package-tool-native-capabilities");
         const nativeBinDir = path.join(tempDir, ".local", "bin");
         mkdirSync(nativeBinDir, { recursive: true });
         const nativePackageToolPath = path.join(nativeBinDir, "native-package-tool");
@@ -332,7 +332,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
     "switches scoped-package-tool to native upgrades when the binary resolves through the standalone installer",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-scoped-package-tool-native-capabilities");
+        const tempDir = yield* makeTempDir("pulse-scoped-package-tool-native-capabilities");
         const nativeBinDir = path.join(tempDir, ".scoped-package-tool", "bin");
         mkdirSync(nativeBinDir, { recursive: true });
         const scopedPackageToolPath = path.join(nativeBinDir, "scoped-package-tool");
@@ -413,7 +413,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
 
   it.effect("keeps npm updates for binaries symlinked into npm's global node_modules tree", () =>
     Effect.gen(function* () {
-      const tempDir = yield* makeTempDir("t3-npm-capabilities");
+      const tempDir = yield* makeTempDir("pulse-npm-capabilities");
       const binDir = path.join(tempDir, "bin");
       const packageBinDir = path.join(
         tempDir,
@@ -456,7 +456,7 @@ it.layer(NodeServices.layer)("providerMaintenance", (it) => {
 
   it.effect("uses Effect FileSystem realPath when detecting pnpm global symlinks", () =>
     Effect.gen(function* () {
-      const tempDir = yield* makeTempDir("t3-pnpm-realpath-capabilities");
+      const tempDir = yield* makeTempDir("pulse-pnpm-realpath-capabilities");
       const binDir = path.join(tempDir, "bin");
       const packageBinDir = path.join(
         tempDir,

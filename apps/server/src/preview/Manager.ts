@@ -22,12 +22,12 @@ import {
   type PreviewReportStatusInput,
   PreviewSessionLookupError,
   type PreviewSessionSnapshot,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import {
   newPreviewTabId,
   normalizePreviewUrl,
   PreviewUrlNormalizationError,
-} from "@t3tools/shared/preview";
+} from "@pulse/shared/preview";
 import {
   Context,
   DateTime,
@@ -53,7 +53,7 @@ export interface PreviewManagerShape {
 }
 
 export class PreviewManager extends Context.Service<PreviewManager, PreviewManagerShape>()(
-  "t3/preview/Manager/PreviewManager",
+  "pulse/preview/Manager/PreviewManager",
 ) {}
 
 interface PreviewSessionState {

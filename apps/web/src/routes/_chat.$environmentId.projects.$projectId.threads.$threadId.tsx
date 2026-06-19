@@ -1,6 +1,6 @@
 import { createFileRoute, retainSearchParams, useNavigate } from "@tanstack/react-router";
-import { EnvironmentId, ProjectId, ThreadId } from "@t3tools/contracts";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
+import { EnvironmentId, ProjectId, ThreadId } from "@pulse/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@pulse/client-runtime";
 import { useEffect } from "react";
 
 import ChatView from "../components/ChatView";

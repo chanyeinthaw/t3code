@@ -7,7 +7,7 @@ import {
   type ServerProvider,
   type ThreadId,
   type TurnId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { type ChatMessage, type SessionPhase, type Thread, type ThreadSession } from "../types";
 import { type ComposerImageAttachment, type DraftThreadState } from "../composerDraftStore";
 import { selectThreadByRef, useStore } from "../store";

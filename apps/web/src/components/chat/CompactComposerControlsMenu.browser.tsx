@@ -6,14 +6,14 @@ import {
   ProviderInstanceId,
   ProviderDriverKind,
   ThreadId,
-} from "@t3tools/contracts";
-import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime";
+} from "@pulse/contracts";
+import { scopedThreadKey, scopeThreadRef } from "@pulse/client-runtime";
 import "../../index.css";
 
 import { page } from "vite-plus/test/browser";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { render } from "vitest-browser-react";
-import { createModelCapabilities, createModelSelection } from "@t3tools/shared/model";
+import { createModelCapabilities, createModelSelection } from "@pulse/shared/model";
 
 import { CompactComposerControlsMenu } from "./CompactComposerControlsMenu";
 import { TraitsMenuContent } from "./TraitsPicker";
@@ -60,7 +60,7 @@ async function mountMenu(props?: { modelSelection?: ModelSelection; prompt?: str
 
   useComposerDraftStore.setState({
     draftsByThreadKey: {
-      // Compose from the canonical empty-draft factory so adding a new
+      // Compose from the canonical empty-draft pulse so adding a new
       // ComposerThreadDraftState slice (e.g. a future attachment kind) doesn't
       // silently break this stub via `Property X is missing in type ...`.
       [threadKey]: {

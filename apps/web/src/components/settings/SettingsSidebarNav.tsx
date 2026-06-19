@@ -22,7 +22,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "../ui/sidebar";
-import { T3Wordmark } from "../T3Wordmark";
 import { isElectron } from "../../env";
 import { APP_STAGE_LABEL, APP_VERSION } from "../../branding";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
@@ -39,13 +38,14 @@ const SettingsSidebarChromeHeader = memo(function SettingsSidebarChromeHeader() 
               className="ml-1 flex min-w-0 flex-1 cursor-pointer items-center gap-1 rounded-md outline-hidden ring-ring transition-colors hover:text-foreground focus-visible:ring-2"
               to="/"
             >
-              <T3Wordmark />
               <span className="truncate text-sm font-medium tracking-tight text-muted-foreground shrink-0">
-                Code
+                Pulse
               </span>
-              <span className="rounded-full bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
-                {APP_STAGE_LABEL}
-              </span>
+              {APP_STAGE_LABEL ? (
+                <span className="rounded-full bg-muted/50 px-1.5 py-0.5 text-[8px] font-medium uppercase tracking-[0.18em] text-muted-foreground/60">
+                  {APP_STAGE_LABEL}
+                </span>
+              ) : null}
             </Link>
           }
         />

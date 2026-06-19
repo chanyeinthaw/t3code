@@ -1,8 +1,8 @@
 import "../../index.css";
 
 import { parsePatchFiles } from "@pierre/diffs/utils/parsePatchFiles";
-import { scopeThreadRef } from "@t3tools/client-runtime";
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import { scopeThreadRef } from "@pulse/client-runtime";
+import { EnvironmentId, ThreadId } from "@pulse/contracts";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "vitest-browser-react";

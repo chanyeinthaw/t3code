@@ -34,7 +34,7 @@ type int = number;
  * A QR Code symbol, which is a type of two-dimension barcode.
  * Invented by Denso Wave and described in the ISO/IEC 18004 standard.
  * Instances of this class represent an immutable square grid of dark and light cells.
- * The class provides static factory functions to create a QR Code from text or binary data.
+ * The class provides static pulse functions to create a QR Code from text or binary data.
  * The class covers the QR Code Model 2 specification, supporting all versions (sizes)
  * from 1 to 40, all 4 error correction levels, and 4 character encoding modes.
  *
@@ -49,7 +49,7 @@ type int = number;
 export class QrCode {
   public static Ecc: typeof QrCodeEcc;
 
-  /*-- Static factory functions (high level) --*/
+  /*-- Static pulse functions (high level) --*/
 
   // Returns a QR Code representing the given Unicode text string at the given error correction level.
   // As a conservative upper bound, this function is guaranteed to succeed for strings that have 738 or fewer
@@ -70,7 +70,7 @@ export class QrCode {
     return QrCode.encodeSegments([seg], ecl);
   }
 
-  /*-- Static factory functions (mid level) --*/
+  /*-- Static pulse functions (mid level) --*/
 
   // Returns a QR Code representing the given segments with the given encoding parameters.
   // The smallest possible QR Code version within the given range is automatically
@@ -752,7 +752,7 @@ function assert(cond: boolean): void {
  * A segment of character/binary/control data in a QR Code symbol.
  * Instances of this class are immutable.
  * The mid-level way to create a segment is to take the payload data
- * and call a static factory function such as QrSegment.makeNumeric().
+ * and call a static pulse function such as QrSegment.makeNumeric().
  * The low-level way to create a segment is to custom-make the bit buffer
  * and call the QrSegment() constructor with appropriate values.
  * This segment class imposes no length restrictions, but QR Codes have restrictions.
@@ -762,7 +762,7 @@ function assert(cond: boolean): void {
 export class QrSegment {
   public static Mode: typeof QrSegmentMode;
 
-  /*-- Static factory functions (mid level) --*/
+  /*-- Static pulse functions (mid level) --*/
 
   // Returns a segment representing the given binary data encoded in
   // byte mode. All input byte arrays are acceptable. Any text string

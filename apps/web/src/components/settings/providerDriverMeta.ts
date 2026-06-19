@@ -6,7 +6,7 @@ import {
   OpenCodeSettings,
   PiSettings,
   ProviderDriverKind,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import type * as Schema from "effect/Schema";
 import {
   ClaudeAI,

@@ -1,0 +1,17 @@
+{
+  "name": "@pulse/mobile-terminal-native",
+  "version": "0.0.0",
+  "private": true,
+  "expo-module": {
+    "ios": {
+      "modules": [
+        "PulseTerminalModule"
+      ]
+    },
+    "android": {
+      "modules": [
+        "expo.modules.pulseterminal.PulseTerminalModule"
+      ]
+    }
+  }
+}

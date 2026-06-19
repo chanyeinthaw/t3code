@@ -200,15 +200,15 @@
 }
 
 /* ─── Custom utilities ──────────────────────────────────────────────── */
-@utility font-t3-medium {
+@utility font-pulse-medium {
   font-family: "DMSans_500Medium";
 }
 
-@utility font-t3-bold {
+@utility font-pulse-bold {
   font-family: "DMSans_700Bold";
 }
 
-@utility font-t3-extrabold {
+@utility font-pulse-extrabold {
   font-family: "DMSans_700Bold";
   font-weight: 800;
 }

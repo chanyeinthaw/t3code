@@ -1,5 +1,5 @@
-import { scopeThreadRef } from "@t3tools/client-runtime";
-import { type EnvironmentId, type PreviewSessionSnapshot, ThreadId } from "@t3tools/contracts";
+import { scopeThreadRef } from "@pulse/client-runtime";
+import { type EnvironmentId, type PreviewSessionSnapshot, ThreadId } from "@pulse/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { __testing, selectThreadPreviewState, usePreviewStateStore } from "./previewStateStore";

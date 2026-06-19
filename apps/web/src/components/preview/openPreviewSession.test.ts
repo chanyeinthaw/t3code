@@ -1,4 +1,4 @@
-import type { EnvironmentApi, PreviewSessionSnapshot, ScopedThreadRef } from "@t3tools/contracts";
+import type { EnvironmentApi, PreviewSessionSnapshot, ScopedThreadRef } from "@pulse/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { openPreviewSession } from "./openPreviewSession";

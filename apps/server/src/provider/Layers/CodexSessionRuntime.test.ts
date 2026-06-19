@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import { describe, it } from "vite-plus/test";
-import { ThreadId } from "@t3tools/contracts";
+import { ThreadId } from "@pulse/contracts";
 import * as CodexErrors from "effect-codex-app-server/errors";
 import * as CodexRpc from "effect-codex-app-server/rpc";
 
@@ -156,7 +156,7 @@ describe("T3 browser developer instructions", () => {
       CODEX_DEFAULT_MODE_DEVELOPER_INSTRUCTIONS,
       CODEX_PLAN_MODE_DEVELOPER_INSTRUCTIONS,
     ]) {
-      assert.match(instructions, /t3-code/);
+      assert.match(instructions, /pulse/);
       assert.match(instructions, /preview_status/);
       assert.match(instructions, /preview_open/);
       assert.match(instructions, /Do not switch to global browser skills/);
@@ -169,7 +169,7 @@ describe("hasConfiguredMcpServer", () => {
     assert.equal(hasConfiguredMcpServer(undefined), false);
     assert.equal(hasConfiguredMcpServer(["--model", "gpt-5.4"]), false);
     assert.equal(
-      hasConfiguredMcpServer(["-c", 'mcp_servers.t3-code.url="http://127.0.0.1/mcp"']),
+      hasConfiguredMcpServer(["-c", 'mcp_servers.pulse.url="http://127.0.0.1/mcp"']),
       true,
     );
   });

@@ -1,5 +1,5 @@
-import { EnvironmentId } from "@t3tools/contracts";
-import { RelayEnvironmentStatusScope } from "@t3tools/contracts/relay";
+import { EnvironmentId } from "@pulse/contracts";
+import { RelayEnvironmentStatusScope } from "@pulse/contracts/relay";
 import { describe, expect, it } from "@effect/vitest";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -30,7 +30,7 @@ function managedRelayTestLayer(
   );
   return managedRelayClientLayer({
     relayUrl,
-    clientId: "t3-mobile",
+    clientId: "pulse-mobile",
   }).pipe(Layer.provide(signerLayer), Layer.provide(httpClientLayer));
 }
 

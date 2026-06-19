@@ -11,9 +11,9 @@ import {
   ExternalLauncherError,
   type EditorId,
   type LaunchEditorInput,
-} from "@t3tools/contracts";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { isCommandAvailable, resolveSpawnCommand } from "@t3tools/shared/shell";
+} from "@pulse/contracts";
+import { HostProcessPlatform } from "@pulse/shared/hostProcess";
+import { isCommandAvailable, resolveSpawnCommand } from "@pulse/shared/shell";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -304,7 +304,7 @@ export interface ExternalLauncherShape {
  * ExternalLauncher - Service tag for browser/editor launch operations.
  */
 export class ExternalLauncher extends Context.Service<ExternalLauncher, ExternalLauncherShape>()(
-  "t3/process/externalLauncher",
+  "pulse/process/externalLauncher",
 ) {}
 
 // ==============================

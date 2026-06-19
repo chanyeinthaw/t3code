@@ -14,7 +14,7 @@ import {
   type PreviewAutomationRequest,
   type PreviewAutomationResponse,
   type PreviewTabId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -51,14 +51,14 @@ export interface PreviewAutomationBrokerShape {
 export class PreviewAutomationBroker extends Context.Service<
   PreviewAutomationBroker,
   PreviewAutomationBrokerShape
->()("t3/mcp/PreviewAutomationBroker") {}
+>()("pulse/mcp/PreviewAutomationBroker") {}
 
 interface ClientConnection {
   readonly clientId: string;
   readonly queue: Queue.Queue<
     Parameters<PreviewAutomationBrokerShape["respond"]>[0] extends never
       ? never
-      : import("@t3tools/contracts").PreviewAutomationRequest
+      : import("@pulse/contracts").PreviewAutomationRequest
   >;
 }
 
@@ -169,7 +169,7 @@ const make = Effect.gen(function* PreviewAutomationBrokerMake() {
   const connect: PreviewAutomationBrokerShape["connect"] = Effect.fn(
     "PreviewAutomationBroker.connect",
   )(function* (clientId) {
-    const queue = yield* Queue.unbounded<import("@t3tools/contracts").PreviewAutomationRequest>();
+    const queue = yield* Queue.unbounded<import("@pulse/contracts").PreviewAutomationRequest>();
     const previous = yield* SynchronizedRef.modify(state, (current) => {
       const clients = new Map(current.clients);
       clients.set(clientId, { clientId, queue });

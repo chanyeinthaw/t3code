@@ -14,22 +14,22 @@ describe("Pierre file icons", () => {
     assert.equal(resolvePierreIconForEntry("vite.config.ts", "file")?.token, "vite");
   });
 
-  it("extends Pierre with T3-specific exact filename icons", () => {
+  it("extends Pierre with Pulse-specific exact filename icons", () => {
     assert.equal(
       resolvePierreIconForEntry("package.json", "file")?.name,
-      "t3-file-icon-package-json",
+      "pulse-file-icon-package-json",
     );
     assert.equal(
       resolvePierreIconForEntry("config/tsconfig.json", "file")?.name,
-      "t3-file-icon-tsconfig",
+      "pulse-file-icon-tsconfig",
     );
-    assert.equal(resolvePierreIconForEntry("AGENTS.md", "file")?.name, "t3-file-icon-agents");
-    assert.equal(resolvePierreIconForEntry("CLAUDE.md", "file")?.name, "t3-file-icon-claude");
-    assert.equal(resolvePierreIconForEntry("README.md", "file")?.name, "t3-file-icon-readme");
-    assert.equal(resolvePierreIconForEntry("pnpm-lock.yaml", "file")?.name, "t3-file-icon-pnpm");
+    assert.equal(resolvePierreIconForEntry("AGENTS.md", "file")?.name, "pulse-file-icon-agents");
+    assert.equal(resolvePierreIconForEntry("CLAUDE.md", "file")?.name, "pulse-file-icon-claude");
+    assert.equal(resolvePierreIconForEntry("README.md", "file")?.name, "pulse-file-icon-readme");
+    assert.equal(resolvePierreIconForEntry("pnpm-lock.yaml", "file")?.name, "pulse-file-icon-pnpm");
     assert.equal(
       resolvePierreIconForEntry("pnpm-workspace.yaml", "file")?.name,
-      "t3-file-icon-pnpm",
+      "pulse-file-icon-pnpm",
     );
   });
 

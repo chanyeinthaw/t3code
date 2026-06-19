@@ -21,7 +21,7 @@ export default function NotFoundRoute() {
       }}
       style={[{ flex: 1 }, screenBgStyle]}
     >
-      <Text className="text-[28px] font-t3-bold text-foreground" selectable>
+      <Text className="text-[28px] font-pulse-bold text-foreground" selectable>
         Route not found
       </Text>
       <Link href="/" asChild>
@@ -35,7 +35,7 @@ export default function NotFoundRoute() {
             primaryBgStyle,
           ]}
         >
-          <Text className="text-[16px] font-t3-bold text-primary-foreground">Return home</Text>
+          <Text className="text-[16px] font-pulse-bold text-primary-foreground">Return home</Text>
         </Pressable>
       </Link>
     </ScrollView>

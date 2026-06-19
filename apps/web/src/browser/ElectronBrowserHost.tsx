@@ -1,6 +1,6 @@
 "use client";
 
-import { parseScopedThreadKey } from "@t3tools/client-runtime";
+import { parseScopedThreadKey } from "@pulse/client-runtime";
 import { useEffect, useMemo } from "react";
 
 import { isElectron } from "~/env";

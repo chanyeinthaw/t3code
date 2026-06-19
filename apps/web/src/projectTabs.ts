@@ -3,14 +3,14 @@ import {
   scopedThreadKey,
   scopeProjectRef,
   scopeThreadRef,
-} from "@t3tools/client-runtime";
+} from "@pulse/client-runtime";
 import type {
   EnvironmentId,
   ProjectId,
   ScopedProjectRef,
   ScopedThreadRef,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 
 export type ProjectRouteRef = ScopedProjectRef;
 export type ProjectTabRef = ScopedThreadRef & { projectId: ProjectId };

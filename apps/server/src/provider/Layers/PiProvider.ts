@@ -1,10 +1,10 @@
-import type { ServerProviderSkill, ServerProviderSlashCommand } from "@t3tools/contracts";
-import { ProviderDriverKind, type PiSettings, type ServerProviderModel } from "@t3tools/contracts";
-import { createModelCapabilities } from "@t3tools/shared/model";
+import type { ServerProviderSkill, ServerProviderSlashCommand } from "@pulse/contracts";
+import { ProviderDriverKind, type PiSettings, type ServerProviderModel } from "@pulse/contracts";
+import { createModelCapabilities } from "@pulse/shared/model";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
-import { ServerSettingsError } from "@t3tools/contracts";
+import { ServerSettingsError } from "@pulse/contracts";
 import { buildServerProvider, type ServerProviderDraft } from "../providerSnapshot.ts";
 import { getAgentDir, loadSkills, type Skill as PiSkill } from "@earendil-works/pi-coding-agent";
 

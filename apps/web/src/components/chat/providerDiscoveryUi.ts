@@ -5,7 +5,7 @@ import type {
   ProviderInstanceId,
   ServerProvider,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 
 export interface RuntimeProviderDiscoveryState {
   readonly instanceId: ProviderInstanceId;

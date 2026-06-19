@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
-import { scopedProjectKey, scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
-import type { EnvironmentId, ProjectId, ScopedThreadRef } from "@t3tools/contracts";
+import { scopedProjectKey, scopeProjectRef, scopeThreadRef } from "@pulse/client-runtime";
+import type { EnvironmentId, ProjectId, ScopedThreadRef } from "@pulse/contracts";
 import type { SidebarThreadSummary } from "../types";
 import { useCallback, useEffect } from "react";
 
@@ -218,7 +218,7 @@ function ChatRouteGlobalShortcuts() {
             stackedThreadToast({
               type: "info",
               title: "Preview is desktop-only",
-              description: "Open T3 Code in the desktop app to use the in-app preview.",
+              description: "Open Pulse in the desktop app to use the in-app preview.",
             }),
           );
           return;

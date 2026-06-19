@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@pulse/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mockCreateEnvironmentConnection = vi.fn();
@@ -68,8 +68,8 @@ vi.mock("./connection", async (importOriginal) => ({
   createEnvironmentConnection: mockCreateEnvironmentConnection,
 }));
 
-vi.mock("@t3tools/client-runtime", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@t3tools/client-runtime")>();
+vi.mock("@pulse/client-runtime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@pulse/client-runtime")>();
   return {
     ...actual,
     createWsRpcClient: mockCreateWsRpcClient,

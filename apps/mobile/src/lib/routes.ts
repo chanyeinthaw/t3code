@@ -1,6 +1,6 @@
 import type { Href, useRouter } from "expo-router";
-import type { EnvironmentScopedThreadShell } from "@t3tools/client-runtime";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentScopedThreadShell } from "@pulse/client-runtime";
+import type { EnvironmentId, ThreadId } from "@pulse/contracts";
 
 import type { SelectedThreadRef } from "../state/remote-runtime-types";
 

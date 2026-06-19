@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@pulse/contracts";
 
 import { groupProjectsByRepository } from "./repositoryGroups";
-import {
-  EnvironmentScopedProjectShell,
-  EnvironmentScopedThreadShell,
-} from "@t3tools/client-runtime";
+import { EnvironmentScopedProjectShell, EnvironmentScopedThreadShell } from "@pulse/client-runtime";
 
 function makeProject(
   input: Partial<EnvironmentScopedProjectShell> &
@@ -51,29 +48,29 @@ function makeThread(
 describe("groupProjectsByRepository", () => {
   it("groups projects across environments by repository identity", () => {
     const repoIdentity = {
-      canonicalKey: "github.com/t3tools/t3code",
+      canonicalKey: "github.com/t3tools/pulse",
       locator: {
         source: "git-remote" as const,
         remoteName: "origin",
-        remoteUrl: "git@github.com:t3tools/t3code.git",
+        remoteUrl: "git@github.com:t3tools/pulse.git",
       },
       provider: "github",
       owner: "t3tools",
-      name: "t3code",
-      displayName: "T3 Code",
+      name: "pulse",
+      displayName: "Pulse",
     };
 
     const projects = [
       makeProject({
         environmentId: EnvironmentId.make("env-local"),
         id: ProjectId.make("project-local"),
-        title: "T3 Code",
+        title: "Pulse",
         repositoryIdentity: repoIdentity,
       }),
       makeProject({
         environmentId: EnvironmentId.make("env-staging"),
         id: ProjectId.make("project-staging"),
-        title: "T3 Code",
+        title: "Pulse",
         repositoryIdentity: repoIdentity,
       }),
     ];
@@ -101,9 +98,9 @@ describe("groupProjectsByRepository", () => {
 
     expect(groups).toHaveLength(1);
     expect(groups[0]).toMatchObject({
-      key: "github.com/t3tools/t3code",
-      title: "T3 Code",
-      subtitle: "t3tools/t3code",
+      key: "github.com/t3tools/pulse",
+      title: "Pulse",
+      subtitle: "t3tools/pulse",
       projectCount: 2,
       threadCount: 2,
     });

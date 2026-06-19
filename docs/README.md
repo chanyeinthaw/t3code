@@ -2,7 +2,7 @@
 
 - [Getting started](./getting-started/quick-start.md)
 - [Architecture](./architecture/overview.md)
-- [T3 Connect](./cloud/t3-connect-clerk.md)
+- [Pulse Connect](./cloud/pulse-connect-clerk.md)
 - [Integrations](./integrations/source-control-providers.md)
 - [Mobile](./mobile/app.md)
 - [Operations](./operations/ci.md)

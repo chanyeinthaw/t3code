@@ -1,4 +1,4 @@
-import type { VcsStatusResult } from "@t3tools/contracts";
+import type { VcsStatusResult } from "@pulse/contracts";
 import { assert, describe, it } from "vite-plus/test";
 
 import { resolveLiveThreadBranchUpdate } from "./gitActions.js";
@@ -25,7 +25,7 @@ function status(refName: string): VcsStatusResult {
 describe("resolveLiveThreadBranchUpdate", () => {
   it("allows a temporary worktree ref to reconcile to a semantic branch", () => {
     const update = resolveLiveThreadBranchUpdate({
-      threadBranch: "t3code/a9628676",
+      threadBranch: "pulse/a9628676",
       gitStatus: status("feature/diff-panel-toggle"),
     });
 

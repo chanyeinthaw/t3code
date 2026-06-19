@@ -3,14 +3,14 @@ import {
   scopedThreadKey,
   scopeProjectRef,
   scopeThreadRef,
-} from "@t3tools/client-runtime";
+} from "@pulse/client-runtime";
 import {
   EnvironmentId,
   ProjectId,
   ThreadId,
   type ScopedProjectRef,
   type ScopedThreadRef,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,

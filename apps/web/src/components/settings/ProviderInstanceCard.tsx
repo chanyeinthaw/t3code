@@ -21,7 +21,7 @@ import {
   type ProviderDriverKind,
   type ServerProvider,
   type ServerProviderModel,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 
 import { cn } from "../../lib/utils";
 import { useCopyToClipboard } from "../../hooks/useCopyToClipboard";
@@ -411,7 +411,7 @@ interface ProviderInstanceCardProps {
   readonly onDelete?: (() => void) | undefined;
   /**
    * Optional outer reset button rendered next to the driver icon. Built-in
-   * default slots supply a reset-to-factory control here; custom instances
+   * default slots supply a reset-to-pulse control here; custom instances
    * omit it.
    */
   readonly headerAction?: ReactNode | undefined;

@@ -6,13 +6,13 @@ import type {
   ProviderInteractionMode,
   RuntimeMode,
   ServerConfig as T3ServerConfig,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import {
   detectComposerTrigger,
   replaceTextRange,
   serializeComposerFileLink,
   type ComposerTrigger,
-} from "@t3tools/shared/composerTrigger";
+} from "@pulse/shared/composerTrigger";
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Image, Pressable, useColorScheme, View, type ViewStyle } from "react-native";
@@ -41,11 +41,11 @@ import {
   insertRankedSearchResult,
   normalizeSearchQuery,
   scoreQueryMatch,
-} from "@t3tools/shared/searchRanking";
+} from "@pulse/shared/searchRanking";
 import {
   getModelSelectionBooleanOptionValue,
   getModelSelectionStringOptionValue,
-} from "@t3tools/shared/model";
+} from "@pulse/shared/model";
 import { useComposerPathSearch } from "../../state/use-composer-path-search";
 import { CLAUDE_AGENT_EFFORT_OPTIONS } from "./claudeEffortOptions";
 import { ComposerCommandPopover, type ComposerCommandItem } from "./ComposerCommandPopover";
@@ -746,7 +746,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                     justifyContent: "center",
                   }}
                 >
-                  <Text className="text-foreground-muted text-[11px] font-t3-bold">
+                  <Text className="text-foreground-muted text-[11px] font-pulse-bold">
                     +{props.draftAttachments.length - 3}
                   </Text>
                 </View>

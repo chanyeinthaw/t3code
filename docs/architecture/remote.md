@@ -1,6 +1,6 @@
 # Remote Architecture
 
-This document describes the target architecture for first-class remote environments in T3 Code.
+This document describes the target architecture for first-class remote environments in Pulse.
 
 It is intentionally architecture-first. It does not define a complete implementation plan or user-facing rollout checklist. The goal is to establish the core model so remote support can be added without another broad rewrite.
 
@@ -8,7 +8,7 @@ It is intentionally architecture-first. It does not define a complete implementa
 
 - Treat remote environments as first-class product primitives, not special cases.
 - Support multiple ways to reach the same environment.
-- Keep the T3 server as the execution boundary.
+- Keep the Pulse server as the execution boundary.
 - Let desktop, mobile, and web all share the same conceptual model.
 - Avoid introducing a local control plane unless product pressure proves it is necessary.
 
@@ -21,7 +21,7 @@ It is intentionally architecture-first. It does not define a complete implementa
 
 ## High-level architecture
 
-T3 already has a clean runtime boundary: the client talks to a T3 server over HTTP/WebSocket, and the server owns orchestration, providers, terminals, git, and filesystem operations.
+T3 already has a clean runtime boundary: the client talks to a Pulse server over HTTP/WebSocket, and the server owns orchestration, providers, terminals, git, and filesystem operations.
 
 Remote support should preserve that boundary.
 
@@ -44,10 +44,10 @@ Remote support should preserve that boundary.
 │ - desktop-managed ssh bootstrap + forward   │
 └───────────────┬──────────────────────────────┘
                 │
-                │ connects to one T3 server
+                │ connects to one Pulse server
                 │
 ┌───────────────▼──────────────────────────────┐
-│ Execution environment = one T3 server       │
+│ Execution environment = one Pulse server       │
 │                                              │
 │ - environment identity                       │
 │ - provider state                             │
@@ -62,7 +62,7 @@ The important decision is that remoteness is expressed at the environment connec
 
 ### ExecutionEnvironment
 
-An `ExecutionEnvironment` is one running T3 server instance.
+An `ExecutionEnvironment` is one running Pulse server instance.
 
 It is the unit that owns:
 
@@ -191,7 +191,7 @@ That means:
 
 Access methods answer one question:
 
-How does the client speak WebSocket to a T3 server?
+How does the client speak WebSocket to a Pulse server?
 
 They do not answer:
 
@@ -235,7 +235,7 @@ This is especially useful when:
 - mobile must reach a desktop-hosted environment
 - a machine should be reachable without exposing raw LAN or public ports
 
-Tailscale-backed access sits here architecturally even though the current implementation is endpoint discovery rather than a T3-managed tunnel. It contributes private-network endpoints and lets the existing HTTP/WebSocket client path do the actual connection.
+Tailscale-backed access sits here architecturally even though the current implementation is endpoint discovery rather than a Pulse-managed tunnel. It contributes private-network endpoints and lets the existing HTTP/WebSocket client path do the actual connection.
 
 ### 3. Desktop-managed SSH access
 
@@ -245,7 +245,7 @@ The desktop main process can use SSH to:
 
 - reach a machine
 - probe it
-- launch or reuse a remote T3 server
+- launch or reuse a remote Pulse server
 - establish a local port forward
 
 After that, the renderer should still connect using an ordinary WebSocket URL against the forwarded local port.
@@ -258,7 +258,7 @@ The desktop main process owns the SSH bridge because it can spawn local SSH proc
 
 Launch methods answer a different question:
 
-How does a T3 server come to exist on the target machine?
+How does a Pulse server come to exist on the target machine?
 
 Launch and access should stay separate in the design.
 
@@ -292,7 +292,7 @@ The recommended T3 flow is:
 
 1. Desktop connects over SSH.
 2. Desktop probes the remote machine and verifies T3 availability.
-3. Desktop launches or reuses a remote T3 server.
+3. Desktop launches or reuses a remote Pulse server.
 4. Desktop establishes local port forwarding.
 5. Renderer connects to the forwarded WebSocket endpoint as a normal environment.
 
@@ -307,7 +307,7 @@ Failure handling should be explicit:
 
 ### 3. Client-managed local publish
 
-This is the inverse of remote launch: a local T3 server is already running, and the client publishes it through a tunnel.
+This is the inverse of remote launch: a local Pulse server is already running, and the client publishes it through a tunnel.
 
 This is useful for:
 
@@ -322,7 +322,7 @@ These concerns are easy to conflate, but separating them prevents architectural 
 
 Examples:
 
-- A manually hosted T3 server might be reached through direct `wss`.
+- A manually hosted Pulse server might be reached through direct `wss`.
 - The same server might also be reachable through a tunnel.
 - An SSH-managed server might be launched over SSH but then reached through forwarded WebSocket.
 - A local desktop server might be published through a tunnel for mobile.
@@ -366,7 +366,7 @@ T3 should not copy that part.
 
 T3 already has the right runtime boundary:
 
-- one T3 server per environment
+- one Pulse server per environment
 - ordinary HTTP/WebSocket between client and environment
 
 So T3 should borrow Zed's launch discipline, not its transport protocol.

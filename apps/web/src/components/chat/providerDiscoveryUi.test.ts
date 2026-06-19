@@ -6,7 +6,7 @@ import {
   ThreadId,
   type EnvironmentApi,
   type ServerProvider,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import {
   discoverProviderComposerState,
   mergeProviderDiscoveryIntoSnapshot,

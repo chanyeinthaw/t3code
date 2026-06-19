@@ -1,6 +1,6 @@
 import { ChevronDownIcon, FolderGit2Icon, FolderGitIcon, FolderIcon } from "lucide-react";
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
-import type { EnvironmentId, VcsRef } from "@t3tools/contracts";
+import type { EnvironmentId, VcsRef } from "@pulse/contracts";
 
 import {
   resolveEnvModeLabel,

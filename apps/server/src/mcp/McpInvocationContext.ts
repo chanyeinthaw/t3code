@@ -1,5 +1,5 @@
-import type { EnvironmentId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
-import { PreviewAutomationUnavailableError } from "@t3tools/contracts";
+import type { EnvironmentId, ProviderInstanceId, ThreadId } from "@pulse/contracts";
+import { PreviewAutomationUnavailableError } from "@pulse/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 
@@ -18,7 +18,7 @@ export interface McpInvocationScope {
 export class McpInvocationContext extends Context.Service<
   McpInvocationContext,
   McpInvocationScope
->()("t3/mcp/McpInvocationContext") {}
+>()("pulse/mcp/McpInvocationContext") {}
 
 export const requireMcpCapability = Effect.fn("mcp.requireCapability")(function* (
   capability: McpCapability,

@@ -2,8 +2,8 @@ import {
   managedRelayClientLayer,
   ManagedRelayDpopSigner,
   ManagedRelayDpopSignerError,
-} from "@t3tools/client-runtime";
-import { RelayMobileClientId } from "@t3tools/contracts/relay";
+} from "@pulse/client-runtime";
+import { RelayMobileClientId } from "@pulse/contracts/relay";
 import * as Crypto from "effect/Crypto";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";

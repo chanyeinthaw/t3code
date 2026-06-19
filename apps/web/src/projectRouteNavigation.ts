@@ -1,5 +1,5 @@
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
-import type { EnvironmentId, ProjectId, ScopedThreadRef, ThreadId } from "@t3tools/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@pulse/client-runtime";
+import type { EnvironmentId, ProjectId, ScopedThreadRef, ThreadId } from "@pulse/contracts";
 
 import { buildProjectThreadRouteParams, buildProjectThreadsRouteParams } from "./projectTabs";
 import { useProjectShellUiStateStore } from "./projectShellUiStateStore";

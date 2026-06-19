@@ -1,4 +1,4 @@
-import { EnvironmentAuthInvalidError, EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentAuthInvalidError, EnvironmentId } from "@pulse/contracts";
 import * as Schema from "effect/Schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -59,8 +59,8 @@ const mockClientGetConfig = vi.fn(async () => ({
   },
 }));
 
-vi.mock("@t3tools/shared/remote", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@t3tools/shared/remote")>()),
+vi.mock("@pulse/shared/remote", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@pulse/shared/remote")>()),
   resolveRemotePairingTarget: mockResolveRemotePairingTarget,
 }));
 
@@ -112,8 +112,8 @@ vi.mock("./connection", async (importOriginal) => ({
   createEnvironmentConnection: mockCreateEnvironmentConnection,
 }));
 
-vi.mock("@t3tools/client-runtime", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@t3tools/client-runtime")>();
+vi.mock("@pulse/client-runtime", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@pulse/client-runtime")>();
   return {
     ...actual,
     bootstrapRemoteBearerSession: mockBootstrapRemoteBearerSession,

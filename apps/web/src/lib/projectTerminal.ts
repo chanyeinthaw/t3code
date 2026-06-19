@@ -1,4 +1,4 @@
-import { ProjectId, ThreadId, type ProjectId as ProjectIdType } from "@t3tools/contracts";
+import { ProjectId, ThreadId, type ProjectId as ProjectIdType } from "@pulse/contracts";
 
 const PROJECT_TERMINAL_THREAD_PREFIX = "project-terminal:";
 

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { EnvironmentId, ProjectId, type ScopedThreadRef } from "@t3tools/contracts";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
+import { EnvironmentId, ProjectId, type ScopedThreadRef } from "@pulse/contracts";
+import { scopeProjectRef, scopeThreadRef } from "@pulse/client-runtime";
 import {
   ArchiveIcon,
   ClockIcon,

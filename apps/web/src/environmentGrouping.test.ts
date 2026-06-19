@@ -1,5 +1,5 @@
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
-import { scopeProjectRef } from "@t3tools/client-runtime";
+import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@pulse/contracts";
+import { scopeProjectRef } from "@pulse/client-runtime";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -41,7 +41,7 @@ const DEFAULT_GROUPING_SETTINGS = {
   projectGroupingOverrides: {},
 };
 
-// ── Factory Helpers ──────────────────────────────────────────────────
+// ── Pulse Helpers ──────────────────────────────────────────────────
 
 function makeProject(
   overrides: Partial<Project> & Pick<Project, "id" | "environmentId" | "name">,

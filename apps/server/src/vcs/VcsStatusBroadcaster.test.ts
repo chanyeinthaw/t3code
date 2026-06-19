@@ -16,8 +16,8 @@ import type {
   VcsStatusRemoteResult,
   VcsStatusResult,
   VcsStatusStreamEvent,
-} from "@t3tools/contracts";
-import { GitManagerError } from "@t3tools/contracts";
+} from "@pulse/contracts";
+import { GitManagerError } from "@pulse/contracts";
 
 import * as VcsStatusBroadcaster from "./VcsStatusBroadcaster.ts";
 import * as GitWorkflowService from "../git/GitWorkflowService.ts";
@@ -293,10 +293,10 @@ describe("VcsStatusBroadcaster", () => {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const realDir = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-vcs-status-real-",
+        prefix: "pulse-vcs-status-real-",
       });
       const linkParent = yield* fileSystem.makeTempDirectoryScoped({
-        prefix: "t3-vcs-status-link-",
+        prefix: "pulse-vcs-status-link-",
       });
       const linkDir = path.join(linkParent, "repo-link");
       yield* fileSystem.symlink(realDir, linkDir);

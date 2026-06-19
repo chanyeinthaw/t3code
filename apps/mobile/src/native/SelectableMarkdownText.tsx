@@ -1,11 +1,11 @@
-import type { SelectableMarkdownTextProps } from "@t3tools/mobile-markdown-text/renderer";
+import type { SelectableMarkdownTextProps } from "@pulse/mobile-markdown-text/renderer";
 
 type MobileSelectableMarkdownTextProps = Omit<SelectableMarkdownTextProps, "highlightCode">;
 
 export type {
   NativeMarkdownTextStyle,
   SelectableMarkdownSkill,
-} from "@t3tools/mobile-markdown-text/types";
+} from "@pulse/mobile-markdown-text/types";
 
 export function hasNativeSelectableMarkdownText(): boolean {
   return false;

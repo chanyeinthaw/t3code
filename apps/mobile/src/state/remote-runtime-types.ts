@@ -2,10 +2,10 @@ import type {
   EnvironmentConnection,
   EnvironmentConnectionState,
   WsRpcClient,
-} from "@t3tools/client-runtime";
-import { EnvironmentId, ThreadId } from "@t3tools/contracts";
+} from "@pulse/client-runtime";
+import { EnvironmentId, ThreadId } from "@pulse/contracts";
 
-export type { EnvironmentRuntimeState } from "@t3tools/client-runtime";
+export type { EnvironmentRuntimeState } from "@pulse/client-runtime";
 
 export interface ConnectedEnvironmentSummary {
   readonly environmentId: EnvironmentId;

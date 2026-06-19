@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { parseScopedProjectKey, scopedProjectKey, scopedThreadKey } from "@t3tools/client-runtime";
-import type { EnvironmentId, ScopedProjectRef, ScopedThreadRef } from "@t3tools/contracts";
+import { parseScopedProjectKey, scopedProjectKey, scopedThreadKey } from "@pulse/client-runtime";
+import type { EnvironmentId, ScopedProjectRef, ScopedThreadRef } from "@pulse/contracts";
 
-export const PROJECT_SHELL_UI_STATE_STORAGE_KEY = "t3code:project-shell-ui-state:v1";
+export const PROJECT_SHELL_UI_STATE_STORAGE_KEY = "pulse:project-shell-ui-state:v1";
 const MAX_RECENT_PROJECTS = 20;
 
 export interface ProjectShellUiState {

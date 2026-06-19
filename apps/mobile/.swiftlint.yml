@@ -1,12 +1,12 @@
 included:
   - ios/T3Code
-  - modules/t3-terminal/ios
-  - modules/t3-review-diff/ios
+  - modules/pulse-terminal/ios
+  - modules/pulse-review-diff/ios
 
 excluded:
   - ios/Pods
   - ios/build
-  - modules/t3-terminal/Vendor
+  - modules/pulse-terminal/Vendor
 
 reporter: xcode
 

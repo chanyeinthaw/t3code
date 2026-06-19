@@ -1,7 +1,7 @@
 "use client";
 
-import { scopedThreadKey } from "@t3tools/client-runtime";
-import { type ScopedThreadRef } from "@t3tools/contracts";
+import { scopedThreadKey } from "@pulse/client-runtime";
+import { type ScopedThreadRef } from "@pulse/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useComposerDraftStore } from "~/composerDraftStore";

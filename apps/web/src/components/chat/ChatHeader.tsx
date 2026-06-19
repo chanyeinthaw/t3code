@@ -4,8 +4,8 @@ import {
   type ProjectScript,
   type ResolvedKeybindingsConfig,
   type ThreadId,
-} from "@t3tools/contracts";
-import { scopeThreadRef } from "@t3tools/client-runtime";
+} from "@pulse/contracts";
+import { scopeThreadRef } from "@pulse/client-runtime";
 import { memo } from "react";
 import { type DraftId } from "~/composerDraftStore";
 import { PanelBottomIcon, PanelRightIcon } from "lucide-react";

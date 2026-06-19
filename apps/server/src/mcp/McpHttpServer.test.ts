@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import { NodeHttpServer, NodeServices } from "@effect/platform-node";
-import { EnvironmentId, PreviewTabId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, PreviewTabId, ProviderInstanceId, ThreadId } from "@pulse/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Stream from "effect/Stream";
@@ -36,7 +36,7 @@ const client = McpSchema.McpServerClient.of({
 const TestLayer = McpHttpServer.PreviewToolkitRegistrationLive.pipe(
   Layer.provideMerge(McpServer.McpServer.layer),
   Layer.provideMerge(PreviewAutomationBroker.layer),
-  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-mcp-http-test-" })),
+  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "pulse-mcp-http-test-" })),
   Layer.provideMerge(NodeServices.layer),
 );
 

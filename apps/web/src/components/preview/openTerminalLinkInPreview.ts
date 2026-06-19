@@ -1,5 +1,5 @@
-import type { EnvironmentApi, LocalApi, ScopedThreadRef } from "@t3tools/contracts";
-import { isPreviewableUrl } from "@t3tools/shared/preview";
+import type { EnvironmentApi, LocalApi, ScopedThreadRef } from "@pulse/contracts";
+import { isPreviewableUrl } from "@pulse/shared/preview";
 
 import { isPreviewSupportedInRuntime } from "~/previewStateStore";
 import { useRightPanelStore } from "~/rightPanelStore";

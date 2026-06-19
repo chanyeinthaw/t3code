@@ -1,5 +1,5 @@
 import { SymbolView } from "expo-symbols";
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@pulse/contracts";
 import { useCallback, useState } from "react";
 import { Pressable, View } from "react-native";
 import Animated, { FadeIn, FadeOut, LinearTransition } from "react-native-reanimated";
@@ -73,7 +73,7 @@ export function ConnectionEnvironmentRow(props: {
 
         <View className="flex-1 gap-0.5">
           <Text
-            className="text-[16px] font-t3-bold leading-[21px] text-foreground"
+            className="text-[16px] font-pulse-bold leading-[21px] text-foreground"
             numberOfLines={1}
           >
             {props.environment.environmentLabel}
@@ -121,7 +121,7 @@ export function ConnectionEnvironmentRow(props: {
             <>
               <View className="gap-1.5">
                 <Text
-                  className="text-[11px] font-t3-bold uppercase text-foreground-muted"
+                  className="text-[11px] font-pulse-bold uppercase text-foreground-muted"
                   style={{ letterSpacing: 0.8 }}
                 >
                   Label
@@ -139,7 +139,7 @@ export function ConnectionEnvironmentRow(props: {
 
               <View className="gap-1.5">
                 <Text
-                  className="text-[11px] font-t3-bold uppercase text-foreground-muted"
+                  className="text-[11px] font-pulse-bold uppercase text-foreground-muted"
                   style={{ letterSpacing: 0.8 }}
                 >
                   URL
@@ -166,7 +166,7 @@ export function ConnectionEnvironmentRow(props: {
               >
                 <SymbolView name="checkmark" size={13} tintColor={primaryFg} type="monochrome" />
                 <Text
-                  className="text-[12px] font-t3-bold uppercase text-primary-foreground"
+                  className="text-[12px] font-pulse-bold uppercase text-primary-foreground"
                   style={{ letterSpacing: 0.8 }}
                 >
                   Save

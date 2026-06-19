@@ -20,7 +20,7 @@ import {
   ThreadId,
   ProviderInstanceId,
   type ProviderRuntimeEvent,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 
 import { ServerConfig } from "../../config.ts";
 import { makeGrokAdapter } from "./GrokAdapter.ts";
@@ -73,7 +73,7 @@ async function readJsonLines(filePath: string) {
 }
 
 const grokAdapterTestLayer = ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3code-grok-adapter-test-",
+  prefix: "pulse-grok-adapter-test-",
 }).pipe(Layer.provideMerge(NodeServices.layer));
 
 const makeTestAdapter = (binaryPath: string, options?: Parameters<typeof makeGrokAdapter>[1]) =>

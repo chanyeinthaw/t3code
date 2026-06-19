@@ -1,4 +1,4 @@
-// This file mostly exists because we want dev mode to say "T3 Code (Dev)" instead of "electron"
+// This file mostly exists because we want dev mode to say "Pulse (Dev)" instead of "electron"
 
 import { spawnSync } from "node:child_process";
 import {
@@ -26,19 +26,19 @@ const repoRoot = resolve(desktopDir, "..", "..");
 const devBundleIdSuffix = basename(repoRoot)
   .toLowerCase()
   .replaceAll(/[^a-z0-9]+/g, "");
-export const APP_DISPLAY_NAME = isDevelopment ? "T3 Code (Dev)" : "T3 Code (Alpha)";
+export const APP_DISPLAY_NAME = isDevelopment ? "Pulse (Dev)" : "Pulse";
 export const APP_BUNDLE_ID = isDevelopment
-  ? `com.t3tools.t3code.dev.${devBundleIdSuffix || "local"}`
-  : "com.t3tools.t3code";
-const APP_PROTOCOL_SCHEMES = isDevelopment ? ["t3code-dev"] : ["t3code"];
+  ? `com.t3tools.pulse.dev.${devBundleIdSuffix || "local"}`
+  : "com.t3tools.pulse";
+const APP_PROTOCOL_SCHEMES = isDevelopment ? ["pulse-dev"] : ["pulse"];
 const LAUNCHER_VERSION = 11;
 const defaultIconPath = join(desktopDir, "resources", "icon.icns");
-const developmentMacIconPngPath = join(repoRoot, "assets", "dev", "blueprint-macos-1024.png");
-// oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone launcher script has no Effect runtime.
+const developmentMacIconPngPath = join(repoRoot, "assets", "dev", "pulse-macos-1024.png");
+// oxlint-disable-next-line pulse/no-global-process-runtime -- Standalone launcher script has no Effect runtime.
 const hostPlatform = NodeOS.platform();
 
 function resolveDevelopmentProtocolCallbackPort() {
-  const configuredPort = Number.parseInt(process.env.T3CODE_PORT ?? "", 10);
+  const configuredPort = Number.parseInt(process.env.PULSE_PORT ?? "", 10);
   if (Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort < 65535) {
     return configuredPort + 1;
   }
@@ -103,14 +103,14 @@ function writeDevelopmentLauncherScript(targetBinaryPath, electronBinaryPath) {
   const protocolCallbackUrl = `http://127.0.0.1:${resolveDevelopmentProtocolCallbackPort()}/auth/callback`;
   const envEntries = [
     ["VITE_DEV_SERVER_URL", process.env.VITE_DEV_SERVER_URL],
-    ["T3CODE_PORT", process.env.T3CODE_PORT],
-    ["T3CODE_HOME", process.env.T3CODE_HOME],
-    ["T3CODE_COMMIT_HASH", process.env.T3CODE_COMMIT_HASH],
-    ["T3CODE_OTLP_TRACES_URL", process.env.T3CODE_OTLP_TRACES_URL],
-    ["T3CODE_OTLP_EXPORT_INTERVAL_MS", process.env.T3CODE_OTLP_EXPORT_INTERVAL_MS],
-    ["T3CODE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
-    ["T3CODE_DESKTOP_PROTOCOL_REGISTRATION_MANAGED", "1"],
-    ["T3CODE_DESKTOP_PROTOCOL_CALLBACK_URL", protocolCallbackUrl],
+    ["PULSE_PORT", process.env.PULSE_PORT],
+    ["PULSE_HOME", process.env.PULSE_HOME],
+    ["PULSE_COMMIT_HASH", process.env.PULSE_COMMIT_HASH],
+    ["PULSE_OTLP_TRACES_URL", process.env.PULSE_OTLP_TRACES_URL],
+    ["PULSE_OTLP_EXPORT_INTERVAL_MS", process.env.PULSE_OTLP_EXPORT_INTERVAL_MS],
+    ["PULSE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
+    ["PULSE_DESKTOP_PROTOCOL_REGISTRATION_MANAGED", "1"],
+    ["PULSE_DESKTOP_PROTOCOL_CALLBACK_URL", protocolCallbackUrl],
   ].filter((entry) => typeof entry[1] === "string" && entry[1].trim().length > 0);
   writeFileSync(
     targetBinaryPath,
@@ -119,14 +119,14 @@ function writeDevelopmentLauncherScript(targetBinaryPath, electronBinaryPath) {
       ...envEntries.map(([name, value]) => `export ${name}=${shellSingleQuote(value)}`),
       'for arg in "$@"; do',
       '  case "$arg" in',
-      "    t3code-dev://auth/callback*)",
-      '      if [ -n "$T3CODE_DESKTOP_PROTOCOL_CALLBACK_URL" ]; then',
-      '        /usr/bin/curl -fsS --max-time 2 -X POST --data-binary "$arg" "$T3CODE_DESKTOP_PROTOCOL_CALLBACK_URL" >/dev/null 2>&1 && exit 0',
+      "    pulse-dev://auth/callback*)",
+      '      if [ -n "$PULSE_DESKTOP_PROTOCOL_CALLBACK_URL" ]; then',
+      '        /usr/bin/curl -fsS --max-time 2 -X POST --data-binary "$arg" "$PULSE_DESKTOP_PROTOCOL_CALLBACK_URL" >/dev/null 2>&1 && exit 0',
       "      fi",
       "      ;;",
       "  esac",
       "done",
-      `exec ${shellSingleQuote(electronBinaryPath)} --t3code-dev-root=${shellSingleQuote(desktopDir)} ${shellSingleQuote(mainEntryPath)} "$@"`,
+      `exec ${shellSingleQuote(electronBinaryPath)} --pulse-dev-root=${shellSingleQuote(desktopDir)} ${shellSingleQuote(mainEntryPath)} "$@"`,
       "",
     ].join("\n"),
   );
@@ -316,7 +316,7 @@ function buildMacLauncher(electronBinaryPath) {
 
 function isLinuxSetuidSandboxConfigured(electronBinaryPath) {
   // Scripts run outside Effect; reading the host OS directly is acceptable here.
-  // eslint-disable-next-line t3code/no-global-process-runtime
+  // eslint-disable-next-line pulse/no-global-process-runtime
   if (NodeOS.platform() !== "linux") {
     return true;
   }

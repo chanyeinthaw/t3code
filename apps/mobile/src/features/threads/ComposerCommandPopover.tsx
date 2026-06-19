@@ -1,6 +1,6 @@
 import { isLiquidGlassSupported, LiquidGlassView } from "@callstack/liquid-glass";
-import type { ComposerTriggerKind } from "@t3tools/shared/composerTrigger";
-import type { ServerProviderSkill, ServerProviderSlashCommand } from "@t3tools/contracts";
+import type { ComposerTriggerKind } from "@pulse/shared/composerTrigger";
+import type { ServerProviderSkill, ServerProviderSlashCommand } from "@pulse/contracts";
 import { SymbolView } from "expo-symbols";
 import { memo } from "react";
 import { Pressable, ScrollView, useColorScheme, View, type ViewStyle } from "react-native";
@@ -156,7 +156,7 @@ const CommandRow = memo(function CommandRow(props: {
         <SymbolView name={iconName} size={14} tintColor={iconColor} type="monochrome" />
       ) : null}
       <Text
-        className="text-[14px] font-t3-medium text-foreground"
+        className="text-[14px] font-pulse-medium text-foreground"
         numberOfLines={1}
         style={{ flexShrink: 0 }}
       >
@@ -182,7 +182,7 @@ export const ComposerCommandPopover = memo(function ComposerCommandPopover(
       {label ? (
         <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 4 }}>
           <Text
-            className="text-[10px] font-t3-bold text-foreground-muted"
+            className="text-[10px] font-pulse-bold text-foreground-muted"
             style={{ letterSpacing: 0.8, textTransform: "uppercase" }}
           >
             {label}

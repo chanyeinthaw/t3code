@@ -9,9 +9,9 @@ import { it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
-import { createModelSelection } from "@t3tools/shared/model";
+import { createModelSelection } from "@pulse/shared/model";
 import { expect } from "vite-plus/test";
-import { GrokSettings, ProviderInstanceId } from "@t3tools/contracts";
+import { GrokSettings, ProviderInstanceId } from "@pulse/contracts";
 
 import { ServerConfig } from "../config.ts";
 import { type TextGenerationShape } from "./TextGeneration.ts";
@@ -26,7 +26,7 @@ function shellSingleQuote(value: string): string {
 }
 
 const GrokTextGenerationTestLayer = ServerConfig.layerTest(process.cwd(), {
-  prefix: "t3code-grok-text-generation-test-",
+  prefix: "pulse-grok-text-generation-test-",
 }).pipe(Layer.provideMerge(NodeServices.layer));
 
 function makeAcpGrokWrapper(dir: string, env: Record<string, string>): string {
@@ -56,7 +56,7 @@ function withFakeAcpGrok<A, E, R>(
   effectFn: (textGeneration: TextGenerationShape) => Effect.Effect<A, E, R>,
 ) {
   return Effect.gen(function* () {
-    const tempDir = mkdtempSync(path.join(os.tmpdir(), "t3code-grok-text-acp-"));
+    const tempDir = mkdtempSync(path.join(os.tmpdir(), "pulse-grok-text-acp-"));
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         rmSync(tempDir, { recursive: true, force: true });
@@ -81,7 +81,7 @@ function readJsonRpcRequests(
 
 it.layer(GrokTextGenerationTestLayer)("GrokTextGeneration", (it) => {
   it.effect("uses ACP with disabled tool capabilities and forwards the requested model id", () => {
-    const requestLogDir = mkdtempSync(path.join(os.tmpdir(), "t3code-grok-text-log-"));
+    const requestLogDir = mkdtempSync(path.join(os.tmpdir(), "pulse-grok-text-log-"));
     const requestLogPath = path.join(requestLogDir, "requests.ndjson");
 
     return withFakeAcpGrok(

@@ -8,7 +8,7 @@ import { createThreadSelectorAcrossEnvironments } from "../storeSelectors";
 import { useStore } from "../store";
 import { buildProjectThreadRouteParams } from "../projectTabs";
 import { useProjectShellUiStateStore } from "../projectShellUiStateStore";
-import { scopeProjectRef, scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeProjectRef, scopeThreadRef } from "@pulse/client-runtime";
 
 function DraftChatThreadRouteView() {
   const navigate = useNavigate();

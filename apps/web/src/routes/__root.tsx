@@ -1,10 +1,10 @@
-import { type EnvironmentId, type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
+import { type EnvironmentId, type ServerLifecycleWelcomePayload } from "@pulse/contracts";
 import {
   parseScopedProjectKey,
   parseScopedThreadKey,
   scopedProjectKey,
   scopeProjectRef,
-} from "@t3tools/client-runtime";
+} from "@pulse/client-runtime";
 import {
   Outlet,
   createRootRouteWithContext,

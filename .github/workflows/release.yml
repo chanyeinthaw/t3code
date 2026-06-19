@@ -167,7 +167,7 @@ jobs:
             --github-output
 
   relay_public_config:
-    name: Resolve T3 Connect public config
+    name: Resolve Pulse Connect public config
     needs: preflight
     if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -200,13 +200,13 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3code-relay...
+              - --filter=pulsecode-relay...
 
       - id: relay_state
         name: Read production relay tracing config
         shell: bash
         run: |
-          vp run --filter t3code-relay deploy \
+          vp run --filter pulsecode-relay deploy \
             --stage prod \
             --read-state \
             --github-output \
@@ -552,7 +552,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3...
+              - --filter=pulse...
               - --filter=@t3tools/web...
               - --filter=@t3tools/scripts...
 
@@ -577,7 +577,7 @@ jobs:
         run: vp run --filter @t3tools/web build
 
       - name: Build CLI package
-        run: vp run --filter t3 build
+        run: vp run --filter pulse build
 
       - name: Publish CLI package
         run: node apps/server/scripts/cli.ts publish --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --app-version "${{ needs.preflight.outputs.version }}" --verbose

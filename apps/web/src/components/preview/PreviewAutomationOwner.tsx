@@ -1,6 +1,6 @@
 "use client";
 
-import { scopedThreadKey } from "@t3tools/client-runtime";
+import { scopedThreadKey } from "@pulse/client-runtime";
 import type {
   DesktopPreviewBridge,
   PreviewAutomationNavigateInput,
@@ -9,7 +9,7 @@ import type {
   PreviewAutomationResponse,
   PreviewAutomationStatus,
   ScopedThreadRef,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { useCallback, useEffect, useId, useRef } from "react";
 
 import { ensureEnvironmentApi } from "~/environmentApi";

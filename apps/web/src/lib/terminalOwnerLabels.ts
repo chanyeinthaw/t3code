@@ -1,5 +1,5 @@
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
-import type { TerminalSummary } from "@t3tools/contracts";
+import { getTerminalLabel } from "@pulse/shared/terminalLabels";
+import type { TerminalSummary } from "@pulse/contracts";
 
 export function buildOwnerScopedTerminalLabels(input: {
   terminalIds: ReadonlyArray<string>;

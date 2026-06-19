@@ -2,8 +2,8 @@ import type {
   BrowserNavigationTarget,
   EnvironmentId,
   PreviewUrlResolution,
-} from "@t3tools/contracts";
-import { isLoopbackHost, normalizePreviewUrl } from "@t3tools/shared/preview";
+} from "@pulse/contracts";
+import { isLoopbackHost, normalizePreviewUrl } from "@pulse/shared/preview";
 
 import { readEnvironmentConnection } from "~/environments/runtime";
 

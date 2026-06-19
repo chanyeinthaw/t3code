@@ -5,9 +5,9 @@ import type {
   AuthPairingCredentialResult,
   AuthSessionId,
   AuthSessionState,
-} from "@t3tools/contracts";
-import { EnvironmentHttpCommonError } from "@t3tools/contracts";
-import type { EnvironmentHttpCommonError as EnvironmentHttpCommonErrorType } from "@t3tools/contracts";
+} from "@pulse/contracts";
+import { EnvironmentHttpCommonError } from "@pulse/contracts";
+import type { EnvironmentHttpCommonError as EnvironmentHttpCommonErrorType } from "@pulse/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";

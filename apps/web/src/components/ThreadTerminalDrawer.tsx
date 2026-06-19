@@ -14,8 +14,8 @@ import {
   type TerminalAttachStreamEvent,
   type TerminalSessionSnapshot,
   type ThreadId,
-} from "@t3tools/contracts";
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
+} from "@pulse/contracts";
+import { getTerminalLabel } from "@pulse/shared/terminalLabels";
 import { Terminal, type ITheme } from "@xterm/xterm";
 import {
   type PointerEvent as ReactPointerEvent,

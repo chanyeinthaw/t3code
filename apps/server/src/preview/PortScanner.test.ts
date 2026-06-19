@@ -1,9 +1,9 @@
 import * as net from "node:net";
 
 import { it as effectIt } from "@effect/vitest";
-import { ThreadId } from "@t3tools/contracts";
-import * as Net from "@t3tools/shared/Net";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { ThreadId } from "@pulse/contracts";
+import * as Net from "@pulse/shared/Net";
+import { HostProcessPlatform } from "@pulse/shared/hostProcess";
 import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 

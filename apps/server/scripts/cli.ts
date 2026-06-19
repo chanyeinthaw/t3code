@@ -16,9 +16,9 @@ import {
   PUBLISH_ICON_OVERRIDES,
 } from "../../../scripts/lib/brand-assets.ts";
 import { resolveCatalogDependencies } from "../../../scripts/lib/resolve-catalog.ts";
-import { fromJsonStringPretty } from "@t3tools/shared/schemaJson";
-import { fromYaml } from "@t3tools/shared/schemaYaml";
-import { resolveSpawnCommand } from "@t3tools/shared/shell";
+import { fromJsonStringPretty } from "@pulse/shared/schemaJson";
+import { fromYaml } from "@pulse/shared/schemaYaml";
+import { resolveSpawnCommand } from "@pulse/shared/shell";
 import serverPackageJson from "../package.json" with { type: "json" };
 
 interface PackageJson {
@@ -324,7 +324,7 @@ const publishCmd = Command.make(
 // ---------------------------------------------------------------------------
 
 const cli = Command.make("cli").pipe(
-  Command.withDescription("T3 server build & publish CLI."),
+  Command.withDescription("Pulse server build & publish CLI."),
   Command.withSubcommands([buildCmd, publishCmd]),
 );
 

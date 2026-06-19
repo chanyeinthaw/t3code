@@ -99,7 +99,7 @@ describe("ssh command", () => {
     }),
   );
 
-  it.effect("resolves the remote t3 package spec from the desktop release channel", () =>
+  it.effect("resolves the remote pulse package spec from the desktop release channel", () =>
     Effect.sync(() => {
       assert.equal(
         resolveRemoteT3CliPackageSpec({

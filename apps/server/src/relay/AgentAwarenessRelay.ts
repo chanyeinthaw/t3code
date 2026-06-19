@@ -2,22 +2,22 @@ import {
   RelayApi,
   type RelayAgentActivityPublishProofPayload,
   type RelayAgentActivityState,
-} from "@t3tools/contracts/relay";
+} from "@pulse/contracts/relay";
 import type {
   EnvironmentId,
   OrchestrationEvent,
   OrchestrationProjectShell,
   OrchestrationThreadShell,
   ThreadId,
-} from "@t3tools/contracts";
-import { projectThreadAwareness } from "@t3tools/shared/agentAwareness";
-import { makeDrainableWorker } from "@t3tools/shared/DrainableWorker";
-import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
+} from "@pulse/contracts";
+import { projectThreadAwareness } from "@pulse/shared/agentAwareness";
+import { makeDrainableWorker } from "@pulse/shared/DrainableWorker";
+import { withRelayClientTracing } from "@pulse/shared/relayTracing";
 import {
   RELAY_ACTIVITY_PUBLISH_TYP,
   signRelayJwt,
   normalizeRelayIssuer,
-} from "@t3tools/shared/relayJwt";
+} from "@pulse/shared/relayJwt";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
@@ -53,7 +53,7 @@ export interface AgentAwarenessRelayShape {
 export class AgentAwarenessRelay extends Context.Service<
   AgentAwarenessRelay,
   AgentAwarenessRelayShape
->()("t3/relay/AgentAwarenessRelay") {}
+>()("pulse/relay/AgentAwarenessRelay") {}
 
 export function eventThreadId(event: OrchestrationEvent): ThreadId | null {
   const payload = event.payload as { readonly threadId?: unknown };
@@ -182,7 +182,7 @@ const makePublishProof = Effect.fn("makePublishProof")(function* (input: {
   const now = yield* DateTime.now;
   const expiresAt = DateTime.add(now, { minutes: 5 });
   const payload = {
-    iss: `t3-env:${input.environmentId}`,
+    iss: `pulse-env:${input.environmentId}`,
     aud: normalizeRelayIssuer(input.relayIssuer),
     sub: input.environmentId,
     jti: input.jti,
@@ -304,7 +304,7 @@ const make = Effect.gen(function* () {
     }
     const relayConfig = yield* readRelayConfig.pipe(Effect.orElseSucceed(() => null));
     if (!relayConfig) {
-      yield* Effect.logDebug("agent activity publish skipped; T3 Connect config missing", {
+      yield* Effect.logDebug("agent activity publish skipped; Pulse Connect config missing", {
         threadId,
       });
       return;
@@ -423,7 +423,7 @@ const make = Effect.gen(function* () {
     }
     const relayConfig = yield* readRelayConfig.pipe(Effect.orElseSucceed(() => null));
     if (!relayConfig) {
-      yield* Effect.logDebug("agent activity snapshot skipped; T3 Connect config missing");
+      yield* Effect.logDebug("agent activity snapshot skipped; Pulse Connect config missing");
       return false;
     }
     const environmentId = yield* serverEnvironment.getEnvironmentId;
@@ -461,7 +461,7 @@ const make = Effect.gen(function* () {
     function* () {
       const relayConfig = yield* readRelayConfig.pipe(Effect.orElseSucceed(() => null));
       if (!relayConfig) {
-        yield* Effect.logInfo("agent activity publishing standby; T3 Connect config missing");
+        yield* Effect.logInfo("agent activity publishing standby; Pulse Connect config missing");
       } else {
         yield* Effect.logInfo("agent activity publishing enabled", {
           relayUrl: relayConfig.url,

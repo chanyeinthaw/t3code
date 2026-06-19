@@ -1,5 +1,5 @@
 /**
- * Debug logging for the mobile terminal pipeline. Prefix: `[t3-terminal]`.
+ * Debug logging for the mobile terminal pipeline. Prefix: `[pulse-terminal]`.
  *
  * Enabled when `__DEV__` is true, or set `globalThis.__T3_TERMINAL_DEBUG__ = true` in a JS
  * debugger / Metro console to trace release/TestFlight builds.
@@ -17,8 +17,8 @@ export function terminalDebugLog(message: string, data?: Record<string, unknown>
     return;
   }
   if (data !== undefined) {
-    console.log(`[t3-terminal] ${message}`, data);
+    console.log(`[pulse-terminal] ${message}`, data);
   } else {
-    console.log(`[t3-terminal] ${message}`);
+    console.log(`[pulse-terminal] ${message}`);
   }
 }

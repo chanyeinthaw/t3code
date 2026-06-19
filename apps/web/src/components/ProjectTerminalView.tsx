@@ -1,13 +1,13 @@
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { scopeThreadRef } from "@t3tools/client-runtime";
+import { scopeThreadRef } from "@pulse/client-runtime";
 import {
   type EnvironmentId,
   type ProjectId,
   type ProjectScript,
   type ResolvedKeybindingsConfig,
-} from "@t3tools/contracts";
-import { nextTerminalId } from "@t3tools/shared/terminalLabels";
-import { projectScriptRuntimeEnv } from "@t3tools/shared/projectScripts";
+} from "@pulse/contracts";
+import { nextTerminalId } from "@pulse/shared/terminalLabels";
+import { projectScriptRuntimeEnv } from "@pulse/shared/projectScripts";
 
 import ThreadTerminalDrawer from "./ThreadTerminalDrawer";
 import { ProjectHeaderActions } from "./ProjectHeaderActions";

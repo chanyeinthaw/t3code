@@ -13,7 +13,7 @@ function EmptyNotificationDevices() {
       <EmptyHeader>
         <EmptyTitle>No notification devices</EmptyTitle>
         <EmptyDescription>
-          Sign in on the mobile app to register a device for T3 Connect notifications.
+          Sign in on the mobile app to register a device for Pulse Connect notifications.
         </EmptyDescription>
       </EmptyHeader>
     </Empty>
@@ -27,8 +27,8 @@ export function T3ConnectSettingsPanel() {
 
   return (
     <>
-      <SettingsSection title="T3 Connect" icon={<CloudIcon className="size-3.5" />}>
-        <SettingsRow title="Account" description="Manage your T3 Connect session." />
+      <SettingsSection title="Pulse Connect" icon={<CloudIcon className="size-3.5" />}>
+        <SettingsRow title="Account" description="Manage your Pulse Connect session." />
         <SettingsRow
           title="Managed relay"
           description={`Relay endpoint: ${config.relayUrl}`}
@@ -36,11 +36,11 @@ export function T3ConnectSettingsPanel() {
         />
       </SettingsSection>
 
-      <SettingsSection title="T3 Connect preferences">
+      <SettingsSection title="Pulse Connect preferences">
         <SettingsRow
           title="Publish agent activity"
           description="Allow this environment to send agent activity to your notification devices."
-          status="Requires T3 Connect account linking"
+          status="Requires Pulse Connect account linking"
         />
       </SettingsSection>
 

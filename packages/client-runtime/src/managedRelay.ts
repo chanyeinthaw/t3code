@@ -24,10 +24,10 @@ import {
   RelayRegisterDeviceEndpoint,
   RelayRegisterLiveActivityEndpoint,
   RelayUnregisterDeviceEndpoint,
-} from "@t3tools/contracts/relay";
-import { encodeOAuthScope, oauthScopeSetEquals } from "@t3tools/shared/oauthScope";
-import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
-import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
+} from "@pulse/contracts/relay";
+import { encodeOAuthScope, oauthScopeSetEquals } from "@pulse/shared/oauthScope";
+import { withRelayClientTracing } from "@pulse/shared/relayTracing";
+import { normalizeSecureRelayUrl } from "@pulse/shared/relayUrl";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Data from "effect/Data";
@@ -59,7 +59,7 @@ export interface ManagedRelayDpopSignerShape {
 export class ManagedRelayDpopSigner extends Context.Service<
   ManagedRelayDpopSigner,
   ManagedRelayDpopSignerShape
->()("@t3tools/client-runtime/managedRelay/ManagedRelayDpopSigner") {}
+>()("@pulse/client-runtime/managedRelay/ManagedRelayDpopSigner") {}
 
 export class ManagedRelayClientError extends Data.TaggedError("ManagedRelayClientError")<{
   readonly message: string;
@@ -136,7 +136,7 @@ export interface ManagedRelayClientShape {
 export class ManagedRelayClient extends Context.Service<
   ManagedRelayClient,
   ManagedRelayClientShape
->()("@t3tools/client-runtime/managedRelay/ManagedRelayClient") {}
+>()("@pulse/client-runtime/managedRelay/ManagedRelayClient") {}
 
 function relayClientError(message: string, cause?: unknown): ManagedRelayClientError {
   return new ManagedRelayClientError({ message, ...(cause === undefined ? {} : { cause }) });

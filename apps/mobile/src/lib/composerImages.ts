@@ -2,7 +2,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   type UploadChatImageAttachment,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { uuidv4 } from "./uuid";
 
 export interface DraftComposerImageAttachment extends UploadChatImageAttachment {
@@ -10,7 +10,7 @@ export interface DraftComposerImageAttachment extends UploadChatImageAttachment 
   readonly previewUri: string;
 }
 
-const OWNED_PASTED_IMAGE_DIRECTORY = "t3-composer-paste";
+const OWNED_PASTED_IMAGE_DIRECTORY = "pulse-composer-paste";
 
 function estimateBase64ByteSize(base64: string): number {
   const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;

@@ -8,7 +8,7 @@ import type {
   ProviderSettingsFormControl,
   ProviderSettingsFormSchemaAnnotation,
   ProviderSettingsFormSelectOption,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 
 import { cn } from "../../lib/utils";
 import { DraftInput } from "../ui/draft-input";

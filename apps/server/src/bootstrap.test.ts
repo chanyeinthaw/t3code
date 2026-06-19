@@ -11,7 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as TestClock from "effect/testing/TestClock";
 import { vi } from "vite-plus/test";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
+import { HostProcessPlatform } from "@pulse/shared/hostProcess";
 
 import { readBootstrapEnvelope } from "./bootstrap.ts";
 import { assertNone, assertSome } from "@effect/vitest/utils";
@@ -45,7 +45,10 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("reads a bootstrap envelope from a provided fd", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "pulse-bootstrap-",
+        suffix: ".ndjson",
+      });
 
       yield* fs.writeFileString(
         filePath,
@@ -67,7 +70,10 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("falls back to reading the inherited fd when path duplication fails", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const filePath = yield* fs.makeTempFileScoped({ prefix: "t3-bootstrap-", suffix: ".ndjson" });
+      const filePath = yield* fs.makeTempFileScoped({
+        prefix: "pulse-bootstrap-",
+        suffix: ".ndjson",
+      });
 
       yield* fs.writeFileString(
         filePath,
@@ -107,7 +113,7 @@ it.layer(NodeServices.layer)("readBootstrapEnvelope", (it) => {
   it.effect("returns none when the bootstrap read times out before any value arrives", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
-      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-bootstrap-" });
+      const tempDir = yield* fs.makeTempDirectoryScoped({ prefix: "pulse-bootstrap-" });
       const fifoPath = path.join(tempDir, "bootstrap.pipe");
 
       yield* Effect.sync(() => execFileSync("mkfifo", [fifoPath]));

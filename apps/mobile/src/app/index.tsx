@@ -17,8 +17,6 @@ export default function HomeRouteScreen() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const iconColor = useThemeColor("--color-icon");
-  const mutedColor = useThemeColor("--color-foreground-muted");
-  const subtleColor = useThemeColor("--color-subtle");
 
   return (
     <>
@@ -52,28 +50,8 @@ export default function HomeRouteScreen() {
                 letterSpacing: -0.4,
               }}
             >
-              T3 Code
+              Pulse
             </RNText>
-            <View
-              style={{
-                backgroundColor: subtleColor,
-                borderRadius: 99,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-              }}
-            >
-              <RNText
-                style={{
-                  fontFamily: "DMSans_700Bold",
-                  fontSize: 10,
-                  color: mutedColor,
-                  letterSpacing: 1.1,
-                  textTransform: "uppercase",
-                }}
-              >
-                Alpha
-              </RNText>
-            </View>
           </View>
         </Stack.Toolbar.View>
       </Stack.Toolbar>

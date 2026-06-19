@@ -3,7 +3,7 @@ import {
   type KeybindingCommand,
   type ProjectId,
   type ProjectScript,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { useCallback } from "react";
 
 import { type NewProjectScriptInput } from "~/components/ProjectScriptsControl";

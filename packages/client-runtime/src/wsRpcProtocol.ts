@@ -1,4 +1,4 @@
-import { WsRpcGroup } from "@t3tools/contracts";
+import { WsRpcGroup } from "@pulse/contracts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -64,9 +64,9 @@ export interface WsRpcProtocolOptions {
 }
 
 export const makeWsRpcProtocolClient = RpcClient.make(WsRpcGroup);
-type RpcClientFactory = typeof makeWsRpcProtocolClient;
+type RpcClientPulse = typeof makeWsRpcProtocolClient;
 export type WsRpcProtocolClient =
-  RpcClientFactory extends Effect.Effect<infer Client, any, any> ? Client : never;
+  RpcClientPulse extends Effect.Effect<infer Client, any, any> ? Client : never;
 export type WsRpcProtocolSocketUrlProvider = string | (() => Promise<string>);
 
 function formatSocketErrorMessage(error: unknown): string {
@@ -229,7 +229,7 @@ export function createWsRpcProtocolLayer(
       socket.addEventListener(
         "error",
         () => {
-          lifecycle.onError("Unable to connect to the T3 server WebSocket.");
+          lifecycle.onError("Unable to connect to the Pulse server WebSocket.");
         },
         { once: true },
       );

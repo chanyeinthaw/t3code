@@ -1,7 +1,7 @@
 import { Virtualizer } from "@pierre/diffs/react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { scopeThreadRef } from "@t3tools/client-runtime";
-import type { ScopedThreadRef, TurnId } from "@t3tools/contracts";
+import { scopeThreadRef } from "@pulse/client-runtime";
+import type { ScopedThreadRef, TurnId } from "@pulse/contracts";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,

@@ -3,7 +3,7 @@ import type {
   EnvironmentId,
   ResolvedKeybindingsConfig,
   ScopedThreadRef,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import type { SelectedLineRange } from "@pierre/diffs";
 import { Editor } from "@pierre/diffs/editor";
 import { EditorProvider, File, Virtualizer } from "@pierre/diffs/react";
@@ -63,7 +63,7 @@ interface FilePreviewPanelProps {
   onPendingChange: (relativePath: string, pending: boolean) => void;
 }
 
-const FILE_EXPLORER_STORAGE_KEY = "t3code.fileExplorerOpen";
+const FILE_EXPLORER_STORAGE_KEY = "pulse.fileExplorerOpen";
 const FILE_SAVE_DEBOUNCE_MS = 500;
 
 interface EditableFileSurfaceProps {

@@ -25,7 +25,7 @@ export interface WsTransportOptions {
   readonly tracingLayer?: Layer.Layer<never, never, never>;
   /**
    * Override protocol construction (defaults to {@link createWsRpcProtocolLayer}).
-   * The web app supplies its instrumented layer factory.
+   * The web app supplies its instrumented layer pulse.
    */
   readonly createProtocolLayer?: (
     url: WsRpcProtocolSocketUrlProvider,
@@ -268,12 +268,12 @@ export class WsTransport {
   }
 
   private createSession(): TransportSession {
-    const protocolFactory = this.options?.createProtocolLayer ?? createWsRpcProtocolLayer;
+    const protocolPulse = this.options?.createProtocolLayer ?? createWsRpcProtocolLayer;
     const sessionId = this.nextSessionId + 1;
     this.nextSessionId = sessionId;
     this.activeSessionId = sessionId;
     const lifecycleHandlers = this.lifecycleHandlers;
-    const protocolLayer = protocolFactory(this.url, {
+    const protocolLayer = protocolPulse(this.url, {
       ...lifecycleHandlers,
       isActive: () =>
         !this.disposed &&

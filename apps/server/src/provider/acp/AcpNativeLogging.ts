@@ -1,4 +1,4 @@
-import type { ProviderDriverKind, ThreadId } from "@t3tools/contracts";
+import type { ProviderDriverKind, ThreadId } from "@pulse/contracts";
 import * as Cause from "effect/Cause";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";
@@ -18,7 +18,7 @@ function formatRequestLogPayload(event: AcpSessionRequestLogEvent) {
   };
 }
 
-export const makeAcpNativeLoggerFactory = Effect.fn("makeAcpNativeLoggerFactory")(function* () {
+export const makeAcpNativeLoggerPulse = Effect.fn("makeAcpNativeLoggerPulse")(function* () {
   const crypto = yield* Crypto.Crypto;
   return (input: {
     readonly nativeEventLogger: EventNdjsonLogger | undefined;

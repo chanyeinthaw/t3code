@@ -5,9 +5,9 @@ import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const require = createRequire(import.meta.url);
-// oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone repair script has no Effect runtime.
+// oxlint-disable-next-line pulse/no-global-process-runtime -- Standalone repair script has no Effect runtime.
 const hostPlatform = platform();
-// oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone repair script has no Effect runtime.
+// oxlint-disable-next-line pulse/no-global-process-runtime -- Standalone repair script has no Effect runtime.
 const hostArch = arch();
 
 function getPlatformPath() {
@@ -114,7 +114,7 @@ function runChecked(command, args) {
 }
 
 function installElectronRuntime(electronDir, version) {
-  const tempDir = mkdtempSync(join(tmpdir(), "t3-electron-"));
+  const tempDir = mkdtempSync(join(tmpdir(), "pulse-electron-"));
   const zipPath = join(tempDir, `electron-v${version}-${hostPlatform}-${hostArch}.zip`);
 
   try {

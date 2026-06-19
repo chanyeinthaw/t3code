@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vite-plus/test";
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@pulse/contracts";
 
 import {
   isRelayManagedConnection,
@@ -23,7 +23,7 @@ vi.mock("react-native", () => ({
 describe("mobile remote connection records", () => {
   it("identifies mobile token exchanges for authorized-client presentation", () => {
     expect(mobileAuthClientMetadata()).toEqual({
-      label: "T3 Code Mobile",
+      label: "Pulse Mobile",
       deviceType: "mobile",
       os: "iOS",
     });

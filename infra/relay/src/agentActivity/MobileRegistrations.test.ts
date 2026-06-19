@@ -1,7 +1,7 @@
 import type {
   RelayAgentActivityState,
   RelayDeviceRegistrationRequest,
-} from "@t3tools/contracts/relay";
+} from "@pulse/contracts/relay";
 import type { SignedApnsDeliveryJob } from "./apnsDeliveryJobs.ts";
 import * as NodeCryptoLayer from "@effect/platform-node/NodeCrypto";
 import { describe, expect, it } from "@effect/vitest";
@@ -129,7 +129,7 @@ const config = RelayConfiguration.RelayConfiguration.of({
   },
   clerkSecretKey: Redacted.make("clerk-secret"),
   clerkPublishableKey: "pk_test_test",
-  clerkJwtAudience: "t3-code-relay",
+  clerkJwtAudience: "pulse-relay",
   apnsDeliveryJobSigningSecret: Redacted.make("apns-job-secret"),
   cloudMintPrivateKey: Redacted.make("cloud-private-key"),
   cloudMintPublicKey: "cloud-public-key",
@@ -444,7 +444,7 @@ describe("MobileRegistrations", () => {
             token: "push-to-start-token",
           },
           aggregate: {
-            title: "T3 Code",
+            title: "Pulse",
             subtitle: "Agent work in progress",
             activeCount: 1,
             activities: [

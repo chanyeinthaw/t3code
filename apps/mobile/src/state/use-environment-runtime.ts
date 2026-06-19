@@ -6,8 +6,8 @@ import {
   environmentRuntimeStateAtom,
   getEnvironmentRuntimeTargetKey,
   type EnvironmentRuntimeState,
-} from "@t3tools/client-runtime";
-import type { EnvironmentId } from "@t3tools/contracts";
+} from "@pulse/client-runtime";
+import type { EnvironmentId } from "@pulse/contracts";
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 
 import { appAtomRegistry } from "./atom-registry";

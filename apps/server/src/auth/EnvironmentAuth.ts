@@ -16,8 +16,8 @@ import {
   type ServerAuthDescriptor,
   type ServerAuthSessionMethod,
   type AuthWebSocketTicketResult,
-} from "@t3tools/contracts";
-import { encodeOAuthScope } from "@t3tools/shared/oauthScope";
+} from "@pulse/contracts";
+import { encodeOAuthScope } from "@pulse/shared/oauthScope";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as Data from "effect/Data";
@@ -182,7 +182,7 @@ export interface EnvironmentAuthShape {
 }
 
 export class EnvironmentAuth extends Context.Service<EnvironmentAuth, EnvironmentAuthShape>()(
-  "t3/auth/EnvironmentAuth",
+  "pulse/auth/EnvironmentAuth",
 ) {}
 
 type BootstrapExchangeResult = {

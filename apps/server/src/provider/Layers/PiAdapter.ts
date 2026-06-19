@@ -14,7 +14,7 @@ import {
   ThreadId,
   type ThreadTokenUsageSnapshot,
   TurnId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import * as Cause from "effect/Cause";
 import * as Clock from "effect/Clock";
 import * as Crypto from "effect/Crypto";
@@ -51,10 +51,10 @@ import {
   ProviderAdapterValidationError,
 } from "../Errors.ts";
 import type { PiAdapterShape } from "../Services/PiAdapter.ts";
-import type { PiSettings } from "@t3tools/contracts";
+import type { PiSettings } from "@pulse/contracts";
 import type { EventNdjsonLogger } from "./EventNdjsonLogger.ts";
 import { PI_SLASH_COMMANDS, piSkillToServerProviderSkill } from "./PiProvider.ts";
-import { makePiT3Tools, T3_PI_TOOL_NAMES } from "./PiT3Tools.ts";
+import { makePiPulseTools, PULSE_PI_TOOL_NAMES } from "./PiPulseTools.ts";
 
 const PROVIDER = ProviderDriverKind.make("pi");
 const DEFAULT_PI_THINKING_LEVEL = "medium";
@@ -1437,7 +1437,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     const environmentId = options.environmentId;
     const providerSessionId = yield* randomUUIDv4;
     const issuedAt = yield* Clock.currentTimeMillis;
-    const piT3Tools = makePiT3Tools({
+    const piPulseTools = makePiPulseTools({
       environmentId,
       threadId: input.threadId,
       providerInstanceId: boundInstanceId,
@@ -1471,7 +1471,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             model,
             ...(sessionManager ? { sessionManager } : {}),
             ...(piSettings.tools.length > 0
-              ? { tools: [...new Set([...piSettings.tools, ...T3_PI_TOOL_NAMES])] }
+              ? { tools: [...new Set([...piSettings.tools, ...PULSE_PI_TOOL_NAMES])] }
               : {}),
             ...(piSettings.excludeTools.length > 0
               ? { excludeTools: [...piSettings.excludeTools] }
@@ -1479,7 +1479,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             ...(piSettings.noTools === "all" || piSettings.noTools === "builtin"
               ? { noTools: piSettings.noTools }
               : {}),
-            customTools: piT3Tools,
+            customTools: piPulseTools,
           });
           await created.session.bindExtensions({});
           return created;

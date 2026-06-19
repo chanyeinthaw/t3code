@@ -3,7 +3,7 @@ import {
   ProviderDriverKind,
   type ProviderInstanceEnvironment,
   type ServerProvider,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";

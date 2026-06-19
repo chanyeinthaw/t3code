@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { EnvironmentId, ProjectId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId } from "@pulse/contracts";
 
 import { ProjectShell } from "../components/ProjectShell";
 import ProjectTerminalView from "../components/ProjectTerminalView";

@@ -219,7 +219,7 @@ function ConfiguredSettingsRouteScreen() {
 
       Alert.alert(
         "Disable notifications",
-        "Notification permission is controlled by iOS. Open Settings to disable notifications for T3 Code.",
+        "Notification permission is controlled by iOS. Open Settings to disable notifications for Pulse.",
         [
           { text: "Cancel", style: "cancel" },
           { text: "Open Settings", onPress: () => void Linking.openSettings() },
@@ -295,7 +295,7 @@ function ConfiguredSettingsRouteScreen() {
             />
           </SettingsSection>
           <Text className="px-2 text-[13px] leading-[18px] text-foreground-muted">
-            T3 Code works locally without signing in. Cloud features are optional.
+            Pulse works locally without signing in. Cloud features are optional.
           </Text>
         </View>
 
@@ -335,7 +335,9 @@ type SymbolName = ComponentProps<typeof SymbolView>["name"];
 function SettingsSection(props: { readonly title: string; readonly children: ReactNode }) {
   return (
     <View className="gap-2">
-      <Text className="px-2 text-[13px] font-t3-medium text-foreground-muted">{props.title}</Text>
+      <Text className="px-2 text-[13px] font-pulse-medium text-foreground-muted">
+        {props.title}
+      </Text>
       <View
         className="overflow-hidden rounded-[28px] bg-card"
         style={{ borderCurve: "continuous" }}
@@ -360,7 +362,7 @@ function AppSettingsSection() {
           weight="regular"
         />
         <Text className="flex-1 text-[17px] text-foreground">Version</Text>
-        <Text className="text-[17px] text-foreground-muted">Alpha</Text>
+        <Text className="text-[17px] text-foreground-muted">Pulse</Text>
       </View>
     </SettingsSection>
   );

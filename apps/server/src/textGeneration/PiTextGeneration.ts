@@ -3,8 +3,8 @@ import {
   type ModelSelection,
   type PiSettings,
   TextGenerationError,
-} from "@t3tools/contracts";
-import { sanitizeFeatureBranchName } from "@t3tools/shared/git";
+} from "@pulse/contracts";
+import { sanitizeFeatureBranchName } from "@pulse/shared/git";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";

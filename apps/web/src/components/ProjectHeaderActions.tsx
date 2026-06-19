@@ -3,7 +3,7 @@ import type {
   ProjectScript,
   ResolvedKeybindingsConfig,
   ScopedThreadRef,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { memo } from "react";
 
 import GitActionsControl from "./GitActionsControl";

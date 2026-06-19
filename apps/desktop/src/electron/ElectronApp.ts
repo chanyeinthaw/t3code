@@ -39,7 +39,7 @@ export interface ElectronAppShape {
 }
 
 export class ElectronApp extends Context.Service<ElectronApp, ElectronAppShape>()(
-  "@t3tools/desktop/electron/ElectronApp",
+  "@pulse/desktop/electron/ElectronApp",
 ) {}
 
 const addScopedAppListener = <Args extends ReadonlyArray<unknown>>(

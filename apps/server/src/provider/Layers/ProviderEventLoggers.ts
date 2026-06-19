@@ -3,7 +3,7 @@
  * shared NDJSON streams the provider runtime writes:
  *
  *   - `native`    — provider-protocol events as the SDK emits them, written
- *                   from inside each `<X>Adapter` factory.
+ *                   from inside each `<X>Adapter` pulse.
  *   - `canonical` — runtime events after `ProviderService` has normalized
  *                   them onto `ProviderRuntimeEvent`.
  *
@@ -50,7 +50,7 @@ export interface ProviderEventLoggersShape {
 export class ProviderEventLoggers extends Context.Service<
   ProviderEventLoggers,
   ProviderEventLoggersShape
->()("t3/provider/Layers/ProviderEventLoggers") {}
+>()("pulse/provider/Layers/ProviderEventLoggers") {}
 
 /**
  * Constant value used by tests / boot layers that want to opt out of native

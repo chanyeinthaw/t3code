@@ -3,7 +3,7 @@ import type {
   EnvironmentApi,
   EnvironmentId,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { useMemo } from "react";
 import { create } from "zustand";
 

@@ -1,5 +1,5 @@
 {
-  "name": "@t3tools/scripts",
+  "name": "@pulse/scripts",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@t3tools/contracts": "workspace:*",
-    "@t3tools/shared": "workspace:*",
+    "@pulse/contracts": "workspace:*",
+    "@pulse/shared": "workspace:*",
     "effect": "catalog:",
     "yaml": "catalog:"
   },

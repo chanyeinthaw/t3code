@@ -13,10 +13,10 @@ import {
   type TerminalAttachStreamEvent,
   type TerminalMetadataStreamEvent,
   ThreadId,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import type { ContextMenuItem } from "@t3tools/contracts";
+import type { ContextMenuItem } from "@pulse/contracts";
 
 const showContextMenuFallbackMock =
   vi.fn<
@@ -255,7 +255,7 @@ function makeDesktopBridge(overrides: Partial<DesktopBridge> = {}): DesktopBridg
     setTheme: async () => undefined,
     showContextMenu: async () => null,
     openExternal: async () => true,
-    createCloudAuthRequest: async () => "t3code-dev://auth/callback?t3_state=test",
+    createCloudAuthRequest: async () => "pulse-dev://auth/callback?t3_state=test",
     getCloudAuthToken: async () => null,
     setCloudAuthToken: async () => true,
     clearCloudAuthToken: async () => undefined,

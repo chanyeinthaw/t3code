@@ -5,7 +5,7 @@ import type {
   SelectedLineRange,
 } from "@pierre/diffs";
 import { FileDiff, type FileDiffProps } from "@pierre/diffs/react";
-import type { ScopedThreadRef } from "@t3tools/contracts";
+import type { ScopedThreadRef } from "@pulse/contracts";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 
 import { type DraftId, useComposerDraftStore } from "~/composerDraftStore";

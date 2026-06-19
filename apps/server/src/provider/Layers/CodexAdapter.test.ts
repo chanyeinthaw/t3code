@@ -17,8 +17,8 @@ import {
   type ProviderUserInputAnswers,
   ThreadId,
   TurnId,
-} from "@t3tools/contracts";
-import { createModelSelection } from "@t3tools/shared/model";
+} from "@pulse/contracts";
+import { createModelSelection } from "@pulse/shared/model";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { it, vi } from "@effect/vitest";
 
@@ -50,7 +50,7 @@ const decodeCodexSettings = Schema.decodeSync(CodexSettings);
 
 // Test-local service tag so the rest of the file can keep using `yield* CodexAdapter`.
 class CodexAdapter extends Context.Service<CodexAdapter, CodexAdapterShape>()(
-  "t3/provider/Layers/CodexAdapter.test/CodexAdapter",
+  "pulse/provider/Layers/CodexAdapter.test/CodexAdapter",
 ) {}
 
 const asThreadId = (value: string): ThreadId => ThreadId.make(value);
@@ -160,27 +160,27 @@ class FakeCodexRuntime implements CodexSessionRuntimeShape {
   }
 }
 
-function makeRuntimeFactory() {
+function makeRuntimePulse() {
   const runtimes: Array<FakeCodexRuntime> = [];
-  const factory = vi.fn((options: CodexSessionRuntimeOptions) => {
+  const pulse = vi.fn((options: CodexSessionRuntimeOptions) => {
     const runtime = new FakeCodexRuntime(options);
     runtimes.push(runtime);
     return Effect.succeed(runtime);
   });
 
   return {
-    factory,
+    pulse,
     get lastRuntime(): FakeCodexRuntime | undefined {
       return runtimes.at(-1);
     },
   };
 }
 
-function makeScopedRuntimeFactory(options?: { readonly failConstruction?: boolean }) {
+function makeScopedRuntimePulse(options?: { readonly failConstruction?: boolean }) {
   const runtimes: Array<FakeCodexRuntime> = [];
   const releasedThreadIds: Array<ThreadId> = [];
 
-  const factory = vi.fn((runtimeOptions: CodexSessionRuntimeOptions) =>
+  const pulse = vi.fn((runtimeOptions: CodexSessionRuntimeOptions) =>
     Effect.gen(function* () {
       yield* Scope.Scope;
       yield* Effect.addFinalizer(() =>
@@ -203,7 +203,7 @@ function makeScopedRuntimeFactory(options?: { readonly failConstruction?: boolea
   );
 
   return {
-    factory,
+    pulse,
     releasedThreadIds,
     get lastRuntime(): FakeCodexRuntime | undefined {
       return runtimes.at(-1);
@@ -220,14 +220,14 @@ const providerSessionDirectoryTestLayer = Layer.succeed(ProviderSessionDirectory
   listBindings: () => Effect.succeed([]),
 });
 
-const validationRuntimeFactory = makeRuntimeFactory();
+const validationRuntimePulse = makeRuntimePulse();
 const validationLayer = it.layer(
   Layer.effect(
     CodexAdapter,
     Effect.gen(function* () {
       const codexConfig = decodeCodexSettings({});
       return yield* makeCodexAdapter(codexConfig, {
-        makeRuntime: validationRuntimeFactory.factory,
+        makeRuntime: validationRuntimePulse.pulse,
       });
     }),
   ).pipe(
@@ -259,12 +259,12 @@ validationLayer("CodexAdapterLive validation", (it) => {
           issue: "Expected provider 'codex' but received 'claudeAgent'.",
         }),
       );
-      assert.equal(validationRuntimeFactory.factory.mock.calls.length, 0);
+      assert.equal(validationRuntimePulse.pulse.mock.calls.length, 0);
     }),
   );
   it.effect("maps codex model options before starting a session", () =>
     Effect.gen(function* () {
-      validationRuntimeFactory.factory.mockClear();
+      validationRuntimePulse.pulse.mockClear();
       const adapter = yield* CodexAdapter;
 
       yield* adapter.startSession({
@@ -276,7 +276,7 @@ validationLayer("CodexAdapterLive validation", (it) => {
         runtimeMode: "full-access",
       });
 
-      assert.deepStrictEqual(validationRuntimeFactory.factory.mock.calls[0]?.[0], {
+      assert.deepStrictEqual(validationRuntimePulse.pulse.mock.calls[0]?.[0], {
         binaryPath: "codex",
         cwd: process.cwd(),
         model: "gpt-5.3-codex",
@@ -289,14 +289,14 @@ validationLayer("CodexAdapterLive validation", (it) => {
   );
 });
 
-const sessionRuntimeFactory = makeRuntimeFactory();
+const sessionRuntimePulse = makeRuntimePulse();
 const sessionErrorLayer = it.layer(
   Layer.effect(
     CodexAdapter,
     Effect.gen(function* () {
       const codexConfig = decodeCodexSettings({});
       return yield* makeCodexAdapter(codexConfig, {
-        makeRuntime: sessionRuntimeFactory.factory,
+        makeRuntime: sessionRuntimePulse.pulse,
       });
     }),
   ).pipe(
@@ -334,7 +334,7 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
         threadId: asThreadId("sess-missing"),
         runtimeMode: "full-access",
       });
-      const runtime = sessionRuntimeFactory.lastRuntime;
+      const runtime = sessionRuntimePulse.lastRuntime;
       assert.ok(runtime);
       runtime.sendTurnImpl.mockClear();
 
@@ -361,14 +361,14 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
 
   it.effect("maps codex model options for the adapter's bound custom instance id", () => {
     const customInstanceId = ProviderInstanceId.make("codex_personal");
-    const customRuntimeFactory = makeRuntimeFactory();
+    const customRuntimePulse = makeRuntimePulse();
     const customLayer = Layer.effect(
       CodexAdapter,
       Effect.gen(function* () {
         const codexConfig = decodeCodexSettings({});
         return yield* makeCodexAdapter(codexConfig, {
           instanceId: customInstanceId,
-          makeRuntime: customRuntimeFactory.factory,
+          makeRuntime: customRuntimePulse.pulse,
         });
       }),
     ).pipe(
@@ -385,7 +385,7 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
         threadId: asThreadId("sess-custom-instance"),
         runtimeMode: "full-access",
       });
-      const runtime = customRuntimeFactory.lastRuntime;
+      const runtime = customRuntimePulse.lastRuntime;
       assert.ok(runtime);
       runtime.sendTurnImpl.mockClear();
 
@@ -415,14 +415,14 @@ sessionErrorLayer("CodexAdapterLive session errors", (it) => {
   });
 });
 
-const lifecycleRuntimeFactory = makeRuntimeFactory();
+const lifecycleRuntimePulse = makeRuntimePulse();
 const lifecycleLayer = it.layer(
   Layer.effect(
     CodexAdapter,
     Effect.gen(function* () {
       const codexConfig = decodeCodexSettings({});
       return yield* makeCodexAdapter(codexConfig, {
-        makeRuntime: lifecycleRuntimeFactory.factory,
+        makeRuntime: lifecycleRuntimePulse.pulse,
       });
     }),
   ).pipe(
@@ -441,7 +441,7 @@ function startLifecycleRuntime() {
       threadId: asThreadId("thread-1"),
       runtimeMode: "full-access",
     });
-    const runtime = lifecycleRuntimeFactory.lastRuntime;
+    const runtime = lifecycleRuntimePulse.lastRuntime;
     assert.ok(runtime);
     return { adapter, runtime };
   });
@@ -512,7 +512,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
           item: {
             type: "mcpToolCall",
             id: "mcp_1",
-            server: "t3-code",
+            server: "pulse",
             tool: "preview_status",
             arguments: {},
             durationMs: 12,
@@ -529,7 +529,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         return;
       }
       assert.equal(firstEvent.value.payload.itemType, "mcp_tool_call");
-      assert.equal(firstEvent.value.payload.title, "t3-code · preview_status");
+      assert.equal(firstEvent.value.payload.title, "pulse · preview_status");
       assert.deepStrictEqual(firstEvent.value.payload.data, {
         completedAtMs: 1_778_000_000_000,
         threadId: "thread-1",
@@ -537,7 +537,7 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
         item: {
           type: "mcpToolCall",
           id: "mcp_1",
-          server: "t3-code",
+          server: "pulse",
           tool: "preview_status",
           arguments: {},
           durationMs: 12,
@@ -1088,14 +1088,14 @@ lifecycleLayer("CodexAdapterLive lifecycle", (it) => {
   );
 });
 
-const scopedLifecycleRuntimeFactory = makeScopedRuntimeFactory();
+const scopedLifecycleRuntimePulse = makeScopedRuntimePulse();
 const scopedLifecycleLayer = it.layer(
   Layer.effect(
     CodexAdapter,
     Effect.gen(function* () {
       const codexConfig = decodeCodexSettings({});
       return yield* makeCodexAdapter(codexConfig, {
-        makeRuntime: scopedLifecycleRuntimeFactory.factory,
+        makeRuntime: scopedLifecycleRuntimePulse.pulse,
       });
     }),
   ).pipe(
@@ -1109,7 +1109,7 @@ const scopedLifecycleLayer = it.layer(
 scopedLifecycleLayer("CodexAdapterLive scoped lifecycle", (it) => {
   it.effect("closes the externally owned session scope on stopSession", () =>
     Effect.gen(function* () {
-      scopedLifecycleRuntimeFactory.releasedThreadIds.length = 0;
+      scopedLifecycleRuntimePulse.releasedThreadIds.length = 0;
       const adapter = yield* CodexAdapter;
 
       yield* adapter.startSession({
@@ -1118,13 +1118,13 @@ scopedLifecycleLayer("CodexAdapterLive scoped lifecycle", (it) => {
         runtimeMode: "full-access",
       });
 
-      const runtime = scopedLifecycleRuntimeFactory.lastRuntime;
+      const runtime = scopedLifecycleRuntimePulse.lastRuntime;
       assert.ok(runtime);
 
       yield* adapter.stopSession(asThreadId("thread-stop"));
 
       assert.equal(runtime.closeImpl.mock.calls.length, 1);
-      assert.deepStrictEqual(scopedLifecycleRuntimeFactory.releasedThreadIds, [
+      assert.deepStrictEqual(scopedLifecycleRuntimePulse.releasedThreadIds, [
         asThreadId("thread-stop"),
       ]);
       assert.equal(yield* adapter.hasSession(asThreadId("thread-stop")), false);
@@ -1132,14 +1132,14 @@ scopedLifecycleLayer("CodexAdapterLive scoped lifecycle", (it) => {
   );
 });
 
-const scopedFailureRuntimeFactory = makeScopedRuntimeFactory({ failConstruction: true });
+const scopedFailureRuntimePulse = makeScopedRuntimePulse({ failConstruction: true });
 const scopedFailureLayer = it.layer(
   Layer.effect(
     CodexAdapter,
     Effect.gen(function* () {
       const codexConfig = decodeCodexSettings({});
       return yield* makeCodexAdapter(codexConfig, {
-        makeRuntime: scopedFailureRuntimeFactory.factory,
+        makeRuntime: scopedFailureRuntimePulse.pulse,
       });
     }),
   ).pipe(
@@ -1153,7 +1153,7 @@ const scopedFailureLayer = it.layer(
 scopedFailureLayer("CodexAdapterLive scoped startup failure", (it) => {
   it.effect("closes the externally owned session scope when startSession fails", () =>
     Effect.gen(function* () {
-      scopedFailureRuntimeFactory.releasedThreadIds.length = 0;
+      scopedFailureRuntimePulse.releasedThreadIds.length = 0;
       const adapter = yield* CodexAdapter;
 
       const result = yield* adapter
@@ -1166,7 +1166,7 @@ scopedFailureLayer("CodexAdapterLive scoped startup failure", (it) => {
 
       assert.equal(result._tag, "Failure");
       assert.equal(result.failure._tag, "ProviderAdapterProcessError");
-      assert.deepStrictEqual(scopedFailureRuntimeFactory.releasedThreadIds, [
+      assert.deepStrictEqual(scopedFailureRuntimePulse.releasedThreadIds, [
         asThreadId("thread-fail"),
       ]);
       assert.equal(yield* adapter.hasSession(asThreadId("thread-fail")), false);
@@ -1176,9 +1176,9 @@ scopedFailureLayer("CodexAdapterLive scoped startup failure", (it) => {
 
 it.effect("flushes managed native logs when the adapter layer shuts down", () =>
   Effect.gen(function* () {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "t3-codex-adapter-native-log-"));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pulsex-adapter-native-log-"));
     const basePath = path.join(tempDir, "provider-native.ndjson");
-    const runtimeFactory = makeRuntimeFactory();
+    const runtimePulse = makeRuntimePulse();
     const scope = yield* Scope.make("sequential");
     let scopeClosed = false;
 
@@ -1188,7 +1188,7 @@ it.effect("flushes managed native logs when the adapter layer shuts down", () =>
         Effect.gen(function* () {
           const codexConfig = decodeCodexSettings({});
           return yield* makeCodexAdapter(codexConfig, {
-            makeRuntime: runtimeFactory.factory,
+            makeRuntime: runtimePulse.pulse,
             nativeEventLogPath: basePath,
           });
         }),
@@ -1207,7 +1207,7 @@ it.effect("flushes managed native logs when the adapter layer shuts down", () =>
         runtimeMode: "full-access",
       });
 
-      const runtime = runtimeFactory.lastRuntime;
+      const runtime = runtimePulse.lastRuntime;
       assert.ok(runtime);
 
       const firstEventFiber = yield* Stream.runHead(adapter.streamEvents).pipe(Effect.forkChild);

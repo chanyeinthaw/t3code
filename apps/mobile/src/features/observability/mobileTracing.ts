@@ -1,5 +1,5 @@
 import Constants from "expo-constants";
-import { makeRelayClientTracingLayer } from "@t3tools/shared/relayTracing";
+import { makeRelayClientTracingLayer } from "@pulse/shared/relayTracing";
 
 import { hasMobileTracingPublicConfig, resolveCloudPublicConfig } from "../cloud/publicConfig";
 
@@ -28,7 +28,7 @@ export function makeMobileTracingLayer(
   resource: MobileTracingResource,
 ) {
   return makeRelayClientTracingLayer(config, {
-    serviceName: "t3-mobile-relay-client",
+    serviceName: "pulse-mobile-relay-client",
     serviceVersion: resource.serviceVersion,
     runtime: "react-native",
     client: `mobile-${resource.appVariant}`,

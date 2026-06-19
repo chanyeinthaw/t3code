@@ -1,7 +1,7 @@
 import type {
   DesktopPreviewRecordingArtifact,
   DesktopPreviewRecordingFrame,
-} from "@t3tools/contracts";
+} from "@pulse/contracts";
 import { create } from "zustand";
 
 import { previewBridge } from "~/components/preview/previewBridge";

@@ -64,7 +64,7 @@ export interface EnvironmentCredentialsShape {
 export class EnvironmentCredentials extends Context.Service<
   EnvironmentCredentials,
   EnvironmentCredentialsShape
->()("t3code-relay/environments/EnvironmentCredentials") {}
+>()("pulse-relay/environments/EnvironmentCredentials") {}
 
 const make = Effect.gen(function* () {
   const db = yield* RelayDb;

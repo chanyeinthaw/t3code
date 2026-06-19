@@ -8,8 +8,8 @@ import type {
   RuntimeMode,
   ServerConfig as T3ServerConfig,
   ThreadId,
-} from "@t3tools/contracts";
-import { formatElapsed } from "@t3tools/shared/orchestrationTiming";
+} from "@pulse/contracts";
+import { formatElapsed } from "@pulse/shared/orchestrationTiming";
 import * as Haptics from "expo-haptics";
 import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -189,7 +189,7 @@ const WorkingDurationPill = memo(function WorkingDurationPill(props: {
             <View className="h-1.5 w-1.5 rounded-full bg-neutral-400/80 dark:bg-neutral-500/80" />
             <View className="h-1.5 w-1.5 rounded-full bg-neutral-400/60 dark:bg-neutral-500/60" />
           </View>
-          <Text className="font-t3-medium text-xs text-neutral-600 dark:text-neutral-400">
+          <Text className="font-pulse-medium text-xs text-neutral-600 dark:text-neutral-400">
             Working for {durationLabel}
           </Text>
         </View>

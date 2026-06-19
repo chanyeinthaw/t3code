@@ -60,7 +60,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         if (quitToastId !== null) return;
         quitToastId = toastManager.add({
           type: "info",
-          title: "Quitting T3 Code…",
+          title: "Quitting Pulse…",
           description: "Cleaning up before shutdown.",
           timeout: 0,
         });

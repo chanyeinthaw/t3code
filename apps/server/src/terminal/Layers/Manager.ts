@@ -8,10 +8,10 @@ import {
   type TerminalSessionSnapshot,
   type TerminalSessionStatus,
   type TerminalSummary,
-} from "@t3tools/contracts";
-import { makeKeyedCoalescingWorker } from "@t3tools/shared/KeyedCoalescingWorker";
-import { HostProcessPlatform } from "@t3tools/shared/hostProcess";
-import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
+} from "@pulse/contracts";
+import { makeKeyedCoalescingWorker } from "@pulse/shared/KeyedCoalescingWorker";
+import { HostProcessPlatform } from "@pulse/shared/hostProcess";
+import { getTerminalLabel } from "@pulse/shared/terminalLabels";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Encoding from "effect/Encoding";
@@ -936,7 +936,7 @@ function toSessionKey(threadId: string, terminalId: string): string {
 
 function shouldExcludeTerminalEnvKey(key: string): boolean {
   const normalizedKey = key.toUpperCase();
-  if (normalizedKey.startsWith("T3CODE_")) {
+  if (normalizedKey.startsWith("PULSE_")) {
     return true;
   }
   if (normalizedKey.startsWith("VITE_")) {

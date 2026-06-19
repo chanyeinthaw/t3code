@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams } from "expo-router";
-import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
+import type { EnvironmentId, ThreadId } from "@pulse/contracts";
 
 export default function ReviewRoute() {
   const { environmentId, threadId } = useLocalSearchParams<{
