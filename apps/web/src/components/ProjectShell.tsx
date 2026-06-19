@@ -13,12 +13,14 @@ import {
 } from "@t3tools/contracts";
 import { Outlet, useNavigate } from "@tanstack/react-router";
 import {
+  CheckIcon,
+  ChevronLeftIcon,
   EllipsisIcon,
+  FolderOpenIcon,
   ListIcon,
   PlusIcon,
   SearchIcon,
-  ChevronLeftIcon,
-  FolderOpenIcon,
+  ServerIcon,
   SettingsIcon,
   TerminalIcon,
   XIcon,
@@ -55,6 +57,8 @@ import { readLocalApi } from "../localApi";
 import { readEnvironmentApi } from "../environmentApi";
 import { newCommandId } from "../lib/utils";
 import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
+import { readPrimaryEnvironmentDescriptor, usePrimaryEnvironmentId } from "../environments/primary";
+import { useSavedEnvironmentRegistryStore } from "../environments/runtime";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import type { Project, SidebarThreadSummary } from "../types";
 
@@ -123,6 +127,101 @@ function ProjectShellIconButton({
       </TooltipTrigger>
       <TooltipPopup side="bottom">{label}</TooltipPopup>
     </Tooltip>
+  );
+}
+
+function EnvironmentSwitcher({ environmentId }: { environmentId: EnvironmentId }) {
+  const navigate = useNavigate();
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const savedEnvironmentsById = useSavedEnvironmentRegistryStore((state) => state.byId);
+  const primaryEnvironmentDescriptor = primaryEnvironmentId
+    ? readPrimaryEnvironmentDescriptor()
+    : null;
+  const environments = useMemo(() => {
+    const byId = new Map<
+      EnvironmentId,
+      { environmentId: EnvironmentId; label: string; url?: string | null }
+    >();
+    if (primaryEnvironmentDescriptor) {
+      byId.set(primaryEnvironmentDescriptor.environmentId, {
+        environmentId: primaryEnvironmentDescriptor.environmentId,
+        label: primaryEnvironmentDescriptor.label,
+      });
+    }
+    for (const savedEnvironment of Object.values(savedEnvironmentsById)) {
+      byId.set(savedEnvironment.environmentId, {
+        environmentId: savedEnvironment.environmentId,
+        label: savedEnvironment.label,
+        url: savedEnvironment.httpBaseUrl,
+      });
+    }
+    if (!byId.has(environmentId)) {
+      byId.set(environmentId, {
+        environmentId,
+        label: environmentId,
+      });
+    }
+    return Array.from(byId.values()).toSorted((left, right) =>
+      left.label.localeCompare(right.label),
+    );
+  }, [environmentId, primaryEnvironmentDescriptor, savedEnvironmentsById]);
+
+  const currentEnvironment = environments.find(
+    (environment) => environment.environmentId === environmentId,
+  );
+
+  return (
+    <Menu>
+      <MenuTrigger
+        render={
+          <button
+            type="button"
+            className="flex h-8 min-w-0 max-w-64 shrink-0 cursor-pointer items-center gap-2 rounded-md px-3 text-left text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        }
+      >
+        <ServerIcon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="truncate">{currentEnvironment?.label ?? "Environment"}</span>
+      </MenuTrigger>
+      <MenuPopup align="start" className="w-80">
+        <MenuGroup>
+          <div className="px-2 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            Environments
+          </div>
+          {environments.map((environment) => {
+            const active = environment.environmentId === environmentId;
+            return (
+              <MenuItem
+                key={environment.environmentId}
+                className="gap-2"
+                onClick={() => {
+                  if (active) return;
+                  void navigate({
+                    to: "/$environmentId/projects",
+                    params: { environmentId: environment.environmentId },
+                  });
+                }}
+              >
+                <ServerIcon className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{environment.label}</span>
+                  {environment.url ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {environment.url}
+                    </span>
+                  ) : null}
+                </span>
+                {active ? <CheckIcon className="size-4 shrink-0 text-primary" /> : null}
+              </MenuItem>
+            );
+          })}
+        </MenuGroup>
+        <MenuSeparator />
+        <MenuItem onClick={() => void navigate({ to: "/settings/connections" })}>
+          Manage connections
+        </MenuItem>
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -802,7 +901,11 @@ function ProjectShellChrome({
       )}
     >
       <div className="flex flex-row items-center gap-1">
-        <ProjectSwitcher currentProject={currentProject} environmentId={context.environmentId} />
+        {context.activeView === "projects" ? (
+          <EnvironmentSwitcher environmentId={context.environmentId} />
+        ) : (
+          <ProjectSwitcher currentProject={currentProject} environmentId={context.environmentId} />
+        )}
         {showProjectScopedActions && <div className="w-0.25 h-6 bg-secondary mx-1" />}
         {actionButtons}
       </div>
