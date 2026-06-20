@@ -1,8 +1,19 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite-plus";
 
 const shouldLaunchElectronAfterPack = process.env.PULSE_DESKTOP_DEV === "1";
+const electronTestMockPath = fileURLToPath(new URL("./src/test/electronMock.ts", import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  ...(mode === "test"
+    ? {
+        resolve: {
+          alias: {
+            electron: electronTestMockPath,
+          },
+        },
+      }
+    : {}),
   run: {
     tasks: {
       build: {
@@ -64,4 +75,4 @@ export default defineConfig({
       },
     },
   ],
-});
+}));
