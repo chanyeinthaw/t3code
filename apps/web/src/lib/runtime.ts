@@ -37,3 +37,5 @@ export const runPrimaryHttp = <A, E>(effect: Effect.Effect<A, E, PrimaryEnvironm
 export function __setPrimaryHttpRunnerForTests(runner?: PrimaryHttpEffectRunner): void {
   primaryHttpRunner = runner ?? livePrimaryHttpRunner;
 }
+
+export const runtimeContextLayer = Layer.empty;

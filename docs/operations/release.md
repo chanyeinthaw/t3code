@@ -22,7 +22,7 @@ This document covers the unified release workflow for stable and nightly desktop
   - Nightly runs are always GitHub prereleases and never marked latest.
   - Automatically generated release notes are pinned to the previous tag in the same channel, so stable compares to the previous stable tag and nightly compares to the previous nightly tag.
 - Includes Electron auto-update metadata (for example `latest*.yml`, `nightly*.yml`, and `*.blockmap`) in release assets.
-- Publishes the CLI package (`apps/server`, npm package `t3`) with OIDC trusted publishing from the same workflow file:
+- Publishes the CLI package (`apps/server`, npm package `pulse`) with OIDC trusted publishing from the same workflow file:
   - stable releases publish npm dist-tag `latest`
   - nightly releases publish npm dist-tag `nightly`
 - Deploys the hosted web app to Vercel only after a release is published:
@@ -104,20 +104,20 @@ Required GitHub Actions secrets:
 Optional GitHub Actions variables:
 
 - `VERCEL_TEAM_SLUG`: overrides the Vercel CLI scope when the team slug is preferred over the `VERCEL_ORG_ID` secret.
-- `PULSE_WEB_ROUTER_URL`: defaults to `https://app.t3.codes`.
-- `PULSE_WEB_LATEST_DOMAIN`: defaults to `latest.app.t3.codes`.
-- `PULSE_WEB_NIGHTLY_DOMAIN`: defaults to `nightly.app.t3.codes`.
+- `PULSE_WEB_ROUTER_URL`: defaults to `https://app.pulse.codes`.
+- `PULSE_WEB_LATEST_DOMAIN`: defaults to `latest.app.pulse.codes`.
+- `PULSE_WEB_NIGHTLY_DOMAIN`: defaults to `nightly.app.pulse.codes`.
 
 Required Vercel domains:
 
-- `app.t3.codes`: the router domain users open, updated by stable releases.
-- `latest.app.t3.codes`: channel alias updated by stable releases.
-- `nightly.app.t3.codes`: channel alias updated by nightly releases.
+- `app.pulse.codes`: the router domain users open, updated by stable releases.
+- `latest.app.pulse.codes`: channel alias updated by stable releases.
+- `nightly.app.pulse.codes`: channel alias updated by nightly releases.
 
 The router domain uses `apps/web/vercel.ts` routes. Users opt into a channel by
 visiting `/__pulse/channel?channel=latest` or
 `/__pulse/channel?channel=nightly`; the router stores the
-`pulse_web_channel` cookie and rewrites future requests on `app.t3.codes` to
+`pulse_web_channel` cookie and rewrites future requests on `app.pulse.codes` to
 the matching channel alias.
 
 The release deploy job rewrites release package versions before upload so the
@@ -137,7 +137,7 @@ One-time Vercel dashboard setup:
    `vercel.ts` setting is the source-of-truth, but disconnecting Git in the
    dashboard is also safe.
 4. Run one stable release deployment, or manually alias the current stable
-   deployment, so `app.t3.codes` points at a deployment containing the router
+   deployment, so `app.pulse.codes` points at a deployment containing the router
    rules in `apps/web/vercel.ts`. Future stable releases keep this alias current.
 
 ## Nightly builds
@@ -153,7 +153,7 @@ One-time Vercel dashboard setup:
   - `make_latest` is always `false`
 - Uses the next stable patch version as the nightly base. For example, `0.0.17` produces nightlies on `0.0.18-nightly.*`.
 - Publishes Electron auto-update metadata to the dedicated `nightly` updater channel, so desktop users can opt into that track independently from stable.
-- Publishes the CLI package (`apps/server`, npm package `t3`) to the `nightly` npm dist-tag using the same nightly version.
+- Publishes the CLI package (`apps/server`, npm package `pulse`) to the `nightly` npm dist-tag using the same nightly version.
 - Does not commit version bumps back to `main`.
 
 ## Desktop auto-update notes
@@ -185,7 +185,7 @@ the package version to the release tag version.
 
 Checklist:
 
-1. Confirm npm org/user owns package `t3` (or rename package first if needed).
+1. Confirm npm org/user owns package `pulse` (or rename package first if needed).
 2. In npm package settings, configure Trusted Publisher:
    - Provider: GitHub Actions
    - Repository: this repo
@@ -219,26 +219,44 @@ Required secrets used by the workflow:
 - `APPLE_API_KEY`
 - `APPLE_API_KEY_ID`
 - `APPLE_API_ISSUER`
+- `MACOS_PROVISIONING_PROFILE` (base64-encoded provisioning profile with Associated Domains)
+
+Required repository variables:
+
+- `APPLE_TEAM_ID`
+
+Optional repository variables:
+
+- `CLERK_PASSKEY_RP_DOMAINS`: comma-separated RP-domain override. By default, the build derives the
+  domain from the production Clerk publishable key.
 
 Checklist:
 
 1. Apple Developer account access:
    - Team has rights to create Developer ID certificates.
-2. Create `Developer ID Application` certificate.
-3. Export certificate + private key as `.p12` from Keychain.
-4. Base64-encode the `.p12` and store as `CSC_LINK`.
-5. Store the `.p12` export password as `CSC_KEY_PASSWORD`.
-6. In App Store Connect, create an API key (Team key).
-7. Add API key values:
+2. Create an explicit App ID for `com.pulse.pulse` and enable Associated Domains.
+3. Create a `Developer ID Application` certificate and a compatible provisioning profile for that
+   App ID with Associated Domains enabled.
+4. Export the certificate + private key as `.p12` from Keychain.
+5. Base64-encode the `.p12` and store as `CSC_LINK`.
+6. Base64-encode the provisioning profile and store it as `MACOS_PROVISIONING_PROFILE`.
+7. Store the `.p12` export password as `CSC_KEY_PASSWORD`, and set `APPLE_TEAM_ID` to the
+   10-character Apple Developer Team ID.
+8. In App Store Connect, create an API key (Team key).
+9. Add API key values:
    - `APPLE_API_KEY`: contents of the downloaded `.p8`
    - `APPLE_API_KEY_ID`: Key ID
    - `APPLE_API_ISSUER`: Issuer ID
-8. Re-run a tag release and confirm macOS artifacts are signed/notarized.
+10. Complete the Clerk Native API and AASA setup in [Pulse Connect Clerk Setup](../cloud/pulse-connect-clerk.md#desktop-passkeys).
+11. Re-run a tag release and confirm macOS artifacts are signed/notarized and contain the expected
+    `com.apple.developer.associated-domains` entitlement.
 
 Notes:
 
 - `APPLE_API_KEY` is stored as raw key text in secrets.
 - The workflow writes it to a temporary `AuthKey_<id>.p8` file at runtime.
+- The workflow decodes `MACOS_PROVISIONING_PROFILE`, validates it with `security cms`, and passes it
+  to the desktop packager.
 
 ## 3) Azure Trusted Signing setup (Windows)
 
@@ -281,7 +299,9 @@ Checklist:
 ## 5) Troubleshooting
 
 - macOS build unsigned when expected signed:
-  - Check all Apple secrets are populated and non-empty.
+  - Check all Apple secrets plus `APPLE_TEAM_ID` are populated and non-empty.
+  - Confirm the provisioning profile belongs to `APPLE_TEAM_ID.com.pulse.pulse` and includes
+    Associated Domains.
 - Windows build unsigned when expected signed:
   - Check all Azure ATS and auth secrets are populated and non-empty.
 - Build fails with signing error:
