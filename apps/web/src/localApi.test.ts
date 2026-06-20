@@ -111,6 +111,11 @@ const rpcClientMock = {
   review: {
     getDiffPreview: vi.fn(),
   },
+  provider: {
+    getComposerCapabilities: vi.fn(),
+    listModels: vi.fn(),
+    listSkills: vi.fn(),
+  },
   server: {
     getConfig: vi.fn(),
     refreshProviders: vi.fn(),

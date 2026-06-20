@@ -50,11 +50,11 @@ describe("AssetAccess", () => {
 
       expect(yield* resolveAsset(token, "report.html")).toEqual({
         kind: "file",
-        path: htmlPath,
+        path: yield* fileSystem.realPath(htmlPath),
       });
       expect(yield* resolveAsset(token, "report.css")).toEqual({
         kind: "file",
-        path: cssPath,
+        path: yield* fileSystem.realPath(cssPath),
       });
       expect(yield* resolveAsset(token, "../secret.txt")).toBeNull();
       expect(yield* resolveAsset(token, ".env")).toBeNull();
@@ -131,7 +131,7 @@ describe("AssetAccess", () => {
           faviconSuffix.slice(0, faviconSeparatorIndex),
           faviconSuffix.slice(faviconSeparatorIndex + 1),
         ),
-      ).toEqual({ kind: "file", path: faviconPath });
+      ).toEqual({ kind: "file", path: yield* fileSystem.realPath(faviconPath) });
 
       yield* fileSystem.remove(faviconPath);
       const fallbackResult = yield* issueAssetUrl({

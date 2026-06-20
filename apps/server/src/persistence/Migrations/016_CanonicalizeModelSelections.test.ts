@@ -220,7 +220,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           assert.deepStrictEqual(projectRows, [
             {
               projectId: "project-claude",
-              defaultModelSelection: '{"provider":"claudeAgent","model":"claude-opus-4-6"}',
+              defaultModelSelection: '{"provider":"codex","model":"claude-opus-4-6"}',
             },
             {
               projectId: "project-codex",
@@ -242,7 +242,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
           assert.deepStrictEqual(threadRows, [
             {
               threadId: "thread-claude",
-              modelSelection: '{"provider":"claudeAgent","model":"claude-opus-4-6"}',
+              modelSelection: '{"provider":"codex","model":"claude-opus-4-6"}',
             },
             {
               threadId: "thread-codex",
@@ -250,7 +250,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
             },
             {
               threadId: "thread-legacy-options",
-              modelSelection: '{"provider":"claudeAgent","model":"claude-opus-4-6"}',
+              modelSelection: '{"provider":"codex","model":"claude-opus-4-6"}',
             },
             {
               threadId: "thread-session",
@@ -271,10 +271,10 @@ layer("016_CanonicalizeModelSelections", (it) => {
             title: "Project",
             workspaceRoot: "/tmp/project",
             defaultModelSelection: {
-              provider: "claudeAgent",
+              provider: "codex",
               model: "claude-opus-4-6",
               options: {
-                effort: "max",
+                reasoningEffort: "high",
               },
             },
             scripts: [],
@@ -287,7 +287,7 @@ layer("016_CanonicalizeModelSelections", (it) => {
             title: "Fallback Project",
             workspaceRoot: "/tmp/project-2",
             defaultModelSelection: {
-              provider: "claudeAgent",
+              provider: "codex",
               model: "claude-opus-4-6",
               options: {
                 reasoningEffort: "low",
@@ -313,11 +313,10 @@ layer("016_CanonicalizeModelSelections", (it) => {
             projectId: "project-1",
             title: "Thread",
             modelSelection: {
-              provider: "claudeAgent",
+              provider: "codex",
               model: "claude-opus-4-6",
               options: {
-                effort: "max",
-                thinking: false,
+                reasoningEffort: "high",
               },
             },
             runtimeMode: "full-access",
@@ -336,7 +335,9 @@ layer("016_CanonicalizeModelSelections", (it) => {
               provider: "codex",
               model: "gpt-5.4",
               options: {
-                effort: "max",
+                claudeAgent: {
+                  effort: "max",
+                },
               },
             },
             runtimeMode: "full-access",

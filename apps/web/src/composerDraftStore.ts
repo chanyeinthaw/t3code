@@ -2627,9 +2627,9 @@ const composerDraftStore = create<ComposerDraftStoreState>()(
             }
             const base = existing ?? createEmptyThreadDraft();
             const nextMap = { ...base.modelSelectionByProvider };
-            for (const provider of ["codex", "opencode"] as const) {
-              if (!modelOptions || !(provider in modelOptions)) continue;
-              const opts = modelOptions[provider];
+            for (const [provider, opts] of Object.entries(modelOptions ?? {}) as Array<
+              [string, ReadonlyArray<ProviderOptionSelection> | undefined]
+            >) {
               const driverKind = ProviderDriverKind.make(provider);
               const instanceKey = defaultInstanceIdForDriver(driverKind);
               const current = nextMap[instanceKey];

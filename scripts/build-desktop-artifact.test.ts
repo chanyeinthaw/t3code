@@ -55,7 +55,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                PULSE_DESKTOP_UPDATE_REPOSITORY: "sats-labs/pulse",
+                PULSE_DESKTOP_UPDATE_REPOSITORY: "sats-lab/pulse",
               },
             }),
           ),
@@ -66,7 +66,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                GITHUB_REPOSITORY: "sats-labs/pulse",
+                GITHUB_REPOSITORY: "sats-lab/pulse",
               },
             }),
           ),
@@ -75,13 +75,13 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
       assert.deepStrictEqual(latestConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "sats-lab",
         repo: "pulse",
         releaseType: "release",
       });
       assert.deepStrictEqual(nightlyConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "sats-lab",
         repo: "pulse",
         releaseType: "prerelease",
         channel: "nightly",

@@ -17,9 +17,9 @@ This repository is a Pulse-branded fork of the upstream T3 Code project. Use thi
 
 ## Repository URLs and slugs
 
-- Canonical repository URL: `https://github.com/sats-labs/pulse`.
+- Canonical repository URL: `https://github.com/sats-lab/pulse`.
 - Upstream GitHub slug references should be rewritten:
-  - `pingdotgg/t3code` -> `sats-labs/pulse`
+  - `pingdotgg/t3code` -> `sats-lab/pulse`
 - Pulse example clone/fork URLs, release URLs, and source-control fixtures should use the Pulse slug unless a test is intentionally exercising arbitrary third-party repositories.
 
 ## Environment variables, schemes, and runtime identifiers

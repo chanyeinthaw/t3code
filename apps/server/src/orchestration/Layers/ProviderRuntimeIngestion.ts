@@ -352,7 +352,7 @@ function runtimeEventToActivities(
           createdAt: event.createdAt,
           tone: "error",
           kind: "runtime.error",
-          summary: "Runtime error",
+          summary: truncateDetail(event.payload.message),
           payload: {
             message: truncateDetail(event.payload.message),
           },

@@ -10,7 +10,7 @@ describe("splitPromptIntoComposerSegments", () => {
   it("splits mention tokens followed by whitespace into mention segments", () => {
     expect(splitPromptIntoComposerSegments("Inspect @AGENTS.md please")).toEqual([
       { type: "text", text: "Inspect " },
-      { type: "mention", path: "AGENTS.md" },
+      { type: "mention", path: "AGENTS.md", source: "@AGENTS.md" },
       { type: "text", text: " please" },
     ]);
   });
@@ -24,7 +24,7 @@ describe("splitPromptIntoComposerSegments", () => {
   it("keeps newlines around mention tokens", () => {
     expect(splitPromptIntoComposerSegments("one\n@src/index.ts \ntwo")).toEqual([
       { type: "text", text: "one\n" },
-      { type: "mention", path: "src/index.ts" },
+      { type: "mention", path: "src/index.ts", source: "@src/index.ts" },
       { type: "text", text: " \ntwo" },
     ]);
   });
@@ -51,7 +51,7 @@ describe("splitPromptIntoComposerSegments", () => {
     ).toEqual([
       { type: "text", text: "Inspect " },
       { type: "terminal-context", context: null },
-      { type: "mention", path: "AGENTS.md" },
+      { type: "mention", path: "AGENTS.md", source: "@AGENTS.md" },
       { type: "text", text: " please" },
     ]);
   });
@@ -78,7 +78,7 @@ describe("splitPromptIntoComposerSegments", () => {
       { type: "terminal-context", context: null },
       { type: "skill", name: "review-follow-up" },
       { type: "text", text: " after " },
-      { type: "mention", path: "AGENTS.md" },
+      { type: "mention", path: "AGENTS.md", source: "@AGENTS.md" },
       { type: "text", text: " " },
     ]);
   });

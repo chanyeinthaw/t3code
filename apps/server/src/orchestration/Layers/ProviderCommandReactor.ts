@@ -520,17 +520,21 @@ const make = Effect.gen(function* () {
       const modelChanged =
         requestedModelSelection !== undefined &&
         requestedModelSelection.model !== activeSession?.model;
+      const modelOptionsRequireRestart =
+        requestedModelSelection !== undefined &&
+        requestedModelSelection.options !== undefined &&
+        requestedModelSelection.options.length > 0 &&
+        desiredDriverKind === ProviderDriverKind.make("claudeAgent");
       const instanceChanged =
         requestedModelSelection !== undefined &&
         activeSession?.providerInstanceId !== requestedModelSelection.instanceId;
-      const shouldRestartForModelChange = modelChanged && sessionModelSwitch === "unsupported";
+      const shouldRestartForModelChange =
+        modelOptionsRequireRestart || (modelChanged && sessionModelSwitch === "unsupported");
       if (!runtimeModeChanged && !cwdChanged && !instanceChanged && !shouldRestartForModelChange) {
         return existingSessionThreadId;
       }
 
-      const resumeCursor = shouldRestartForModelChange
-        ? undefined
-        : (activeSession?.resumeCursor ?? undefined);
+      const resumeCursor = activeSession?.resumeCursor ?? undefined;
       yield* Effect.logInfo("provider command reactor restarting provider session", {
         threadId,
         existingSessionThreadId,
@@ -547,6 +551,7 @@ const make = Effect.gen(function* () {
         modelChanged,
         instanceChanged,
         shouldRestartForModelChange,
+        modelOptionsRequireRestart,
         hasResumeCursor: resumeCursor !== undefined,
       });
       const restartedSession = yield* startProviderSession(

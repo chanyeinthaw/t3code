@@ -615,7 +615,7 @@ describe("ProviderCommandReactor", () => {
         type: "thread.meta.update",
         commandId: CommandId.make("cmd-thread-branch"),
         threadId: ThreadId.make("thread-1"),
-        branch: "@sats-lab/pulse/1234abcd",
+        branch: "pulse/1234abcd",
         worktreePath: "/tmp/provider-project-worktree",
       }),
     );

@@ -4,7 +4,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sats-labs/pulse",
+    "url": "https://github.com/sats-lab/pulse",
     "directory": "apps/server"
   },
   "bin": {

@@ -23,7 +23,7 @@ Tip: Use `npx @sats-lab/pulse@latest --help` for the full CLI reference.
 
 ### Desktop app
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/sats-labs/pulse/releases), or from your favorite package registry:
+Install the latest version of the desktop app from [GitHub Releases](https://github.com/sats-lab/pulse/releases), or from your favorite package registry:
 
 #### Windows (`winget`)
 
