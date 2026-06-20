@@ -134,6 +134,7 @@ interface PiSessionContext {
       readonly toolName: string;
       readonly args: unknown;
       readonly itemType: "command_execution" | "file_change" | "dynamic_tool_call" | "web_search";
+      lastOutputText: string;
     }
   >;
   activeTurnId: TurnId | undefined;
@@ -414,7 +415,7 @@ function mapPiMessageHistory(session: AgentSession): Array<unknown> {
             itemType: toToolItemType(record.name),
             title: buildPiToolTitle(record.name, record.arguments),
             args: record.arguments,
-            data: buildPiToolData({
+            data: buildPiToolMetadata({
               toolCallId: record.id,
               toolName: record.name,
               args: record.arguments,
@@ -443,7 +444,7 @@ function mapPiMessageHistory(session: AgentSession): Array<unknown> {
         title: buildPiToolTitle(toolName, pending?.args),
         output: readPiToolTextOutput(result),
         isError,
-        data: buildPiToolData({
+        data: buildPiToolMetadata({
           toolCallId,
           toolName,
           args: pending?.args,
@@ -525,29 +526,6 @@ function readPiToolSearchQuery(toolName: string, args: unknown): string | undefi
   return firstStringValue(record, ["query", "pattern"]);
 }
 
-function readPiToolEditEntries(args: unknown): ReadonlyArray<Record<string, unknown>> | undefined {
-  const record = recordFromUnknown(args);
-  if (!record) return undefined;
-  if (Array.isArray(record.edits)) {
-    const edits = record.edits.flatMap((entry) => {
-      const edit = recordFromUnknown(entry);
-      return edit ? [edit] : [];
-    });
-    return edits.length > 0 ? edits : undefined;
-  }
-  const oldText = firstStringValue(record, ["oldText", "old_string", "oldString"]);
-  const newText = firstStringValue(record, ["newText", "new_string", "newString"]);
-  if (oldText !== undefined || newText !== undefined) {
-    return [
-      {
-        ...(oldText !== undefined ? { oldText } : {}),
-        ...(newText !== undefined ? { newText } : {}),
-      },
-    ];
-  }
-  return undefined;
-}
-
 function readPiToolTextOutput(result: unknown): string | undefined {
   if (typeof result === "string") {
     const trimmed = result.trim();
@@ -585,18 +563,22 @@ function readPiToolExitCode(result: unknown): number | null | undefined {
   return null;
 }
 
-function buildPiToolRawOutput(result: unknown): Record<string, unknown> | undefined {
-  if (result === undefined) return undefined;
-  const text = readPiToolTextOutput(result);
-  const exitCode = readPiToolExitCode(result);
-  if (typeof result === "string") return { stdout: result, content: result };
-  if (result === null) return {};
-  const record = recordFromUnknown(result);
-  if (!record) return text ? { stdout: text, content: text } : undefined;
+function diffAccumulatedPiToolOutput(input: {
+  readonly previous: string;
+  readonly next: string | undefined;
+}): { readonly delta: string | undefined; readonly nextPrevious: string } {
+  if (input.next === undefined) {
+    return { delta: undefined, nextPrevious: input.previous };
+  }
+  if (input.next.startsWith(input.previous)) {
+    return {
+      delta: input.next.slice(input.previous.length),
+      nextPrevious: input.next,
+    };
+  }
   return {
-    ...record,
-    ...(text ? { stdout: text, content: text } : {}),
-    ...(exitCode !== undefined ? { exitCode } : {}),
+    delta: input.next,
+    nextPrevious: input.next,
   };
 }
 
@@ -610,21 +592,30 @@ function buildPiToolTitle(toolName: string, args: unknown): string {
   return toolName;
 }
 
-function buildPiToolData(input: {
+function piToolOutputStreamKind(
+  itemType: "command_execution" | "file_change" | "dynamic_tool_call" | "web_search",
+): "command_output" | "file_change_output" | "unknown" {
+  switch (itemType) {
+    case "command_execution":
+      return "command_output";
+    case "file_change":
+      return "file_change_output";
+    default:
+      return "unknown";
+  }
+}
+
+function buildPiToolMetadata(input: {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly args: unknown;
-  readonly partialResult?: unknown;
   readonly result?: unknown;
   readonly isError?: boolean;
 }): Record<string, unknown> {
-  const rawOutput = buildPiToolRawOutput(input.result ?? input.partialResult);
   const command = readPiToolCommand(input.toolName, input.args);
   const path = readPiToolPath(input.args);
   const query = readPiToolSearchQuery(input.toolName, input.args);
-  const edits = readPiToolEditEntries(input.args);
-  const content = recordFromUnknown(input.args)?.content;
-  const diff = firstStringValue(recordFromUnknown(recordFromUnknown(rawOutput)?.details), ["diff"]);
+  const exitCode = readPiToolExitCode(input.result);
   const base: Record<string, unknown> = {
     toolCallId: input.toolCallId,
     callId: input.toolCallId,
@@ -632,12 +623,6 @@ function buildPiToolData(input: {
     name: input.toolName,
     tool: input.toolName,
     kind: input.toolName,
-    args: input.args,
-    input: input.args,
-    rawInput: input.args,
-    ...(rawOutput ? { rawOutput } : {}),
-    ...(input.partialResult !== undefined ? { partialResult: input.partialResult } : {}),
-    ...(input.result !== undefined ? { result: input.result } : {}),
     ...(input.isError !== undefined ? { isError: input.isError } : {}),
   };
 
@@ -647,7 +632,7 @@ function buildPiToolData(input: {
         ...base,
         kind: "execute",
         ...(command ? { command } : {}),
-        ...(rawOutput?.exitCode !== undefined ? { exitCode: rawOutput.exitCode } : {}),
+        ...(exitCode !== undefined ? { exitCode } : {}),
       };
     case "read":
       return {
@@ -667,15 +652,12 @@ function buildPiToolData(input: {
         ...base,
         kind: "edit",
         ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
-        ...(edits ? { edits: edits.map((edit) => ({ ...edit, ...(path ? { path } : {}) })) } : {}),
-        ...(diff ? { unifiedDiff: diff } : {}),
       };
     case "write":
       return {
         ...base,
         kind: "write",
         ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
-        ...(typeof content === "string" ? { content } : {}),
       };
     case "find":
     case "grep":
@@ -1185,6 +1167,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             toolName: event.toolName,
             args: event.args,
             itemType,
+            lastOutputText: "",
           });
           appendTurnItem(context, turnId, event);
           yield* emit({
@@ -1200,7 +1183,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType,
               status: "inProgress",
               title: buildPiToolTitle(event.toolName, event.args),
-              data: buildPiToolData({
+              data: buildPiToolMetadata({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 args: event.args,
@@ -1211,34 +1194,59 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
         }
         case "tool_execution_update": {
           const activeTool = context.activeToolsByCallId.get(event.toolCallId);
+          const itemType = activeTool?.itemType ?? toToolItemType(event.toolName);
           const toolTurnId = activeTool?.turnId ?? turnId;
-          yield* emit({
-            ...(yield* buildEventBase({
-              threadId: context.session.threadId,
-              turnId: toolTurnId,
-              itemId: event.toolCallId,
-              raw: event,
-            })),
-            providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
-            type: "item.updated",
-            payload: {
-              itemType: activeTool?.itemType ?? toToolItemType(event.toolName),
-              status: "inProgress",
-              title: buildPiToolTitle(event.toolName, activeTool?.args ?? event.args),
-              detail: readPiToolTextOutput(event.partialResult),
-              data: buildPiToolData({
-                toolCallId: event.toolCallId,
-                toolName: event.toolName,
-                args: activeTool?.args ?? event.args,
-                partialResult: event.partialResult,
-              }),
-            },
+          const nextOutputText = readPiToolTextOutput(event.partialResult);
+          const diff = diffAccumulatedPiToolOutput({
+            previous: activeTool?.lastOutputText ?? "",
+            next: nextOutputText,
           });
+          if (activeTool) {
+            activeTool.lastOutputText = diff.nextPrevious;
+          }
+          if (diff.delta && diff.delta.length > 0) {
+            yield* emit({
+              ...(yield* buildEventBase({
+                threadId: context.session.threadId,
+                turnId: toolTurnId,
+                itemId: event.toolCallId,
+                raw: event,
+              })),
+              providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
+              type: "content.delta",
+              payload: {
+                streamKind: piToolOutputStreamKind(itemType),
+                delta: diff.delta,
+              },
+            });
+          }
           break;
         }
         case "tool_execution_end": {
           const activeTool = context.activeToolsByCallId.get(event.toolCallId);
+          const itemType = activeTool?.itemType ?? toToolItemType(event.toolName);
           const toolTurnId = activeTool?.turnId ?? turnId;
+          const finalOutputText = readPiToolTextOutput(event.result);
+          const diff = diffAccumulatedPiToolOutput({
+            previous: activeTool?.lastOutputText ?? "",
+            next: finalOutputText,
+          });
+          if (diff.delta && diff.delta.length > 0) {
+            yield* emit({
+              ...(yield* buildEventBase({
+                threadId: context.session.threadId,
+                turnId: toolTurnId,
+                itemId: event.toolCallId,
+                raw: event,
+              })),
+              providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
+              type: "content.delta",
+              payload: {
+                streamKind: piToolOutputStreamKind(itemType),
+                delta: diff.delta,
+              },
+            });
+          }
           appendTurnItem(context, toolTurnId, event);
           context.activeToolsByCallId.delete(event.toolCallId);
           yield* emit({
@@ -1251,11 +1259,10 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
             type: "item.completed",
             payload: {
-              itemType: activeTool?.itemType ?? toToolItemType(event.toolName),
+              itemType,
               status: event.isError ? "failed" : "completed",
               title: buildPiToolTitle(event.toolName, activeTool?.args),
-              detail: readPiToolTextOutput(event.result),
-              data: buildPiToolData({
+              data: buildPiToolMetadata({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 args: activeTool?.args,
