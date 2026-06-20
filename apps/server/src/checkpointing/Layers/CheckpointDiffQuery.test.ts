@@ -1,3 +1,4 @@
+/* eslint-disable pulse/no-manual-effect-runtime-in-tests */
 import { CheckpointRef, ProjectId, ThreadId, TurnId } from "@pulse/contracts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
