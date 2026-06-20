@@ -46,6 +46,12 @@ export default defineConfig({
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
       entry: ["src/preload.ts"],
+      deps: {
+        // Sandboxed Electron preloads cannot reliably resolve package imports
+        // from inside the packaged ASAR. Bundle Clerk's preload bridge into the
+        // preload artifact instead of leaving a runtime require() behind.
+        alwaysBundle: (id) => id === "@clerk/electron" || id.startsWith("@clerk/electron/"),
+      },
     },
     {
       format: "cjs",
