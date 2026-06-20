@@ -35,4 +35,4 @@ export interface ThreadDeletionReactorShape {
 export class ThreadDeletionReactor extends Context.Service<
   ThreadDeletionReactor,
   ThreadDeletionReactorShape
->()("pulse/orchestration/Services/ThreadDeletionReactor") {}
+>()("@sats-lab/pulse/orchestration/Services/ThreadDeletionReactor") {}

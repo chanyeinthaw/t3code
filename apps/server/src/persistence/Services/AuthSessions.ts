@@ -97,4 +97,4 @@ export interface AuthSessionRepositoryShape {
 export class AuthSessionRepository extends Context.Service<
   AuthSessionRepository,
   AuthSessionRepositoryShape
->()("pulse/persistence/Services/AuthSessions/AuthSessionRepository") {}
+>()("@sats-lab/pulse/persistence/Services/AuthSessions/AuthSessionRepository") {}

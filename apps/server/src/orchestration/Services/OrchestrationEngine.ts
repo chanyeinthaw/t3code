@@ -67,4 +67,4 @@ export interface OrchestrationEngineShape {
 export class OrchestrationEngineService extends Context.Service<
   OrchestrationEngineService,
   OrchestrationEngineShape
->()("pulse/orchestration/Services/OrchestrationEngine/OrchestrationEngineService") {}
+>()("@sats-lab/pulse/orchestration/Services/OrchestrationEngine/OrchestrationEngineService") {}

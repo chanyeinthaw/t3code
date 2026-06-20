@@ -288,7 +288,7 @@ export interface KeybindingsShape {
  * Keybindings - Service tag for keybinding configuration operations.
  */
 export class Keybindings extends Context.Service<Keybindings, KeybindingsShape>()(
-  "pulse/keybindings",
+  "@sats-lab/pulse/keybindings",
 ) {}
 
 const makeKeybindings = Effect.gen(function* () {

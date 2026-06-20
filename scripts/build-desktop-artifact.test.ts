@@ -55,7 +55,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                PULSE_DESKTOP_UPDATE_REPOSITORY: "chanyeinthaw/pulse",
+                PULSE_DESKTOP_UPDATE_REPOSITORY: "sats-labs/pulse",
               },
             }),
           ),
@@ -66,7 +66,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                GITHUB_REPOSITORY: "chanyeinthaw/pulse",
+                GITHUB_REPOSITORY: "sats-labs/pulse",
               },
             }),
           ),

@@ -9,4 +9,4 @@ export interface RepositoryIdentityResolverShape {
 export class RepositoryIdentityResolver extends Context.Service<
   RepositoryIdentityResolver,
   RepositoryIdentityResolverShape
->()("pulse/project/Services/RepositoryIdentityResolver") {}
+>()("@sats-lab/pulse/project/Services/RepositoryIdentityResolver") {}

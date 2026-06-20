@@ -84,4 +84,4 @@ export interface ProviderInstanceRegistryShape {
 export class ProviderInstanceRegistry extends Context.Service<
   ProviderInstanceRegistry,
   ProviderInstanceRegistryShape
->()("pulse/provider/Services/ProviderInstanceRegistry") {}
+>()("@sats-lab/pulse/provider/Services/ProviderInstanceRegistry") {}

@@ -75,5 +75,5 @@ export interface VcsDriverShape {
 }
 
 export class VcsDriver extends Context.Service<VcsDriver, VcsDriverShape>()(
-  "pulse/vcs/VcsDriver",
+  "@sats-lab/pulse/vcs/VcsDriver",
 ) {}

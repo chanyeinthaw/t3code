@@ -44,7 +44,7 @@ export interface TraceDiagnosticsShape {
 }
 
 export class TraceDiagnostics extends Context.Service<TraceDiagnostics, TraceDiagnosticsShape>()(
-  "pulse/diagnostics/TraceDiagnostics",
+  "@sats-lab/pulse/diagnostics/TraceDiagnostics",
 ) {}
 
 interface TraceDiagnosticsInput {

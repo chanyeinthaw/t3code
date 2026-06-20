@@ -63,4 +63,4 @@ export interface ProjectionStateRepositoryShape {
 export class ProjectionStateRepository extends Context.Service<
   ProjectionStateRepository,
   ProjectionStateRepositoryShape
->()("pulse/persistence/Services/ProjectionState/ProjectionStateRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionState/ProjectionStateRepository") {}

@@ -34,7 +34,7 @@ export interface VcsDriverRegistryShape {
 }
 
 export class VcsDriverRegistry extends Context.Service<VcsDriverRegistry, VcsDriverRegistryShape>()(
-  "pulse/vcs/VcsDriverRegistry",
+  "@sats-lab/pulse/vcs/VcsDriverRegistry",
 ) {}
 
 const unsupported = (operation: string, kind: VcsDriverKind, detail: string) =>

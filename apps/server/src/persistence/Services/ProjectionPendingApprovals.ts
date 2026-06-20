@@ -90,4 +90,4 @@ export interface ProjectionPendingApprovalRepositoryShape {
 export class ProjectionPendingApprovalRepository extends Context.Service<
   ProjectionPendingApprovalRepository,
   ProjectionPendingApprovalRepositoryShape
->()("pulse/persistence/Services/ProjectionPendingApprovals/ProjectionPendingApprovalRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionPendingApprovals/ProjectionPendingApprovalRepository") {}

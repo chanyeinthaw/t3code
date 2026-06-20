@@ -88,7 +88,7 @@ export interface PairingGrantStoreShape {
 }
 
 export class PairingGrantStore extends Context.Service<PairingGrantStore, PairingGrantStoreShape>()(
-  "pulse/auth/PairingGrantStore",
+  "@sats-lab/pulse/auth/PairingGrantStore",
 ) {}
 
 interface StoredBootstrapGrant extends BootstrapGrant {

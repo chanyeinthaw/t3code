@@ -67,4 +67,4 @@ export interface WorkspaceFileSystemShape {
 export class WorkspaceFileSystem extends Context.Service<
   WorkspaceFileSystem,
   WorkspaceFileSystemShape
->()("pulse/workspace/Services/WorkspaceFileSystem") {}
+>()("@sats-lab/pulse/workspace/Services/WorkspaceFileSystem") {}

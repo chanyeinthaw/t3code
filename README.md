@@ -16,14 +16,14 @@ Pulse is a minimal web GUI for coding agents (currently Codex, Claude, Cursor, a
 ### Run without installing
 
 ```bash
-npx pulse@latest
+npx @sats-lab/pulse@latest
 ```
 
-Tip: Use `npx pulse@latest --help` for the full CLI reference.
+Tip: Use `npx @sats-lab/pulse@latest --help` for the full CLI reference.
 
 ### Desktop app
 
-Install the latest version of the desktop app from [GitHub Releases](https://github.com/chanyeinthaw/pulse/releases), or from your favorite package registry:
+Install the latest version of the desktop app from [GitHub Releases](https://github.com/sats-labs/pulse/releases), or from your favorite package registry:
 
 #### Windows (`winget`)
 

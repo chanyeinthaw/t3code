@@ -51,7 +51,7 @@ export interface PreviewAutomationBrokerShape {
 export class PreviewAutomationBroker extends Context.Service<
   PreviewAutomationBroker,
   PreviewAutomationBrokerShape
->()("pulse/mcp/PreviewAutomationBroker") {}
+>()("@sats-lab/pulse/mcp/PreviewAutomationBroker") {}
 
 interface ClientConnection {
   readonly clientId: string;

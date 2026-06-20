@@ -67,4 +67,4 @@ export interface ProviderSessionDirectoryShape {
 export class ProviderSessionDirectory extends Context.Service<
   ProviderSessionDirectory,
   ProviderSessionDirectoryShape
->()("pulse/provider/Services/ProviderSessionDirectory") {}
+>()("@sats-lab/pulse/provider/Services/ProviderSessionDirectory") {}

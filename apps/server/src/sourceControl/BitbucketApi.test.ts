@@ -20,7 +20,7 @@ const bitbucketPullRequest = {
   updated_on: "2026-01-02T00:00:00.000Z",
   links: {
     html: {
-      href: "https://bitbucket.org/chanyeinthaw/pulse/pull-requests/42",
+      href: "https://bitbucket.org/sats-labs/pulse/pull-requests/42",
     },
   },
   source: {
@@ -33,19 +33,19 @@ const bitbucketPullRequest = {
   destination: {
     branch: { name: "main" },
     repository: {
-      full_name: "chanyeinthaw/pulse",
+      full_name: "sats-labs/pulse",
       workspace: { slug: "pingdotgg" },
     },
   },
 };
 
 const repositoryJson = {
-  full_name: "chanyeinthaw/pulse",
+  full_name: "sats-labs/pulse",
   links: {
-    html: { href: "https://bitbucket.org/chanyeinthaw/pulse" },
+    html: { href: "https://bitbucket.org/sats-labs/pulse" },
     clone: [
-      { name: "https", href: "https://bitbucket.org/chanyeinthaw/pulse.git" },
-      { name: "ssh", href: "git@bitbucket.org:chanyeinthaw/pulse.git" },
+      { name: "https", href: "https://bitbucket.org/sats-labs/pulse.git" },
+      { name: "ssh", href: "git@bitbucket.org:sats-labs/pulse.git" },
     ],
   },
   mainbranch: { name: "main" },
@@ -60,7 +60,7 @@ function makeLayer(input: {
   );
   const gitMock = {
     readConfigValue: vi.fn<GitVcsDriver.GitVcsDriverShape["readConfigValue"]>(() =>
-      Effect.succeed<string | null>("git@bitbucket.org:chanyeinthaw/pulse.git"),
+      Effect.succeed<string | null>("git@bitbucket.org:sats-labs/pulse.git"),
     ),
     resolvePrimaryRemoteName: vi.fn<GitVcsDriver.GitVcsDriverShape["resolvePrimaryRemoteName"]>(
       () => Effect.succeed("origin"),
@@ -95,7 +95,7 @@ function makeLayer(input: {
         remotes: [
           {
             name: "origin",
-            url: "git@bitbucket.org:chanyeinthaw/pulse.git",
+            url: "git@bitbucket.org:sats-labs/pulse.git",
             pushUrl: Option.none(),
             isPrimary: true,
           },
@@ -170,7 +170,7 @@ it.effect("parses pull request responses from the Bitbucket REST API", () => {
     assert.deepStrictEqual(result, {
       number: 42,
       title: "Add Bitbucket provider",
-      url: "https://bitbucket.org/chanyeinthaw/pulse/pull-requests/42",
+      url: "https://bitbucket.org/sats-labs/pulse/pull-requests/42",
       baseRefName: "main",
       headRefName: "feature/source-control",
       state: "open",
@@ -181,7 +181,7 @@ it.effect("parses pull request responses from the Bitbucket REST API", () => {
     });
     assert.strictEqual(
       execute.mock.calls[0]?.[0].url,
-      "https://api.test.local/2.0/repositories/chanyeinthaw/pulse/pullrequests/42",
+      "https://api.test.local/2.0/repositories/sats-labs/pulse/pullrequests/42",
     );
   }).pipe(Effect.provide(layer));
 });
@@ -197,7 +197,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
             state: "MERGED",
             source: {
               branch: { name: "feature/merged" },
-              repository: { full_name: "chanyeinthaw/pulse" },
+              repository: { full_name: "sats-labs/pulse" },
             },
           },
         ],
@@ -217,7 +217,7 @@ it.effect("lists pull requests with Bitbucket state and source branch query para
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/chanyeinthaw/pulse/pullrequests",
+      "https://api.test.local/2.0/repositories/sats-labs/pulse/pullrequests",
     );
     assert.deepStrictEqual(request?.urlParams.params, [
       ["pagelen", "10"],
@@ -310,14 +310,14 @@ it.effect("reads repository clone URLs and default branch", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.getRepositoryCloneUrls({
       cwd: "/repo",
-      repository: "chanyeinthaw/pulse",
+      repository: "sats-labs/pulse",
     });
     const defaultBranch = yield* bitbucket.getDefaultBranch({ cwd: "/repo" });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "chanyeinthaw/pulse",
-      url: "https://bitbucket.org/chanyeinthaw/pulse.git",
-      sshUrl: "git@bitbucket.org:chanyeinthaw/pulse.git",
+      nameWithOwner: "sats-labs/pulse",
+      url: "https://bitbucket.org/sats-labs/pulse.git",
+      sshUrl: "git@bitbucket.org:sats-labs/pulse.git",
     });
     assert.strictEqual(defaultBranch, "main");
   }).pipe(Effect.provide(layer));
@@ -349,8 +349,8 @@ it.effect(
       assert.deepStrictEqual(
         execute.mock.calls.map((call) => call[0].url).toSorted(),
         [
-          "https://api.test.local/2.0/repositories/chanyeinthaw/pulse",
-          "https://api.test.local/2.0/repositories/chanyeinthaw/pulse/branching-model",
+          "https://api.test.local/2.0/repositories/sats-labs/pulse",
+          "https://api.test.local/2.0/repositories/sats-labs/pulse/branching-model",
         ].toSorted(),
       );
     }).pipe(Effect.provide(layer));
@@ -412,18 +412,18 @@ it.effect("creates repositories through the Bitbucket REST API", () => {
     const bitbucket = yield* BitbucketApi.BitbucketApi;
     const cloneUrls = yield* bitbucket.createRepository({
       cwd: "/repo",
-      repository: "chanyeinthaw/pulse",
+      repository: "sats-labs/pulse",
       visibility: "private",
     });
 
     assert.deepStrictEqual(cloneUrls, {
-      nameWithOwner: "chanyeinthaw/pulse",
-      url: "https://bitbucket.org/chanyeinthaw/pulse.git",
-      sshUrl: "git@bitbucket.org:chanyeinthaw/pulse.git",
+      nameWithOwner: "sats-labs/pulse",
+      url: "https://bitbucket.org/sats-labs/pulse.git",
+      sshUrl: "git@bitbucket.org:sats-labs/pulse.git",
     });
 
     const request = execute.mock.calls[0]?.[0];
-    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/chanyeinthaw/pulse");
+    assert.strictEqual(request?.url, "https://api.test.local/2.0/repositories/sats-labs/pulse");
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
     const rawBody = (request.body as { readonly body?: Uint8Array }).body;
@@ -458,7 +458,7 @@ it.effect("creates pull requests using the official REST payload shape", () => {
     const request = execute.mock.calls[0]?.[0];
     assert.strictEqual(
       request?.url,
-      "https://api.test.local/2.0/repositories/chanyeinthaw/pulse/pullrequests",
+      "https://api.test.local/2.0/repositories/sats-labs/pulse/pullrequests",
     );
     assert.strictEqual(request?.method, "POST");
     assert.ok(request);
@@ -505,7 +505,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
         source: {
           branch: { name: "feature/source-control" },
           repository: {
-            full_name: "chanyeinthaw/pulse",
+            full_name: "sats-labs/pulse",
             workspace: { slug: "pingdotgg" },
           },
         },
@@ -523,7 +523,7 @@ it.effect("checks out same-repository pull requests with the existing Bitbucket 
           baseUrl: "https://bitbucket.org",
         },
         remoteName: "origin",
-        remoteUrl: "git@bitbucket.org:chanyeinthaw/pulse.git",
+        remoteUrl: "git@bitbucket.org:sats-labs/pulse.git",
       },
       reference: "42",
       force: true,
@@ -595,17 +595,17 @@ it.effect("checks out fork pull requests through an ensured fork remote", () => 
       cwd: "/repo",
       remoteName: "octocat",
       remoteBranch: "main",
-      localBranch: "pulse/pr-42/main",
+      localBranch: "@sats-lab/pulse/pr-42/main",
     });
     assert.deepStrictEqual(git.setBranchUpstream.mock.calls[0]?.[0], {
       cwd: "/repo",
-      branch: "pulse/pr-42/main",
+      branch: "@sats-lab/pulse/pr-42/main",
       remoteName: "octocat",
       remoteBranch: "main",
     });
     assert.deepStrictEqual(git.switchRef.mock.calls[0]?.[0], {
       cwd: "/repo",
-      refName: "pulse/pr-42/main",
+      refName: "@sats-lab/pulse/pr-42/main",
     });
   }).pipe(Effect.provide(layer));
 });

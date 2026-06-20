@@ -236,7 +236,7 @@ export interface GitVcsDriverShape {
 }
 
 export class GitVcsDriver extends Context.Service<GitVcsDriver, GitVcsDriverShape>()(
-  "pulse/vcs/GitVcsDriver",
+  "@sats-lab/pulse/vcs/GitVcsDriver",
 ) {}
 
 const WORKSPACE_FILES_MAX_OUTPUT_BYTES = 16 * 1024 * 1024;

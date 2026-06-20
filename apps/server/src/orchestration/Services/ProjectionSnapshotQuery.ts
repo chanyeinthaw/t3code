@@ -165,4 +165,4 @@ export interface ProjectionSnapshotQueryShape {
 export class ProjectionSnapshotQuery extends Context.Service<
   ProjectionSnapshotQuery,
   ProjectionSnapshotQueryShape
->()("pulse/orchestration/Services/ProjectionSnapshotQuery") {}
+>()("@sats-lab/pulse/orchestration/Services/ProjectionSnapshotQuery") {}

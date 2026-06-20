@@ -5937,7 +5937,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
             isRepo: true,
             hasPrimaryRemote: true,
             isDefaultRef: false,
-            refName: "pulse/bootstrap-refName",
+            refName: "@sats-lab/pulse/bootstrap-refName",
             hasWorkingTreeChanges: false,
             workingTree: {
               files: [],
@@ -5954,7 +5954,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
           (_: Parameters<GitVcsDriver.GitVcsDriverShape["createWorktree"]>[0]) =>
             Effect.succeed({
               worktree: {
-                refName: "pulse/bootstrap-refName",
+                refName: "@sats-lab/pulse/bootstrap-refName",
                 path: "/tmp/bootstrap-worktree",
               },
             }),
@@ -6023,7 +6023,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
                 prepareWorktree: {
                   projectCwd: "/tmp/project",
                   baseBranch: "main",
-                  branch: "pulse/bootstrap-refName",
+                  branch: "@sats-lab/pulse/bootstrap-refName",
                 },
                 runSetupScript: true,
               },
@@ -6046,7 +6046,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         assert.deepEqual(createWorktree.mock.calls[0]?.[0], {
           cwd: "/tmp/project",
           refName: "main",
-          newRefName: "pulse/bootstrap-refName",
+          newRefName: "@sats-lab/pulse/bootstrap-refName",
           path: null,
         });
         assert.deepEqual(runForThread.mock.calls[0]?.[0], {
@@ -6080,7 +6080,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         (_: Parameters<GitVcsDriver.GitVcsDriverShape["createWorktree"]>[0]) =>
           Effect.succeed({
             worktree: {
-              refName: "pulse/bootstrap-refName",
+              refName: "@sats-lab/pulse/bootstrap-refName",
               path: "/tmp/bootstrap-worktree",
             },
           }),
@@ -6140,7 +6140,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "pulse/bootstrap-refName",
+                branch: "@sats-lab/pulse/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -6174,7 +6174,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
         (_: Parameters<GitVcsDriver.GitVcsDriverShape["createWorktree"]>[0]) =>
           Effect.succeed({
             worktree: {
-              refName: "pulse/bootstrap-refName",
+              refName: "@sats-lab/pulse/bootstrap-refName",
               path: "/tmp/bootstrap-worktree",
             },
           }),
@@ -6257,7 +6257,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "pulse/bootstrap-refName",
+                branch: "@sats-lab/pulse/bootstrap-refName",
               },
               runSetupScript: true,
             },
@@ -6341,7 +6341,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
               prepareWorktree: {
                 projectCwd: "/tmp/project",
                 baseBranch: "main",
-                branch: "pulse/bootstrap-refName",
+                branch: "@sats-lab/pulse/bootstrap-refName",
               },
               runSetupScript: false,
             },

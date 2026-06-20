@@ -38,7 +38,7 @@ export interface VcsProjectConfigShape {
 }
 
 export class VcsProjectConfig extends Context.Service<VcsProjectConfig, VcsProjectConfigShape>()(
-  "pulse/vcs/VcsProjectConfig",
+  "@sats-lab/pulse/vcs/VcsProjectConfig",
 ) {}
 
 function configuredKind(config: ProjectVcsConfigFile): VcsDriverKindType | "auto" {

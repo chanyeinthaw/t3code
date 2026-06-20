@@ -17,9 +17,9 @@ This repository is a Pulse-branded fork of the upstream T3 Code project. Use thi
 
 ## Repository URLs and slugs
 
-- Canonical repository URL: `https://github.com/chanyeinthaw/pulse`.
+- Canonical repository URL: `https://github.com/sats-labs/pulse`.
 - Upstream GitHub slug references should be rewritten:
-  - `pingdotgg/t3code` -> `chanyeinthaw/pulse`
+  - `pingdotgg/t3code` -> `sats-labs/pulse`
 - Pulse example clone/fork URLs, release URLs, and source-control fixtures should use the Pulse slug unless a test is intentionally exercising arbitrary third-party repositories.
 
 ## Environment variables, schemes, and runtime identifiers
@@ -53,7 +53,7 @@ The runtime prefix has been renamed from T3 Code to Pulse:
 - Server CLI package:
   - package name `t3` -> `pulse`
   - bin `t3` -> `pulse`
-  - Vite+/workspace task refs `t3#build` -> `pulse#build`
+  - Vite+/workspace task refs `t3#build` -> `@sats-lab/pulse#build`
 - Relay package:
   - `t3code-relay` -> `pulse-relay`
 - Oxlint plugin workspace:

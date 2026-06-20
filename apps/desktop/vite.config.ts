@@ -7,13 +7,13 @@ export default defineConfig({
     tasks: {
       build: {
         command: "node scripts/build-preview-annotation-css.mjs && vp pack",
-        dependsOn: ["pulse#build"],
+        dependsOn: ["@sats-lab/pulse#build"],
         cache: false,
       },
       dev: {
         command:
           "node scripts/build-preview-annotation-css.mjs && cross-env PULSE_DESKTOP_DEV=1 vp pack --watch",
-        dependsOn: ["pulse#build"],
+        dependsOn: ["@sats-lab/pulse#build"],
         cache: false,
       },
       "dev:bundle": {
@@ -22,7 +22,7 @@ export default defineConfig({
       },
       "dev:electron": {
         command: "node scripts/dev-electron.mjs",
-        dependsOn: ["pulse#build"],
+        dependsOn: ["@sats-lab/pulse#build"],
         cache: false,
       },
     },

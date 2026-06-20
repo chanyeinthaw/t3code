@@ -9,4 +9,4 @@ export interface BrowserTraceCollectorShape {
 export class BrowserTraceCollector extends Context.Service<
   BrowserTraceCollector,
   BrowserTraceCollectorShape
->()("pulse/observability/Services/BrowserTraceCollector") {}
+>()("@sats-lab/pulse/observability/Services/BrowserTraceCollector") {}

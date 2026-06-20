@@ -91,7 +91,7 @@ export interface ProcessRunnerShape {
 }
 
 export class ProcessRunner extends Context.Service<ProcessRunner, ProcessRunnerShape>()(
-  "pulse/processRunner",
+  "@sats-lab/pulse/processRunner",
 ) {}
 
 const DEFAULT_TIMEOUT = "60 seconds";

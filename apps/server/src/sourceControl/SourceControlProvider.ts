@@ -99,4 +99,4 @@ export interface SourceControlProviderShape {
 export class SourceControlProvider extends Context.Service<
   SourceControlProvider,
   SourceControlProviderShape
->()("pulse/sourceControl/SourceControlProvider") {}
+>()("@sats-lab/pulse/sourceControl/SourceControlProvider") {}

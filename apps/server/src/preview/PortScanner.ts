@@ -37,7 +37,7 @@ export interface PortDiscoveryShape {
 }
 
 export class PortDiscovery extends Context.Service<PortDiscovery, PortDiscoveryShape>()(
-  "pulse/preview/PortScanner/PortDiscovery",
+  "@sats-lab/pulse/preview/PortScanner/PortDiscovery",
 ) {}
 
 export const COMMON_DEV_PORTS: ReadonlyArray<number> = Object.freeze([

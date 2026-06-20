@@ -14,7 +14,7 @@ export interface EnvironmentAuthPolicyShape {
 export class EnvironmentAuthPolicy extends Context.Service<
   EnvironmentAuthPolicy,
   EnvironmentAuthPolicyShape
->()("pulse/auth/EnvironmentAuthPolicy") {}
+>()("@sats-lab/pulse/auth/EnvironmentAuthPolicy") {}
 
 export const make = Effect.fn("makeEnvironmentAuthPolicy")(function* () {
   const config = yield* ServerConfig;

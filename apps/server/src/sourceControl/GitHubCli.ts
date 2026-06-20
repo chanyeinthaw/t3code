@@ -93,7 +93,7 @@ export interface GitHubCliShape {
 }
 
 export class GitHubCli extends Context.Service<GitHubCli, GitHubCliShape>()(
-  "pulse/sourceControl/GitHubCli",
+  "@sats-lab/pulse/sourceControl/GitHubCli",
 ) {}
 
 function errorText(error: VcsError | unknown): string {

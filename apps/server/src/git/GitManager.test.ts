@@ -997,7 +997,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1661,
                   title: "Fork PR from main",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1661",
+                  url: "https://github.com/sats-labs/pulse/pull/1661",
                   baseRefName: "main",
                   headRefName: "main",
                   state: "OPEN",
@@ -1034,7 +1034,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         yield* runGit(repoDir, ["add", "fork-pr.txt"]);
         yield* runGit(repoDir, ["commit", "-m", "Fork PR branch"]);
         yield* runGit(repoDir, ["push", "-u", "fork-seed", "statemachine"]);
-        yield* runGit(repoDir, ["checkout", "-b", "pulse/pr-488/statemachine"]);
+        yield* runGit(repoDir, ["checkout", "-b", "@sats-lab/pulse/pr-488/statemachine"]);
         yield* runGit(repoDir, ["branch", "--set-upstream-to", "fork-seed/statemachine"]);
         yield* configureVisibleRemoteUrlWithLocalRewrite(
           repoDir,
@@ -1074,7 +1074,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         });
 
         const status = yield* manager.status({ cwd: repoDir });
-        expect(status.refName).toBe("pulse/pr-488/statemachine");
+        expect(status.refName).toBe("@sats-lab/pulse/pr-488/statemachine");
         expect(status.pr).toEqual({
           number: 488,
           title: "Rebase this PR on latest main",
@@ -1130,7 +1130,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1618,
                   title: "Correct PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1618",
+                  url: "https://github.com/sats-labs/pulse/pull/1618",
                   baseRefName: "main",
                   headRefName: "effect-atom",
                   state: "OPEN",
@@ -1142,7 +1142,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                   state: "OPEN",
@@ -1158,7 +1158,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                   state: "OPEN",
@@ -1170,7 +1170,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                   state: "OPEN",
@@ -1186,7 +1186,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         expect(status.pr).toEqual({
           number: 1618,
           title: "Correct PR",
-          url: "https://github.com/chanyeinthaw/pulse/pull/1618",
+          url: "https://github.com/sats-labs/pulse/pull/1618",
           baseRef: "main",
           headRef: "effect-atom",
           state: "open",
@@ -1998,7 +1998,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1618,
                   title: "Correct PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1618",
+                  url: "https://github.com/sats-labs/pulse/pull/1618",
                   baseRefName: "main",
                   headRefName: "effect-atom",
                 },
@@ -2008,7 +2008,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                 },
@@ -2022,7 +2022,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                 },
@@ -2032,7 +2032,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1518,
                   title: "Wrong PR",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1518",
+                  url: "https://github.com/sats-labs/pulse/pull/1518",
                   baseRefName: "main",
                   headRefName: "upstream/effect-atom",
                 },
@@ -2065,7 +2065,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         const forkDir = yield* createBareRemote();
         yield* runGit(repoDir, ["remote", "add", "fork-seed", forkDir]);
         yield* runGit(repoDir, ["push", "-u", "fork-seed", "statemachine"]);
-        yield* runGit(repoDir, ["checkout", "-b", "pulse/pr-142/statemachine"]);
+        yield* runGit(repoDir, ["checkout", "-b", "@sats-lab/pulse/pr-142/statemachine"]);
         yield* runGit(repoDir, ["branch", "--set-upstream-to", "fork-seed/statemachine"]);
         yield* configureVisibleRemoteUrlWithLocalRewrite(
           repoDir,
@@ -2078,7 +2078,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           ghScenario: {
             prListByHeadSelector: {
               // @effect-diagnostics-next-line preferSchemaOverJson:off
-              "pulse/pr-142/statemachine": JSON.stringify([]),
+              "@sats-lab/pulse/pr-142/statemachine": JSON.stringify([]),
               // @effect-diagnostics-next-line preferSchemaOverJson:off
               statemachine: JSON.stringify([
                 {
@@ -2140,7 +2140,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
         const forkDir = yield* createBareRemote();
         yield* runGit(repoDir, ["remote", "add", "fork-seed", forkDir]);
         yield* runGit(repoDir, ["push", "-u", "fork-seed", "statemachine"]);
-        yield* runGit(repoDir, ["checkout", "-b", "pulse/pr-142/statemachine"]);
+        yield* runGit(repoDir, ["checkout", "-b", "@sats-lab/pulse/pr-142/statemachine"]);
         yield* runGit(repoDir, ["branch", "--set-upstream-to", "fork-seed/statemachine"]);
         yield* configureVisibleRemoteUrlWithLocalRewrite(
           repoDir,
@@ -2173,7 +2173,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
               // @effect-diagnostics-next-line preferSchemaOverJson:off
               "fork-seed:statemachine": JSON.stringify([]),
               // @effect-diagnostics-next-line preferSchemaOverJson:off
-              "pulse/pr-142/statemachine": JSON.stringify([]),
+              "@sats-lab/pulse/pr-142/statemachine": JSON.stringify([]),
               // @effect-diagnostics-next-line preferSchemaOverJson:off
               statemachine: JSON.stringify([]),
             },
@@ -2265,7 +2265,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
                 {
                   number: 1661,
                   title: "Fork PR with same branch name",
-                  url: "https://github.com/chanyeinthaw/pulse/pull/1661",
+                  url: "https://github.com/sats-labs/pulse/pull/1661",
                   baseRefName: "main",
                   headRefName: "feature/no-fork-match",
                   state: "OPEN",
@@ -2328,7 +2328,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
       yield* runGit(repoDir, ["add", "changes.txt"]);
       yield* runGit(repoDir, ["commit", "-m", "Feature commit"]);
       yield* runGit(repoDir, ["push", "-u", "fork-seed", "statemachine"]);
-      yield* runGit(repoDir, ["checkout", "-b", "pulse/pr-91/statemachine"]);
+      yield* runGit(repoDir, ["checkout", "-b", "@sats-lab/pulse/pr-91/statemachine"]);
       yield* runGit(repoDir, ["branch", "--set-upstream-to", "fork-seed/statemachine"]);
       yield* configureVisibleRemoteUrlWithLocalRewrite(
         repoDir,
@@ -2882,7 +2882,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           pullRequest: {
             number: 642,
             title: "fix: use commit as the default git action without origin",
-            url: "https://github.com/chanyeinthaw/pulse/pull/642",
+            url: "https://github.com/sats-labs/pulse/pull/642",
             baseRefName: "main",
             headRefName: "fix/git-action-default-without-origin",
             state: "open",
@@ -3007,7 +3007,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           mode: "worktree",
         });
 
-        expect(result.branch).toBe("pulse/pr-91/main");
+        expect(result.branch).toBe("@sats-lab/pulse/pr-91/main");
         expect(result.worktreePath).not.toBeNull();
         expect((yield* runGit(repoDir, ["branch", "--show-current"])).stdout.trim()).toBe("main");
         expect((yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim()).toBe(mainBefore);
@@ -3016,7 +3016,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
             "branch",
             "--show-current",
           ])).stdout.trim(),
-        ).toBe("pulse/pr-91/main");
+        ).toBe("@sats-lab/pulse/pr-91/main");
       }),
   );
 
@@ -3068,7 +3068,7 @@ it.layer(GitManagerTestLayer)("GitManager", (it) => {
           mode: "worktree",
         });
 
-        expect(result.branch).toBe("pulse/pr-92/main");
+        expect(result.branch).toBe("@sats-lab/pulse/pr-92/main");
         expect((yield* runGit(repoDir, ["rev-parse", "main"])).stdout.trim()).toBe(localMainBefore);
         expect(
           (yield* runGit(result.worktreePath as string, [

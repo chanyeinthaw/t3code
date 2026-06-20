@@ -18,7 +18,7 @@ export interface McpInvocationScope {
 export class McpInvocationContext extends Context.Service<
   McpInvocationContext,
   McpInvocationScope
->()("pulse/mcp/McpInvocationContext") {}
+>()("@sats-lab/pulse/mcp/McpInvocationContext") {}
 
 export const requireMcpCapability = Effect.fn("mcp.requireCapability")(function* (
   capability: McpCapability,

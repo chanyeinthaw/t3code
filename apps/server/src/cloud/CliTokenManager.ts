@@ -60,7 +60,7 @@ export interface CloudCliTokenManagerShape {
 export class CloudCliTokenManager extends Context.Service<
   CloudCliTokenManager,
   CloudCliTokenManagerShape
->()("pulse/cloud/CliTokenManager/CloudCliTokenManager") {}
+>()("@sats-lab/pulse/cloud/CliTokenManager/CloudCliTokenManager") {}
 
 const wrapError =
   (message: string) =>

@@ -41,4 +41,4 @@ export interface ProjectSetupScriptRunnerShape {
 export class ProjectSetupScriptRunner extends Context.Service<
   ProjectSetupScriptRunner,
   ProjectSetupScriptRunnerShape
->()("pulse/project/Services/ProjectSetupScriptRunner") {}
+>()("@sats-lab/pulse/project/Services/ProjectSetupScriptRunner") {}

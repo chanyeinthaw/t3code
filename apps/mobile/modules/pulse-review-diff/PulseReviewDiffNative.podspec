@@ -7,7 +7,7 @@ Pod::Spec.new do |s|
   s.version = package['version']
   s.summary = 'Native review diff debug surface for Pulse mobile.'
   s.description = 'Native iOS review diff renderer used to prototype fast mobile review scrolling.'
-  s.homepage = 'https://github.com/chanyeinthaw/pulse'
+  s.homepage = 'https://github.com/sats-labs/pulse'
   s.license = { :type => 'UNLICENSED' }
   s.author = { 'Pulse' => 'hello@pulse' }
   s.platforms = { :ios => '16.1' }

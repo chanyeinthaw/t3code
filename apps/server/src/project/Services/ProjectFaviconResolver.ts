@@ -27,4 +27,4 @@ export interface ProjectFaviconResolverShape {
 export class ProjectFaviconResolver extends Context.Service<
   ProjectFaviconResolver,
   ProjectFaviconResolverShape
->()("pulse/project/Services/ProjectFaviconResolver") {}
+>()("@sats-lab/pulse/project/Services/ProjectFaviconResolver") {}

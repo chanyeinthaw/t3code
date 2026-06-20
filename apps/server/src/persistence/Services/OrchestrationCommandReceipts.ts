@@ -69,5 +69,5 @@ export class OrchestrationCommandReceiptRepository extends Context.Service<
   OrchestrationCommandReceiptRepository,
   OrchestrationCommandReceiptRepositoryShape
 >()(
-  "pulse/persistence/Services/OrchestrationCommandReceipts/OrchestrationCommandReceiptRepository",
+  "@sats-lab/pulse/persistence/Services/OrchestrationCommandReceipts/OrchestrationCommandReceiptRepository",
 ) {}

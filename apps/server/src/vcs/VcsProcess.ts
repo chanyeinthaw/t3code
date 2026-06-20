@@ -40,7 +40,7 @@ export interface VcsProcessShape {
 }
 
 export class VcsProcess extends Context.Service<VcsProcess, VcsProcessShape>()(
-  "pulse/vcs/VcsProcess",
+  "@sats-lab/pulse/vcs/VcsProcess",
 ) {}
 
 const DEFAULT_TIMEOUT_MS = 30_000;

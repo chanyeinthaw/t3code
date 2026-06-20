@@ -154,7 +154,7 @@ export interface BitbucketApiShape {
 }
 
 export class BitbucketApi extends Context.Service<BitbucketApi, BitbucketApiShape>()(
-  "pulse/sourceControl/BitbucketApi",
+  "@sats-lab/pulse/sourceControl/BitbucketApi",
 ) {}
 
 function nonEmpty(value: string | undefined): Option.Option<string> {

@@ -46,4 +46,4 @@ export interface CheckpointDiffQueryShape {
 export class CheckpointDiffQuery extends Context.Service<
   CheckpointDiffQuery,
   CheckpointDiffQueryShape
->()("pulse/checkpointing/Services/CheckpointDiffQuery") {}
+>()("@sats-lab/pulse/checkpointing/Services/CheckpointDiffQuery") {}

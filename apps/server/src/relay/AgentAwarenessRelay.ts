@@ -53,7 +53,7 @@ export interface AgentAwarenessRelayShape {
 export class AgentAwarenessRelay extends Context.Service<
   AgentAwarenessRelay,
   AgentAwarenessRelayShape
->()("pulse/relay/AgentAwarenessRelay") {}
+>()("@sats-lab/pulse/relay/AgentAwarenessRelay") {}
 
 export function eventThreadId(event: OrchestrationEvent): ThreadId | null {
   const payload = event.payload as { readonly threadId?: unknown };

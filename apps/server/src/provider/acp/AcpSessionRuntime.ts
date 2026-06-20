@@ -141,7 +141,7 @@ interface EnsureActiveAssistantSegmentResult {
 }
 
 export class AcpSessionRuntime extends Context.Service<AcpSessionRuntime, AcpSessionRuntimeShape>()(
-  "pulse/provider/acp/AcpSessionRuntime",
+  "@sats-lab/pulse/provider/acp/AcpSessionRuntime",
 ) {
   static layer(
     options: AcpSessionRuntimeOptions,

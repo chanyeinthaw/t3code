@@ -50,7 +50,7 @@ export interface ProviderEventLoggersShape {
 export class ProviderEventLoggers extends Context.Service<
   ProviderEventLoggers,
   ProviderEventLoggersShape
->()("pulse/provider/Layers/ProviderEventLoggers") {}
+>()("@sats-lab/pulse/provider/Layers/ProviderEventLoggers") {}
 
 /**
  * Constant value used by tests / boot layers that want to opt out of native

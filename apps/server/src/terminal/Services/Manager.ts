@@ -146,5 +146,5 @@ export interface TerminalManagerShape {
  * TerminalManager - Service tag for terminal session orchestration.
  */
 export class TerminalManager extends Context.Service<TerminalManager, TerminalManagerShape>()(
-  "pulse/terminal/Services/Manager/TerminalManager",
+  "@sats-lab/pulse/terminal/Services/Manager/TerminalManager",
 ) {}

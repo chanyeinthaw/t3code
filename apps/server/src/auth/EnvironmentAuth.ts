@@ -182,7 +182,7 @@ export interface EnvironmentAuthShape {
 }
 
 export class EnvironmentAuth extends Context.Service<EnvironmentAuth, EnvironmentAuthShape>()(
-  "pulse/auth/EnvironmentAuth",
+  "@sats-lab/pulse/auth/EnvironmentAuth",
 ) {}
 
 type BootstrapExchangeResult = {

@@ -17,7 +17,7 @@ export interface VcsProvisioningServiceShape {
 export class VcsProvisioningService extends Context.Service<
   VcsProvisioningService,
   VcsProvisioningServiceShape
->()("pulse/vcs/VcsProvisioningService") {}
+>()("@sats-lab/pulse/vcs/VcsProvisioningService") {}
 
 function resolveRequestedKind(
   kind: VcsDriverKind | undefined,

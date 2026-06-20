@@ -68,4 +68,4 @@ export interface OrchestrationEventStoreShape {
 export class OrchestrationEventStore extends Context.Service<
   OrchestrationEventStore,
   OrchestrationEventStoreShape
->()("pulse/persistence/Services/OrchestrationEventStore") {}
+>()("@sats-lab/pulse/persistence/Services/OrchestrationEventStore") {}

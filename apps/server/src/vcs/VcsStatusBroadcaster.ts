@@ -82,7 +82,7 @@ export interface VcsStatusBroadcasterShape {
 export class VcsStatusBroadcaster extends Context.Service<
   VcsStatusBroadcaster,
   VcsStatusBroadcasterShape
->()("pulse/vcs/VcsStatusBroadcaster") {}
+>()("@sats-lab/pulse/vcs/VcsStatusBroadcaster") {}
 
 function fingerprintStatusPart(status: unknown): string {
   return JSON.stringify(status);

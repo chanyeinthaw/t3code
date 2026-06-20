@@ -92,4 +92,4 @@ export interface ProjectionThreadMessageRepositoryShape {
 export class ProjectionThreadMessageRepository extends Context.Service<
   ProjectionThreadMessageRepository,
   ProjectionThreadMessageRepositoryShape
->()("pulse/persistence/Services/ProjectionThreadMessages/ProjectionThreadMessageRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionThreadMessages/ProjectionThreadMessageRepository") {}

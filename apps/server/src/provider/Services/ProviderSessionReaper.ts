@@ -12,4 +12,4 @@ export interface ProviderSessionReaperShape {
 export class ProviderSessionReaper extends Context.Service<
   ProviderSessionReaper,
   ProviderSessionReaperShape
->()("pulse/provider/Services/ProviderSessionReaper") {}
+>()("@sats-lab/pulse/provider/Services/ProviderSessionReaper") {}

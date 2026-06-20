@@ -39,7 +39,7 @@ export interface SourceControlRepositoryServiceShape {
 export class SourceControlRepositoryService extends Context.Service<
   SourceControlRepositoryService,
   SourceControlRepositoryServiceShape
->()("pulse/sourceControl/SourceControlRepositoryService") {}
+>()("@sats-lab/pulse/sourceControl/SourceControlRepositoryService") {}
 
 function detailFromUnknown(cause: unknown): string {
   if (typeof cause === "object" && cause !== null) {

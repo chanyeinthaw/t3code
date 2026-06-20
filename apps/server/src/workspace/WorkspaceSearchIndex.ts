@@ -85,7 +85,7 @@ export class WorkspaceSearchIndex extends Context.Service<
       WorkspaceSearchIndexRefreshFailed | WorkspaceSearchIndexScanTimedOut
     >;
   }
->()("pulse/workspace/WorkspaceSearchIndex") {}
+>()("@sats-lab/pulse/workspace/WorkspaceSearchIndex") {}
 
 function toPosixPath(input: string): string {
   return input.replaceAll("\\", "/");
@@ -237,7 +237,7 @@ const workspaceSearchIndexLayer = (cwd: string) =>
   Layer.effect(WorkspaceSearchIndex, makeWorkspaceSearchIndex(cwd));
 
 export class WorkspaceSearchIndexMap extends LayerMap.Service<WorkspaceSearchIndexMap>()(
-  "pulse/workspace/WorkspaceSearchIndexMap",
+  "@sats-lab/pulse/workspace/WorkspaceSearchIndexMap",
   {
     lookup: workspaceSearchIndexLayer,
     idleTimeToLive: WORKSPACE_INDEX_IDLE_TTL,

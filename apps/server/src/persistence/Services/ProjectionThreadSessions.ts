@@ -75,4 +75,4 @@ export interface ProjectionThreadSessionRepositoryShape {
 export class ProjectionThreadSessionRepository extends Context.Service<
   ProjectionThreadSessionRepository,
   ProjectionThreadSessionRepositoryShape
->()("pulse/persistence/Services/ProjectionThreadSessions/ProjectionThreadSessionRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionThreadSessions/ProjectionThreadSessionRepository") {}

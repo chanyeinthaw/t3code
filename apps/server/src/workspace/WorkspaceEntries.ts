@@ -59,7 +59,7 @@ export class WorkspaceEntries extends Context.Service<
     readonly refresh: (cwd: string) => Effect.Effect<void>;
     readonly invalidate: (cwd: string) => Effect.Effect<void>;
   }
->()("pulse/workspace/WorkspaceEntries") {}
+>()("@sats-lab/pulse/workspace/WorkspaceEntries") {}
 
 function expandHomePath(input: string, path: Path.Path): string {
   if (input === "~") {

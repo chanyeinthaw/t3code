@@ -304,7 +304,7 @@ export interface ExternalLauncherShape {
  * ExternalLauncher - Service tag for browser/editor launch operations.
  */
 export class ExternalLauncher extends Context.Service<ExternalLauncher, ExternalLauncherShape>()(
-  "pulse/process/externalLauncher",
+  "@sats-lab/pulse/process/externalLauncher",
 ) {}
 
 // ==============================

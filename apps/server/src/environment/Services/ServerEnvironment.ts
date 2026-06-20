@@ -8,5 +8,5 @@ export interface ServerEnvironmentShape {
 }
 
 export class ServerEnvironment extends Context.Service<ServerEnvironment, ServerEnvironmentShape>()(
-  "pulse/environment/Services/ServerEnvironment",
+  "@sats-lab/pulse/environment/Services/ServerEnvironment",
 ) {}

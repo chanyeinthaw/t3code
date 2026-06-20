@@ -64,7 +64,7 @@ Use this when you want to run the server without a GUI, for example on a remote 
 Run the server with `pulse serve`.
 
 ```bash
-npx pulse serve --host "$(tailscale ip -4)"
+npx @sats-lab/pulse serve --host "$(tailscale ip -4)"
 ```
 
 `pulse serve` starts the server without opening a browser and prints:
@@ -86,14 +86,14 @@ Use `pulse serve --help` for the full flag reference. It supports the same gener
 For hosted web pairing over Tailscale HTTPS, opt in to Tailscale Serve:
 
 ```bash
-npx pulse serve --tailscale-serve
+npx @sats-lab/pulse serve --tailscale-serve
 ```
 
 By default this configures Tailscale Serve on HTTPS port 443 and advertises
 `https://machine.tailnet.ts.net/`. Advanced users can choose a different HTTPS port:
 
 ```bash
-npx pulse serve --tailscale-serve --tailscale-serve-port 8443
+npx @sats-lab/pulse serve --tailscale-serve --tailscale-serve-port 8443
 ```
 
 > Note

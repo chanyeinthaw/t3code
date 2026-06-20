@@ -208,7 +208,7 @@ const createVpPmPublishArgs = (config: PublishCommandConfig): ReadonlyArray<stri
   const args = [
     "publish",
     "--filter",
-    "t3",
+    "@sats-lab/pulse",
     "--access",
     config.access,
     "--tag",

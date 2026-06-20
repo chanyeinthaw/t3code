@@ -33,7 +33,7 @@ export interface ServerSecretStoreShape {
 }
 
 export class ServerSecretStore extends Context.Service<ServerSecretStore, ServerSecretStoreShape>()(
-  "pulse/auth/ServerSecretStore",
+  "@sats-lab/pulse/auth/ServerSecretStore",
 ) {}
 
 export const make = Effect.fn("makeServerSecretStore")(function* () {

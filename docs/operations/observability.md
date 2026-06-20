@@ -65,7 +65,7 @@ You do not need any extra env vars. Just run the app normally and inspect `serve
 Examples:
 
 ```bash
-npx pulse
+npx @sats-lab/pulse
 ```
 
 ```bash
@@ -116,7 +116,7 @@ export PULSE_TRACE_TIMING_ENABLED=true
 CLI:
 
 ```bash
-npx pulse
+npx @sats-lab/pulse
 ```
 
 Monorepo web/server dev:

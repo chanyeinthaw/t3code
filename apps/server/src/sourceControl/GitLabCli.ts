@@ -97,7 +97,7 @@ export interface GitLabCliShape {
 }
 
 export class GitLabCli extends Context.Service<GitLabCli, GitLabCliShape>()(
-  "pulse/sourceControl/GitLabCli",
+  "@sats-lab/pulse/sourceControl/GitLabCli",
 ) {}
 
 function isVcsProcessSpawnError(error: unknown): boolean {

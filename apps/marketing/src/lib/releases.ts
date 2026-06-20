@@ -1,4 +1,4 @@
-const REPO = "chanyeinthaw/pulse";
+const REPO = "sats-labs/pulse";
 
 export const RELEASES_URL = `https://github.com/${REPO}/releases`;
 

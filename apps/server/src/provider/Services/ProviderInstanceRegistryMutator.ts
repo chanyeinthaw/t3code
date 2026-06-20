@@ -49,4 +49,4 @@ export interface ProviderInstanceRegistryMutatorShape {
 export class ProviderInstanceRegistryMutator extends Context.Service<
   ProviderInstanceRegistryMutator,
   ProviderInstanceRegistryMutatorShape
->()("pulse/provider/Services/ProviderInstanceRegistryMutator") {}
+>()("@sats-lab/pulse/provider/Services/ProviderInstanceRegistryMutator") {}

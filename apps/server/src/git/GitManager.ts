@@ -86,7 +86,7 @@ export interface GitManagerShape {
 }
 
 export class GitManager extends Context.Service<GitManager, GitManagerShape>()(
-  "pulse/git/GitManager",
+  "@sats-lab/pulse/git/GitManager",
 ) {}
 
 const COMMIT_TIMEOUT_MS = 10 * 60_000;

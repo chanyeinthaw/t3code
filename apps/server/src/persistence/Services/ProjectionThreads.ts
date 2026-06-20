@@ -100,4 +100,4 @@ export interface ProjectionThreadRepositoryShape {
 export class ProjectionThreadRepository extends Context.Service<
   ProjectionThreadRepository,
   ProjectionThreadRepositoryShape
->()("pulse/persistence/Services/ProjectionThreads/ProjectionThreadRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionThreads/ProjectionThreadRepository") {}

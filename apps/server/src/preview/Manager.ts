@@ -53,7 +53,7 @@ export interface PreviewManagerShape {
 }
 
 export class PreviewManager extends Context.Service<PreviewManager, PreviewManagerShape>()(
-  "pulse/preview/Manager/PreviewManager",
+  "@sats-lab/pulse/preview/Manager/PreviewManager",
 ) {}
 
 interface PreviewSessionState {

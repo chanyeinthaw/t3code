@@ -38,4 +38,4 @@ export interface ProviderRuntimeIngestionShape {
 export class ProviderRuntimeIngestionService extends Context.Service<
   ProviderRuntimeIngestionService,
   ProviderRuntimeIngestionShape
->()("pulse/orchestration/Services/ProviderRuntimeIngestion/ProviderRuntimeIngestionService") {}
+>()("@sats-lab/pulse/orchestration/Services/ProviderRuntimeIngestion/ProviderRuntimeIngestionService") {}

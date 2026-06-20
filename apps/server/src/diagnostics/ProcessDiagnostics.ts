@@ -42,7 +42,7 @@ export interface ProcessDiagnosticsShape {
 export class ProcessDiagnostics extends Context.Service<
   ProcessDiagnostics,
   ProcessDiagnosticsShape
->()("pulse/diagnostics/ProcessDiagnostics") {}
+>()("@sats-lab/pulse/diagnostics/ProcessDiagnostics") {}
 
 class ProcessDiagnosticsError extends Schema.TaggedErrorClass<ProcessDiagnosticsError>()(
   "ProcessDiagnosticsError",

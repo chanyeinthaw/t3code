@@ -167,4 +167,4 @@ export interface ProjectionTurnRepositoryShape {
 export class ProjectionTurnRepository extends Context.Service<
   ProjectionTurnRepository,
   ProjectionTurnRepositoryShape
->()("pulse/persistence/Services/ProjectionTurns/ProjectionTurnRepository") {}
+>()("@sats-lab/pulse/persistence/Services/ProjectionTurns/ProjectionTurnRepository") {}

@@ -79,4 +79,4 @@ export interface AuthPairingLinkRepositoryShape {
 export class AuthPairingLinkRepository extends Context.Service<
   AuthPairingLinkRepository,
   AuthPairingLinkRepositoryShape
->()("pulse/persistence/Services/AuthPairingLinks/AuthPairingLinkRepository") {}
+>()("@sats-lab/pulse/persistence/Services/AuthPairingLinks/AuthPairingLinkRepository") {}

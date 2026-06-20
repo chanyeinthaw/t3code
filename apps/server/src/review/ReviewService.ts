@@ -24,7 +24,7 @@ export interface ReviewServiceShape {
 }
 
 export class ReviewService extends Context.Service<ReviewService, ReviewServiceShape>()(
-  "pulse/review/ReviewService",
+  "@sats-lab/pulse/review/ReviewService",
 ) {}
 
 export const make = Effect.fn("makeReviewService")(function* () {

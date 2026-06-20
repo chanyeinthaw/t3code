@@ -36,7 +36,7 @@ export interface CloudManagedEndpointRuntimeShape {
 export class CloudManagedEndpointRuntime extends Context.Service<
   CloudManagedEndpointRuntime,
   CloudManagedEndpointRuntimeShape
->()("pulse/cloud/ManagedEndpointRuntime/CloudManagedEndpointRuntime") {}
+>()("@sats-lab/pulse/cloud/ManagedEndpointRuntime/CloudManagedEndpointRuntime") {}
 
 export type CloudManagedEndpointRuntimeStatus =
   | {

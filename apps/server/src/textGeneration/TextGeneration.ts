@@ -122,7 +122,7 @@ export interface TextGenerationShape {
  * TextGeneration - Service tag for commit and PR text generation.
  */
 export class TextGeneration extends Context.Service<TextGeneration, TextGenerationShape>()(
-  "pulse/textGeneration/TextGeneration",
+  "@sats-lab/pulse/textGeneration/TextGeneration",
 ) {}
 
 type TextGenerationOp =

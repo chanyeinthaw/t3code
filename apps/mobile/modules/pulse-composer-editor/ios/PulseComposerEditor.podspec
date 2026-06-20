@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary        = 'Native attributed composer editor for Pulse mobile.'
   s.description    = 'UIKit-backed rich text composer with atomic skill and file tokens.'
   s.author         = 'Pulse'
-  s.homepage       = 'https://github.com/chanyeinthaw/pulse'
+  s.homepage       = 'https://github.com/sats-labs/pulse'
   s.platforms      = {
     :ios => '16.4',
   }

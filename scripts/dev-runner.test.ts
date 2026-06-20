@@ -32,7 +32,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           "run",
           "--filter=@pulse/contracts",
           "--filter=@pulse/web",
-          "--filter=pulse",
+          "--filter=@sats-lab/pulse",
           "--parallel",
           "dev",
         ]);

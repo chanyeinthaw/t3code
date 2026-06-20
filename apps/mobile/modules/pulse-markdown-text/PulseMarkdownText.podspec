@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.version = package["version"]
   s.summary = "Native selectable markdown renderer for Pulse mobile."
   s.description = "Fabric-backed attributed text and markdown rendering primitives owned by Pulse."
-  s.homepage = "https://github.com/chanyeinthaw/pulse"
+  s.homepage = "https://github.com/sats-labs/pulse"
   s.license = { :type => "MIT", :file => "LICENSE" }
   s.author = { "Pulse" => "hello@pulse" }
   s.platforms = { :ios => min_ios_version_supported }

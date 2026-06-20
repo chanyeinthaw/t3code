@@ -77,7 +77,7 @@ export interface GitWorkflowServiceShape {
 export class GitWorkflowService extends Context.Service<
   GitWorkflowService,
   GitWorkflowServiceShape
->()("pulse/git/GitWorkflowService") {}
+>()("@sats-lab/pulse/git/GitWorkflowService") {}
 
 const unsupportedGitWorkflow = (operation: string, cwd: string, detail: string) =>
   new GitManagerError({

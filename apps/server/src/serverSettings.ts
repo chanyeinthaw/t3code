@@ -130,7 +130,7 @@ export interface ServerSettingsShape {
 export class ServerSettingsService extends Context.Service<
   ServerSettingsService,
   ServerSettingsShape
->()("pulse/serverSettings/ServerSettingsService") {
+>()("@sats-lab/pulse/serverSettings/ServerSettingsService") {
   static readonly layerTest = (overrides: DeepPartial<ServerSettings> = {}) =>
     Layer.effect(
       ServerSettingsService,
