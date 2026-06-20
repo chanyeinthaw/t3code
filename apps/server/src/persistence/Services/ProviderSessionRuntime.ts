@@ -89,4 +89,6 @@ export interface ProviderSessionRuntimeRepositoryShape {
 export class ProviderSessionRuntimeRepository extends Context.Service<
   ProviderSessionRuntimeRepository,
   ProviderSessionRuntimeRepositoryShape
->()("@sats-lab/pulse/persistence/Services/ProviderSessionRuntime/ProviderSessionRuntimeRepository") {}
+>()(
+  "@sats-lab/pulse/persistence/Services/ProviderSessionRuntime/ProviderSessionRuntimeRepository",
+) {}
