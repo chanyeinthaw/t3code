@@ -135,6 +135,7 @@ interface PiSessionContext {
       readonly args: unknown;
       readonly itemType: "command_execution" | "file_change" | "dynamic_tool_call" | "web_search";
       lastOutputText: string;
+      lastPartialResult: unknown;
     }
   >;
   activeTurnId: TurnId | undefined;
@@ -415,7 +416,7 @@ function mapPiMessageHistory(session: AgentSession): Array<unknown> {
             itemType: toToolItemType(record.name),
             title: buildPiToolTitle(record.name, record.arguments),
             args: record.arguments,
-            data: buildPiToolMetadata({
+            data: buildPiToolData({
               toolCallId: record.id,
               toolName: record.name,
               args: record.arguments,
@@ -444,10 +445,11 @@ function mapPiMessageHistory(session: AgentSession): Array<unknown> {
         title: buildPiToolTitle(toolName, pending?.args),
         output: readPiToolTextOutput(result),
         isError,
-        data: buildPiToolMetadata({
+        data: buildPiToolData({
           toolCallId,
           toolName,
           args: pending?.args,
+          resultDelta: { op: "replace", value: result },
           result,
           isError,
         }),
@@ -521,9 +523,21 @@ function readPiToolPath(args: unknown): string | undefined {
 function readPiToolSearchQuery(toolName: string, args: unknown): string | undefined {
   const record = recordFromUnknown(args);
   if (!record) return undefined;
-  if (toolName === "grep" || toolName === "find")
-    return firstStringValue(record, ["pattern", "query"]);
+  if (isPiSearchTool(toolName)) return firstStringValue(record, ["pattern", "query"]);
   return firstStringValue(record, ["query", "pattern"]);
+}
+
+function isPiSearchTool(toolName: string): boolean {
+  const normalized = toolName.toLowerCase();
+  return (
+    normalized === "grep" ||
+    normalized === "find" ||
+    normalized === "ffgrep" ||
+    normalized === "fffind" ||
+    normalized.includes("grep") ||
+    normalized.includes("find") ||
+    normalized.includes("search")
+  );
 }
 
 function readPiToolTextOutput(result: unknown): string | undefined {
@@ -563,6 +577,80 @@ function readPiToolExitCode(result: unknown): number | null | undefined {
   return null;
 }
 
+function jsonEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+type PiJsonDelta =
+  | { readonly op: "replace"; readonly value: unknown }
+  | { readonly op: "append"; readonly value: string }
+  | { readonly op: "arrayAppend"; readonly value: ReadonlyArray<unknown> }
+  | {
+      readonly op: "array";
+      readonly set?: Record<string, PiJsonDelta>;
+      readonly append?: ReadonlyArray<unknown>;
+      readonly length?: number;
+    }
+  | {
+      readonly op: "object";
+      readonly set?: Record<string, PiJsonDelta>;
+      readonly remove?: ReadonlyArray<string>;
+    };
+
+function diffPiJsonValue(previous: unknown, next: unknown): PiJsonDelta | undefined {
+  if (jsonEqual(previous, next)) return undefined;
+
+  if (typeof previous === "string" && typeof next === "string" && next.startsWith(previous)) {
+    return { op: "append", value: next.slice(previous.length) };
+  }
+
+  if (Array.isArray(previous) && Array.isArray(next)) {
+    const set: Record<string, PiJsonDelta> = {};
+    const sharedLength = Math.min(previous.length, next.length);
+    for (let index = 0; index < sharedLength; index += 1) {
+      const delta = diffPiJsonValue(previous[index], next[index]);
+      if (delta) set[String(index)] = delta;
+    }
+    const append = next.length > previous.length ? next.slice(previous.length) : undefined;
+    if (next.length < previous.length) {
+      return {
+        op: "array",
+        ...(Object.keys(set).length > 0 ? { set } : {}),
+        length: next.length,
+      };
+    }
+    if (Object.keys(set).length === 0 && append !== undefined) {
+      return { op: "arrayAppend", value: append };
+    }
+    return {
+      op: "array",
+      ...(Object.keys(set).length > 0 ? { set } : {}),
+      ...(append !== undefined ? { append } : {}),
+    };
+  }
+
+  const previousRecord = recordFromUnknown(previous);
+  const nextRecord = recordFromUnknown(next);
+  if (previousRecord && nextRecord && !Array.isArray(previous) && !Array.isArray(next)) {
+    const set: Record<string, PiJsonDelta> = {};
+    const remove: Array<string> = [];
+    const previousKeys = new Set(Object.keys(previousRecord));
+    for (const [key, nextValue] of Object.entries(nextRecord)) {
+      previousKeys.delete(key);
+      const delta = diffPiJsonValue(previousRecord[key], nextValue);
+      if (delta) set[key] = delta;
+    }
+    remove.push(...previousKeys);
+    return {
+      op: "object",
+      ...(Object.keys(set).length > 0 ? { set } : {}),
+      ...(remove.length > 0 ? { remove } : {}),
+    };
+  }
+
+  return { op: "replace", value: next };
+}
+
 function diffAccumulatedPiToolOutput(input: {
   readonly previous: string;
   readonly next: string | undefined;
@@ -588,7 +676,7 @@ function buildPiToolTitle(toolName: string, args: unknown): string {
   const path = readPiToolPath(args);
   if (path && ["read", "edit", "write", "ls"].includes(toolName)) return `${toolName} ${path}`;
   const query = readPiToolSearchQuery(toolName, args);
-  if (query && ["find", "grep"].includes(toolName)) return `${toolName} ${query}`;
+  if (query && isPiSearchTool(toolName)) return `${toolName} ${query}`;
   return toolName;
 }
 
@@ -605,83 +693,31 @@ function piToolOutputStreamKind(
   }
 }
 
-function buildPiToolMetadata(input: {
+function buildPiToolData(input: {
   readonly toolCallId: string;
   readonly toolName: string;
   readonly args: unknown;
   readonly result?: unknown;
+  readonly resultDelta?: PiJsonDelta | undefined;
+  readonly partialResultDelta?: PiJsonDelta | undefined;
   readonly isError?: boolean;
 }): Record<string, unknown> {
-  const command = readPiToolCommand(input.toolName, input.args);
-  const path = readPiToolPath(input.args);
-  const query = readPiToolSearchQuery(input.toolName, input.args);
   const exitCode = readPiToolExitCode(input.result);
-  const base: Record<string, unknown> = {
+  return {
     toolCallId: input.toolCallId,
     callId: input.toolCallId,
     toolName: input.toolName,
     name: input.toolName,
     tool: input.toolName,
     kind: input.toolName,
+    args: input.args,
+    input: input.args,
+    rawInput: input.args,
+    ...(input.partialResultDelta ? { partialResultDelta: input.partialResultDelta } : {}),
+    ...(input.resultDelta ? { resultDelta: input.resultDelta } : {}),
+    ...(exitCode !== undefined ? { exitCode } : {}),
     ...(input.isError !== undefined ? { isError: input.isError } : {}),
   };
-
-  switch (input.toolName) {
-    case "bash":
-      return {
-        ...base,
-        kind: "execute",
-        ...(command ? { command } : {}),
-        ...(exitCode !== undefined ? { exitCode } : {}),
-      };
-    case "read":
-      return {
-        ...base,
-        kind: "read",
-        ...(path
-          ? {
-              path,
-              filePath: path,
-              files: [{ path }],
-              commandActions: [{ type: "read", name: "read", path }],
-            }
-          : {}),
-      };
-    case "edit":
-      return {
-        ...base,
-        kind: "edit",
-        ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
-      };
-    case "write":
-      return {
-        ...base,
-        kind: "write",
-        ...(path ? { path, filePath: path, files: [{ path }], changes: [{ path }] } : {}),
-      };
-    case "find":
-    case "grep":
-      return {
-        ...base,
-        kind: "search",
-        searchKind: input.toolName,
-        ...(query ? { query } : {}),
-        ...(path ? { path } : {}),
-        ...(query || path
-          ? { commandActions: [{ type: "search", name: input.toolName, query, path }] }
-          : {}),
-      };
-    case "ls":
-      return {
-        ...base,
-        kind: "listFiles",
-        ...(path
-          ? { path, query: path, commandActions: [{ type: "listFiles", name: "ls", path }] }
-          : {}),
-      };
-    default:
-      return base;
-  }
 }
 
 function piCompactionDetail(
@@ -1168,6 +1204,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             args: event.args,
             itemType,
             lastOutputText: "",
+            lastPartialResult: undefined,
           });
           appendTurnItem(context, turnId, event);
           yield* emit({
@@ -1183,7 +1220,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType,
               status: "inProgress",
               title: buildPiToolTitle(event.toolName, event.args),
-              data: buildPiToolMetadata({
+              data: buildPiToolData({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 args: event.args,
@@ -1201,8 +1238,13 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
             previous: activeTool?.lastOutputText ?? "",
             next: nextOutputText,
           });
+          const partialResultDelta = diffPiJsonValue(
+            activeTool?.lastPartialResult,
+            event.partialResult,
+          );
           if (activeTool) {
             activeTool.lastOutputText = diff.nextPrevious;
+            activeTool.lastPartialResult = event.partialResult;
           }
           if (diff.delta && diff.delta.length > 0) {
             yield* emit({
@@ -1217,6 +1259,29 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               payload: {
                 streamKind: piToolOutputStreamKind(itemType),
                 delta: diff.delta,
+              },
+            });
+          }
+          if (partialResultDelta) {
+            yield* emit({
+              ...(yield* buildEventBase({
+                threadId: context.session.threadId,
+                turnId: toolTurnId,
+                itemId: event.toolCallId,
+                raw: event,
+              })),
+              providerRefs: { providerItemId: ProviderItemId.make(event.toolCallId) },
+              type: "item.updated",
+              payload: {
+                itemType,
+                status: "inProgress",
+                title: buildPiToolTitle(event.toolName, activeTool?.args ?? event.args),
+                data: buildPiToolData({
+                  toolCallId: event.toolCallId,
+                  toolName: event.toolName,
+                  args: activeTool?.args ?? event.args,
+                  partialResultDelta,
+                }),
               },
             });
           }
@@ -1262,11 +1327,12 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
               itemType,
               status: event.isError ? "failed" : "completed",
               title: buildPiToolTitle(event.toolName, activeTool?.args),
-              data: buildPiToolMetadata({
+              data: buildPiToolData({
                 toolCallId: event.toolCallId,
                 toolName: event.toolName,
                 args: activeTool?.args,
                 result: event.result,
+                resultDelta: diffPiJsonValue(activeTool?.lastPartialResult, event.result),
                 isError: event.isError,
               }),
             },

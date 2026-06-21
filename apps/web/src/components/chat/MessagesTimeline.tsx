@@ -1484,15 +1484,18 @@ function buildToolCallExpandedBody(
   workspaceRoot: string | undefined,
 ): string | null {
   const blocks: string[] = [];
-  if (workEntry.itemType === "mcp_tool_call" && workEntry.toolData !== undefined) {
-    blocks.push(`MCP call\n${JSON.stringify(workEntry.toolData, null, 2)}`);
-  }
   const raw = workEntryRawCommand(workEntry);
   if (raw?.trim()) {
     blocks.push(raw.trim());
   } else if (workEntry.command?.trim()) {
     blocks.push(workEntry.command.trim());
   }
+
+  const toolDataBody = formatWorkEntryToolData(workEntry);
+  if (toolDataBody) {
+    blocks.push(toolDataBody);
+  }
+
   if (workEntry.detail?.trim()) {
     blocks.push(workEntry.detail.trim());
   }
@@ -1505,6 +1508,46 @@ function buildToolCallExpandedBody(
     );
   }
   return blocks.length > 0 ? blocks.join("\n\n") : null;
+}
+
+function formatWorkEntryToolData(workEntry: TimelineWorkEntry): string | null {
+  if (workEntry.toolData === undefined) return null;
+  if (workEntry.itemType === "mcp_tool_call") {
+    return `MCP call\n${JSON.stringify(workEntry.toolData, null, 2)}`;
+  }
+
+  const resultRecord = asRecordForTimelineToolData(workEntry.toolData);
+  const result = resultRecord?.result ?? resultRecord?.partialResult ?? workEntry.toolData;
+  const output = extractAgentToolResultText(result);
+  if (output?.trim()) {
+    return output.trim();
+  }
+
+  const details = asRecordForTimelineToolData(result)?.details;
+  if (details !== undefined) {
+    return `Tool details\n${JSON.stringify(details, null, 2)}`;
+  }
+
+  return `Tool data\n${JSON.stringify(workEntry.toolData, null, 2)}`;
+}
+
+function asRecordForTimelineToolData(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function extractAgentToolResultText(value: unknown): string | null {
+  const record = asRecordForTimelineToolData(value);
+  if (!record) return typeof value === "string" && value.trim().length > 0 ? value : null;
+  const content = Array.isArray(record.content) ? record.content : [];
+  const text = content
+    .flatMap((entry) => {
+      const block = asRecordForTimelineToolData(entry);
+      return block?.type === "text" && typeof block.text === "string" ? [block.text] : [];
+    })
+    .join("\n");
+  return text.trim().length > 0 ? text : null;
 }
 
 function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconName {

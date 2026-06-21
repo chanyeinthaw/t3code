@@ -562,13 +562,13 @@ export function deriveWorkLogEntries(
   latestTurnId: TurnId | undefined,
 ): WorkLogEntry[] {
   const ordered = [...activities].toSorted(compareActivitiesByOrder);
+  const toolDeltaState = new Map<string, ReconstructedToolResultState>();
   const entries: DerivedWorkLogEntry[] = [];
-  for (const activity of ordered) {
+  for (const originalActivity of ordered) {
+    const activity = materializeToolResultDeltas(originalActivity, toolDeltaState);
     if (latestTurnId && activity.turnId !== latestTurnId) {
       if (!shouldKeepInterruptedTurnToolActivity(ordered, activity)) continue;
     }
-    if (activity.kind === "tool.started" && hasLaterToolLifecycleActivity(ordered, activity))
-      continue;
     if (activity.kind === "task.started") continue;
     if (activity.kind === "context-window.updated") continue;
     if (activity.summary === "Checkpoint captured") continue;
@@ -578,6 +578,97 @@ export function deriveWorkLogEntries(
   return collapseDerivedWorkLogEntries(entries).map(
     ({ activityKind: _activityKind, collapseKey: _collapseKey, ...entry }) => entry,
   );
+}
+
+type PiJsonDelta =
+  | { readonly op: "replace"; readonly value: unknown }
+  | { readonly op: "append"; readonly value: string }
+  | { readonly op: "arrayAppend"; readonly value: ReadonlyArray<unknown> }
+  | {
+      readonly op: "array";
+      readonly set?: Record<string, PiJsonDelta>;
+      readonly append?: ReadonlyArray<unknown>;
+      readonly length?: number;
+    }
+  | {
+      readonly op: "object";
+      readonly set?: Record<string, PiJsonDelta>;
+      readonly remove?: ReadonlyArray<string>;
+    };
+
+interface ReconstructedToolResultState {
+  partialResult?: unknown;
+  result?: unknown;
+}
+
+function isPiJsonDelta(value: unknown): value is PiJsonDelta {
+  const record = asRecord(value);
+  return typeof record?.op === "string";
+}
+
+function applyPiJsonDelta(previous: unknown, delta: PiJsonDelta): unknown {
+  switch (delta.op) {
+    case "replace":
+      return delta.value;
+    case "append":
+      return `${typeof previous === "string" ? previous : ""}${delta.value}`;
+    case "arrayAppend":
+      return [...(Array.isArray(previous) ? previous : []), ...delta.value];
+    case "array": {
+      const next = Array.isArray(previous) ? [...previous] : [];
+      for (const [indexText, itemDelta] of Object.entries(delta.set ?? {})) {
+        const index = Number.parseInt(indexText, 10);
+        if (Number.isSafeInteger(index) && index >= 0) {
+          next[index] = applyPiJsonDelta(next[index], itemDelta);
+        }
+      }
+      if (delta.append) next.push(...delta.append);
+      if (typeof delta.length === "number" && delta.length >= 0) next.length = delta.length;
+      return next;
+    }
+    case "object": {
+      const base = asRecord(previous);
+      const next: Record<string, unknown> = base ? { ...base } : {};
+      for (const key of delta.remove ?? []) {
+        delete next[key];
+      }
+      for (const [key, itemDelta] of Object.entries(delta.set ?? {})) {
+        next[key] = applyPiJsonDelta(next[key], itemDelta);
+      }
+      return next;
+    }
+  }
+}
+
+function materializeToolResultDeltas(
+  activity: OrchestrationThreadActivity,
+  states: Map<string, ReconstructedToolResultState>,
+): OrchestrationThreadActivity {
+  if (!isToolLifecycleActivity(activity)) return activity;
+  const payload = extractPayloadRecord(activity);
+  const data = asRecord(payload?.data);
+  const toolCallId = extractToolCallId(payload);
+  if (!payload || !data || !toolCallId) return activity;
+
+  const state = states.get(toolCallId) ?? {};
+  states.set(toolCallId, state);
+  let nextData: Record<string, unknown> | null = null;
+
+  const partialResultDelta = data.partialResultDelta;
+  if (isPiJsonDelta(partialResultDelta)) {
+    state.partialResult = applyPiJsonDelta(state.partialResult, partialResultDelta);
+    nextData = { ...(nextData ?? data), partialResult: state.partialResult };
+    delete nextData.partialResultDelta;
+  }
+
+  const resultDelta = data.resultDelta;
+  if (isPiJsonDelta(resultDelta)) {
+    state.result = applyPiJsonDelta(state.partialResult ?? state.result, resultDelta);
+    nextData = { ...(nextData ?? data), result: state.result };
+    delete nextData.resultDelta;
+  }
+
+  return nextData ? { ...activity, payload: { ...payload, data: nextData } } : activity;
 }
 
 function shouldKeepInterruptedTurnToolActivity(
@@ -608,53 +699,12 @@ function hasInterruptedTurnCompletion(
   });
 }
 
-function hasLaterToolLifecycleActivity(
-  activities: ReadonlyArray<OrchestrationThreadActivity>,
-  startedActivity: OrchestrationThreadActivity,
-): boolean {
-  const startedToolCallId = extractToolCallIdFromActivity(startedActivity);
-  const startedItemType = extractWorkLogItemTypeFromActivity(startedActivity);
-  const startedLabel = normalizeCompactToolLabel(
-    extractToolTitleFromActivity(startedActivity) ?? startedActivity.summary,
-  );
-
-  return activities.some((activity) => {
-    if (activity === startedActivity) return false;
-    if (activity.turnId !== startedActivity.turnId) return false;
-    if (activity.kind !== "tool.updated" && activity.kind !== "tool.completed") return false;
-    if (compareActivitiesByOrder(activity, startedActivity) <= 0) return false;
-
-    const toolCallId = extractToolCallIdFromActivity(activity);
-    if (startedToolCallId || toolCallId) {
-      return startedToolCallId === toolCallId;
-    }
-
-    const itemType = extractWorkLogItemTypeFromActivity(activity);
-    const label = normalizeCompactToolLabel(
-      extractToolTitleFromActivity(activity) ?? activity.summary,
-    );
-    return startedItemType === itemType && startedLabel === label;
-  });
-}
-
 function extractPayloadRecord(
   activity: OrchestrationThreadActivity,
 ): Record<string, unknown> | null {
   return activity.payload && typeof activity.payload === "object"
     ? (activity.payload as Record<string, unknown>)
     : null;
-}
-
-function extractToolCallIdFromActivity(activity: OrchestrationThreadActivity): string | null {
-  return extractToolCallId(extractPayloadRecord(activity));
-}
-
-function extractToolTitleFromActivity(activity: OrchestrationThreadActivity): string | null {
-  return extractToolTitle(extractPayloadRecord(activity));
-}
-
-function extractWorkLogItemTypeFromActivity(activity: OrchestrationThreadActivity): string | null {
-  return extractWorkLogItemType(extractPayloadRecord(activity)) ?? null;
 }
 
 function isPlanBoundaryToolActivity(activity: OrchestrationThreadActivity): boolean {
@@ -728,11 +778,16 @@ function toDerivedWorkLogEntry(activity: OrchestrationThreadActivity): DerivedWo
   if (title) {
     entry.toolTitle = title;
   }
+  const data = asRecord(payload?.data);
   if (itemType === "mcp_tool_call") {
-    const data = asRecord(payload?.data);
     if (data?.item !== undefined) {
       entry.toolData = data.item;
     }
+  } else if (data?.partialResult !== undefined || data?.result !== undefined) {
+    entry.toolData = {
+      ...(data.partialResult !== undefined ? { partialResult: data.partialResult } : {}),
+      ...(data.result !== undefined ? { result: data.result } : {}),
+    };
   }
   if (itemType) {
     entry.itemType = itemType;
@@ -794,7 +849,7 @@ function shouldCollapseToolLifecycleEntries(
   previous: DerivedWorkLogEntry,
   next: DerivedWorkLogEntry,
 ): boolean {
-  if (previous.activityKind !== "tool.updated" && previous.activityKind !== "tool.completed") {
+  if (!isToolLifecycleActivityKind(previous.activityKind)) {
     return false;
   }
   if (next.activityKind !== "tool.updated" && next.activityKind !== "tool.completed") {
@@ -823,7 +878,7 @@ function mergeDerivedWorkLogEntries(
   const detail = next.detail ?? previous.detail;
   const command = next.command ?? previous.command;
   const rawCommand = next.rawCommand ?? previous.rawCommand;
-  const toolTitle = next.toolTitle ?? previous.toolTitle;
+  const toolTitle = mergeToolTitles(previous.toolTitle, next.toolTitle);
   const itemType = next.itemType ?? previous.itemType;
   const requestKind = next.requestKind ?? previous.requestKind;
   const collapseKey = next.collapseKey ?? previous.collapseKey;
@@ -843,6 +898,20 @@ function mergeDerivedWorkLogEntries(
   };
 }
 
+function mergeToolTitles(
+  previous: string | undefined,
+  next: string | undefined,
+): string | undefined {
+  if (!previous) return next;
+  if (!next) return previous;
+  const normalizedPrevious = normalizeCompactToolLabel(previous).toLowerCase();
+  const normalizedNext = normalizeCompactToolLabel(next).toLowerCase();
+  if (normalizedPrevious === normalizedNext) return next;
+  if (normalizedPrevious.startsWith(normalizedNext)) return previous;
+  if (normalizedNext.startsWith(normalizedPrevious)) return next;
+  return next.length >= previous.length ? next : previous;
+}
+
 function mergeChangedFiles(
   previous: ReadonlyArray<string> | undefined,
   next: ReadonlyArray<string> | undefined,
@@ -854,8 +923,12 @@ function mergeChangedFiles(
   return [...new Set(merged)];
 }
 
+function isToolLifecycleActivityKind(kind: OrchestrationThreadActivity["kind"]): boolean {
+  return kind === "tool.started" || kind === "tool.updated" || kind === "tool.completed";
+}
+
 function deriveToolLifecycleCollapseKey(entry: DerivedWorkLogEntry): string | undefined {
-  if (entry.activityKind !== "tool.updated" && entry.activityKind !== "tool.completed") {
+  if (!isToolLifecycleActivityKind(entry.activityKind)) {
     return undefined;
   }
   if (entry.toolCallId) {
@@ -1086,7 +1159,47 @@ function extractToolCommand(payload: Record<string, unknown> | null): {
 }
 
 function extractToolTitle(payload: Record<string, unknown> | null): string | null {
-  return asTrimmedString(payload?.title);
+  const title = asTrimmedString(payload?.title);
+  if (!title) return null;
+
+  const data = asRecord(payload?.data);
+  const toolName = asTrimmedString(data?.toolName ?? data?.name ?? data?.tool);
+  const argsSummary = summarizeToolArgs(data?.args ?? data?.input ?? data?.rawInput);
+  if (
+    argsSummary &&
+    toolName &&
+    normalizeCompactToolLabel(title).toLowerCase() ===
+      normalizeCompactToolLabel(toolName).toLowerCase()
+  ) {
+    return `${title} ${argsSummary}`;
+  }
+  return title;
+}
+
+function summarizeToolArgs(args: unknown): string | null {
+  const direct = asTrimmedString(args);
+  if (direct) return truncateInlinePreview(direct);
+  const record = asRecord(args);
+  if (!record) return null;
+
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (value === undefined || value === null) continue;
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) parts.push(`${key}=${trimmed}`);
+    } else if (typeof value === "number" || typeof value === "boolean") {
+      parts.push(`${key}=${String(value)}`);
+    } else if (Array.isArray(value)) {
+      parts.push(`${key}=[${value.length}]`);
+    } else if (typeof value === "object") {
+      const nestedKeys = Object.keys(value as Record<string, unknown>).length;
+      if (nestedKeys > 0) parts.push(`${key}={${nestedKeys}}`);
+    }
+    if (parts.length >= 2) break;
+  }
+
+  return parts.length > 0 ? truncateInlinePreview(parts.join(" ")) : null;
 }
 
 function extractToolCallId(payload: Record<string, unknown> | null): string | null {
