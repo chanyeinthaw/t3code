@@ -6,6 +6,7 @@ import {
   type TurnId,
 } from "@pulse/contracts";
 import { parseScopedThreadKey } from "@pulse/client-runtime";
+import { resolveChatListAnchoredEndSpace } from "@pulse/shared/chatList";
 import {
   createContext,
   Fragment,
@@ -122,7 +123,6 @@ interface TimelineRowSharedState {
   resolvedTheme: "light" | "dark";
   workspaceRoot: string | undefined;
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  bottomInsetPx?: number;
   activeThreadEnvironmentId: EnvironmentId;
   onRevertUserMessage: (messageId: MessageId) => void;
   onImageExpand: (preview: ExpandedImagePreview) => void;
@@ -166,7 +166,8 @@ interface MessagesTimelineProps {
   timestampFormat: TimestampFormat;
   workspaceRoot: string | undefined;
   skills?: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  bottomInsetPx?: number;
+  anchorMessageId: MessageId | null;
+  contentInsetEndAdjustment: number;
   onIsAtEndChange: (isAtEnd: boolean) => void;
 }
 
@@ -194,7 +195,8 @@ export const MessagesTimeline = memo(function MessagesTimeline({
   timestampFormat,
   workspaceRoot,
   skills = EMPTY_TIMELINE_SKILLS,
-  bottomInsetPx = 0,
+  anchorMessageId,
+  contentInsetEndAdjustment,
   onIsAtEndChange,
 }: MessagesTimelineProps) {
   const [expandedTurnIds, setExpandedTurnIds] = useState<ReadonlySet<TurnId>>(new Set());
@@ -287,6 +289,13 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     ],
   );
   const rows = useStableRows(rawRows);
+  const anchoredEndSpace = useMemo(
+    () =>
+      resolveChatListAnchoredEndSpace(rows, anchorMessageId, (row) =>
+        row.kind === "message" ? row.message.id : null,
+      ),
+    [anchorMessageId, rows],
+  );
 
   const handleScroll = useCallback(() => {
     const state = listRef.current?.getState?.();
@@ -294,24 +303,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
       onIsAtEndChange(state.isAtEnd);
     }
   }, [listRef, onIsAtEndChange]);
-
-  const previousRowCountRef = useRef(rows.length);
-  useEffect(() => {
-    const previousRowCount = previousRowCountRef.current;
-    previousRowCountRef.current = rows.length;
-
-    if (previousRowCount > 0 || rows.length === 0) {
-      return;
-    }
-
-    onIsAtEndChange(true);
-    const frameId = window.requestAnimationFrame(() => {
-      void listRef.current?.scrollToEnd?.({ animated: false });
-    });
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [listRef, onIsAtEndChange, rows.length]);
 
   const sharedState = useMemo<TimelineRowSharedState>(
     () => ({
@@ -362,11 +353,6 @@ export const MessagesTimeline = memo(function MessagesTimeline({
     [],
   );
 
-  const timelineListFooter = useMemo(
-    () => <div style={{ height: `${Math.max(0, bottomInsetPx)}px` }} />,
-    [bottomInsetPx],
-  );
-
   if (rows.length === 0 && !isWorking) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -384,16 +370,19 @@ export const MessagesTimeline = memo(function MessagesTimeline({
           ref={listRef}
           data={rows}
           keyExtractor={keyExtractor}
+          getItemType={getItemType}
           renderItem={renderItem}
           estimatedItemSize={90}
           initialScrollAtEnd
+          {...(anchoredEndSpace ? { anchoredEndSpace } : {})}
+          contentInsetEndAdjustment={contentInsetEndAdjustment}
           maintainScrollAtEnd={!foldToggleSettling}
           maintainScrollAtEndThreshold={0.1}
           maintainVisibleContentPosition
           onScroll={handleScroll}
-          className="scrollbar-gutter-both h-full overflow-x-hidden overscroll-y-contain px-3 sm:px-5"
+          className="scrollbar-gutter-both h-full min-h-0 overflow-x-hidden overscroll-y-contain px-3 sm:px-5"
           ListHeaderComponent={TIMELINE_LIST_HEADER}
-          ListFooterComponent={timelineListFooter}
+          ListFooterComponent={TIMELINE_LIST_FOOTER}
         />
       </TimelineRowActivityCtx>
     </TimelineRowCtx>
@@ -402,6 +391,10 @@ export const MessagesTimeline = memo(function MessagesTimeline({
 
 function keyExtractor(item: MessagesTimelineRow) {
   return item.id;
+}
+
+function getItemType(item: MessagesTimelineRow) {
+  return item.kind === "message" ? `message:${item.message.role}` : item.kind;
 }
 
 // ---------------------------------------------------------------------------
@@ -456,6 +449,10 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
     visibleText = extracted.promptText;
   }
   const elementContextState = extractTrailingElementContexts(visibleText);
+  const elementContexts = [
+    ...displayedUserMessage.elementContexts,
+    ...elementContextState.contexts,
+  ];
   const previewImages = userImages.filter((image) => image.name.startsWith("preview-annotation-"));
   const regularImages = userImages.filter((image) => !image.name.startsWith("preview-annotation-"));
   const canRevertAgentWork = typeof row.revertTurnCount === "number";
@@ -503,9 +500,9 @@ function UserTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "message" 
             image={previewImages[index] ?? null}
           />
         ))}
-        {elementContextState.contexts.length > 0 ? (
+        {elementContexts.length > 0 ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
-            {elementContextState.contexts.map((context) => (
+            {elementContexts.map((context) => (
               <UserMessageElementContextChip
                 key={`${context.header}:${context.body}`}
                 context={context}
@@ -615,16 +612,10 @@ function AssistantTimelineRow({ row }: { row: Extract<TimelineRow, { kind: "mess
                 <TooltipTrigger
                   render={<p className="text-muted-foreground text-xs tabular-nums" />}
                 >
-                  {formatShortTimestamp(
-                    row.message.completedAt ?? row.message.createdAt,
-                    ctx.timestampFormat,
-                  )}
+                  {formatShortTimestamp(row.message.updatedAt, ctx.timestampFormat)}
                 </TooltipTrigger>
                 <TooltipPopup>
-                  {formatChatTimestampTooltip(
-                    row.message.completedAt ?? row.message.createdAt,
-                    ctx.timestampFormat,
-                  )}
+                  {formatChatTimestampTooltip(row.message.updatedAt, ctx.timestampFormat)}
                 </TooltipPopup>
               </Tooltip>
             )}
@@ -750,7 +741,7 @@ const WorkGroupSection = memo(function WorkGroupSection({
     ? nonEmptyEntries.length === 1
       ? "1 tool call"
       : `${nonEmptyEntries.length} tool calls`
-    : "work log";
+    : "Work Log";
 
   useLayoutEffect(() => {
     const anchorBottomBeforeToggle = anchorBottomBeforeToggleRef.current;
@@ -1047,7 +1038,6 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   text: string;
   terminalContexts: ParsedTerminalContextEntry[];
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  bottomInsetPx?: number;
   markdownCwd: string | undefined;
   footer?: ReactNode;
 }) {
@@ -1116,7 +1106,6 @@ const UserMessageBody = memo(function UserMessageBody(props: {
   text: string;
   terminalContexts: ParsedTerminalContextEntry[];
   skills: ReadonlyArray<Pick<ServerProviderSkill, "name" | "displayName">>;
-  bottomInsetPx?: number;
   markdownCwd: string | undefined;
 }) {
   const ctx = use(TimelineRowCtx);
@@ -1484,18 +1473,15 @@ function buildToolCallExpandedBody(
   workspaceRoot: string | undefined,
 ): string | null {
   const blocks: string[] = [];
+  if (workEntry.itemType === "mcp_tool_call" && workEntry.toolData !== undefined) {
+    blocks.push(`MCP call\n${JSON.stringify(workEntry.toolData, null, 2)}`);
+  }
   const raw = workEntryRawCommand(workEntry);
   if (raw?.trim()) {
     blocks.push(raw.trim());
   } else if (workEntry.command?.trim()) {
     blocks.push(workEntry.command.trim());
   }
-
-  const toolDataBody = formatWorkEntryToolData(workEntry);
-  if (toolDataBody) {
-    blocks.push(toolDataBody);
-  }
-
   if (workEntry.detail?.trim()) {
     blocks.push(workEntry.detail.trim());
   }
@@ -1508,46 +1494,6 @@ function buildToolCallExpandedBody(
     );
   }
   return blocks.length > 0 ? blocks.join("\n\n") : null;
-}
-
-function formatWorkEntryToolData(workEntry: TimelineWorkEntry): string | null {
-  if (workEntry.toolData === undefined) return null;
-  if (workEntry.itemType === "mcp_tool_call") {
-    return `MCP call\n${JSON.stringify(workEntry.toolData, null, 2)}`;
-  }
-
-  const resultRecord = asRecordForTimelineToolData(workEntry.toolData);
-  const result = resultRecord?.result ?? resultRecord?.partialResult ?? workEntry.toolData;
-  const output = extractAgentToolResultText(result);
-  if (output?.trim()) {
-    return output.trim();
-  }
-
-  const details = asRecordForTimelineToolData(result)?.details;
-  if (details !== undefined) {
-    return `Tool details\n${JSON.stringify(details, null, 2)}`;
-  }
-
-  return `Tool data\n${JSON.stringify(workEntry.toolData, null, 2)}`;
-}
-
-function asRecordForTimelineToolData(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function extractAgentToolResultText(value: unknown): string | null {
-  const record = asRecordForTimelineToolData(value);
-  if (!record) return typeof value === "string" && value.trim().length > 0 ? value : null;
-  const content = Array.isArray(record.content) ? record.content : [];
-  const text = content
-    .flatMap((entry) => {
-      const block = asRecordForTimelineToolData(entry);
-      return block?.type === "text" && typeof block.text === "string" ? [block.text] : [];
-    })
-    .join("\n");
-  return text.trim().length > 0 ? text : null;
 }
 
 function workEntryIconName(workEntry: TimelineWorkEntry): WorkEntryIconName {
