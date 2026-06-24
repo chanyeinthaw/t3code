@@ -30,6 +30,20 @@ import { projectScriptCwd, projectScriptRuntimeEnv } from "@pulse/shared/project
 import { truncate } from "@pulse/shared/String";
 import { nextTerminalId, resolveTerminalSessionLabel } from "@pulse/shared/terminalLabels";
 import { Debouncer } from "@tanstack/react-pacer";
+import { useAtomValue } from "@effect/atom-react";
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useShallow } from "zustand/react/shallow";
 import {
   lazy,
   memo,
@@ -1287,13 +1301,32 @@ function ChatViewContent(props: ChatViewProps) {
   const [lastInvokedScriptByProjectId, setLastInvokedScriptByProjectId] =
     useLastInvokedProjectScript();
   const legendListRef = useRef<LegendListRef | null>(null);
-  const inputBarRef = useRef<HTMLDivElement | null>(null);
+  const [composerOverlayElement, setComposerOverlayElement] = useState<HTMLDivElement | null>(null);
+  const [composerOverlayHeight, setComposerOverlayHeight] = useState(0);
   const isAtEndRef = useRef(true);
   const [inputBarHeight, setInputBarHeight] = useState(0);
   const attachmentPreviewHandoffByMessageIdRef = useRef<Record<string, string[]>>({});
   const attachmentPreviewPromotionInFlightByMessageIdRef = useRef<Record<string, true>>({});
   const sendInFlightRef = useRef(false);
   const terminalUiOpenByThreadRef = useRef<Record<string, boolean>>({});
+
+  useLayoutEffect(() => {
+    if (!composerOverlayElement) return;
+
+    const updateHeight = () => {
+      const nextHeight = Math.ceil(composerOverlayElement.getBoundingClientRect().height);
+      setComposerOverlayHeight((currentHeight) =>
+        currentHeight === nextHeight ? currentHeight : nextHeight,
+      );
+    };
+
+    updateHeight();
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(composerOverlayElement);
+    return () => observer.disconnect();
+  }, [composerOverlayElement]);
 
   const terminalUiState = useTerminalUiStateStore((state) =>
     selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef),
@@ -1379,8 +1412,16 @@ function ChatViewContent(props: ChatViewProps) {
     [activeThread],
   );
   const activeThreadKey = activeThreadRef ? scopedThreadKey(activeThreadRef) : null;
-  const activeRightPanelKind = useRightPanelStore((store) =>
-    selectActiveRightPanelKindWithUrl(store.byThreadKey, activeThreadRef, diffOpen),
+  const [timelineAnchor, setTimelineAnchor] = useState<{
+    readonly threadKey: string | null;
+    readonly messageId: MessageId | null;
+  }>({ threadKey: activeThreadKey, messageId: null });
+  if (timelineAnchor.threadKey !== activeThreadKey) {
+    setTimelineAnchor({ threadKey: activeThreadKey, messageId: null });
+  }
+  const timelineAnchorMessageId = timelineAnchor.messageId;
+  const activeRightPanelKind = useRightPanelStore((state) =>
+    selectActiveRightPanel(state.byThreadKey, activeThreadRef),
   );
   const rightPanelState = useRightPanelStore((store) =>
     selectThreadRightPanelState(store.byThreadKey, activeThreadRef),
@@ -3318,7 +3359,7 @@ function ChatViewContent(props: ChatViewProps) {
 
   // Scroll helpers — LegendList handles auto-scroll via maintainScrollAtEnd.
   const scrollToEnd = useCallback((animated = false) => {
-    legendListRef.current?.scrollToEnd?.({ animated });
+    void legendListRef.current?.scrollToEnd?.({ animated });
   }, []);
 
   useLayoutEffect(() => {
@@ -3934,27 +3975,30 @@ function ChatViewContent(props: ChatViewProps) {
       sizeBytes: image.sizeBytes,
       previewUrl: image.previewUrl,
     }));
-    // Scroll to the current end *before* adding the optimistic message.
-    // This sets LegendList's internal isAtEnd=true so maintainScrollAtEnd
-    // automatically pins to the new item when the data changes.
+    // Sending always returns to the live edge. The new row becomes the
+    // anchored end-space target so it lands near the top while the response
+    // streams into the reserved space below it.
     isAtEndRef.current = true;
     showScrollDebouncer.current.cancel();
     setShowScrollToBottom(false);
-    await legendListRef.current?.scrollToEnd?.({ animated: false });
-
-    if (!shouldDeferUserMessageUntilProviderEcho) {
-      setOptimisticUserMessages((existing) => [
-        ...existing,
-        {
-          id: messageIdForSend,
-          role: "user",
-          text: outgoingMessageText,
-          ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : {}),
-          createdAt: messageCreatedAt,
-          streaming: false,
-        },
-      ]);
-    }
+    setTimelineAnchor({
+      threadKey: scopedThreadKey(scopeThreadRef(activeThread.environmentId, threadIdForSend)),
+      messageId: messageIdForSend,
+    });
+    setOptimisticUserMessages((existing) => [
+      ...existing,
+      {
+        id: messageIdForSend,
+        role: "user",
+        text: outgoingMessageText,
+        ...(optimisticAttachments.length > 0 ? { attachments: optimisticAttachments } : {}),
+        turnId: null,
+        createdAt: messageCreatedAt,
+        updatedAt: messageCreatedAt,
+        streaming: false,
+      },
+    ]);
+    void legendListRef.current?.scrollToEnd?.({ animated: false });
 
     setThreadError(threadIdForSend, null);
     if (expiredTerminalContextCount > 0) {
@@ -4835,7 +4879,8 @@ function ChatViewContent(props: ChatViewProps) {
                 timestampFormat={timestampFormat}
                 workspaceRoot={activeWorkspaceRoot}
                 skills={activeProviderStatus?.skills ?? EMPTY_PROVIDER_SKILLS}
-                bottomInsetPx={timelineBottomInsetPx}
+                anchorMessageId={timelineAnchorMessageId}
+                contentInsetEndAdjustment={composerOverlayHeight}
                 onIsAtEndChange={onIsAtEndChange}
               />
             </div>
@@ -4953,16 +4998,60 @@ function ChatViewContent(props: ChatViewProps) {
                         activeThreadBranchOverride: activeThreadBranch,
                         onActiveThreadBranchOverrideChange: setPendingServerThreadBranch,
                       }
-                    : {})}
-                  envLocked={envLocked}
-                  onComposerFocusRequest={scheduleComposerFocus}
-                  {...(canCheckoutPullRequestIntoThread
-                    ? { onCheckoutPullRequestRequest: openPullRequestDialog }
-                    : {})}
-                  {...(hasMultipleEnvironments ? { onEnvironmentChange } : {})}
-                  availableEnvironments={logicalProjectEnvironments}
-                />
-              )}
+                      onChangeActivePendingUserInputCustomAnswer={
+                        onChangeActivePendingUserInputCustomAnswer
+                      }
+                      onProviderModelSelect={onProviderModelSelect}
+                      getModelDisabledReason={getModelDisabledReason}
+                      toggleInteractionMode={toggleInteractionMode}
+                      handleRuntimeModeChange={handleRuntimeModeChange}
+                      handleInteractionModeChange={handleInteractionModeChange}
+                      togglePlanSidebar={togglePlanSidebar}
+                      focusComposer={focusComposer}
+                      scheduleComposerFocus={scheduleComposerFocus}
+                      setThreadError={setThreadError}
+                      onExpandImage={onExpandTimelineImage}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "chat-composer-horizontal-inset chat-composer-lower-chrome relative z-10",
+                  isGitRepo
+                    ? "pb-[calc(env(safe-area-inset-bottom)+0.25rem)]"
+                    : "pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-[calc(env(safe-area-inset-bottom)+1rem)]",
+                )}
+              >
+                {isGitRepo && (
+                  <div className="pointer-events-auto">
+                    <BranchToolbar
+                      environmentId={activeThread.environmentId}
+                      threadId={activeThread.id}
+                      {...(routeKind === "draft" && draftId ? { draftId } : {})}
+                      onEnvModeChange={onEnvModeChange}
+                      startFromOrigin={startFromOrigin}
+                      onStartFromOriginChange={onStartFromOriginChange}
+                      {...(canOverrideServerThreadEnvMode
+                        ? { effectiveEnvModeOverride: envMode }
+                        : {})}
+                      {...(canOverrideServerThreadEnvMode
+                        ? {
+                            activeThreadBranchOverride: activeThreadBranch,
+                            onActiveThreadBranchOverrideChange: setPendingServerThreadBranch,
+                          }
+                        : {})}
+                      envLocked={envLocked}
+                      onComposerFocusRequest={scheduleComposerFocus}
+                      {...(canCheckoutPullRequestIntoThread
+                        ? { onCheckoutPullRequestRequest: openPullRequestDialog }
+                        : {})}
+                      {...(hasMultipleEnvironments ? { onEnvironmentChange } : {})}
+                      availableEnvironments={logicalProjectEnvironments}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {pullRequestDialogState ? (
