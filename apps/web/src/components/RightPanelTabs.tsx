@@ -33,6 +33,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { Toggle } from "~/components/ui/toggle";
 import { faviconUrlForOrigin } from "~/lib/favicon";
 import { useTheme } from "~/hooks/useTheme";
+import { COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS } from "~/workspaceTitlebar";
 
 import { PreviewPanelShell, type PreviewPanelMode } from "./preview/PreviewPanelShell";
 import { PierreEntryIcon } from "./chat/PierreEntryIcon";
@@ -373,6 +374,7 @@ export function RightPanelTabs(props: RightPanelTabsProps) {
           "gap-2 px-2",
           props.mode === "inline" ? "workspace-topbar" : "flex h-10 shrink-0 items-center",
           ownsDesktopTitleBar && "wco:pr-[var(--workspace-native-controls-inset)]",
+          props.mode === "inline" && props.maximized && COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
         )}
         data-right-panel-tabbar
       >
