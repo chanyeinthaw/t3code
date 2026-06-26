@@ -33,14 +33,6 @@ import type {
 } from "./project.ts";
 import type { ProviderInstanceId } from "./providerInstance.ts";
 import type {
-  ProviderComposerCapabilities,
-  ProviderDiscoveryInput,
-  ProviderListCommandsResult,
-  ProviderListModelsInput,
-  ProviderListModelsResult,
-  ProviderListSkillsResult,
-} from "./provider.ts";
-import type {
   ServerConfig,
   ServerProcessDiagnosticsResult,
   ServerProcessResourceHistoryInput,
@@ -77,18 +69,20 @@ import type {
   PreviewOpenInput,
   PreviewRefreshInput,
   PreviewReportStatusInput,
+  PreviewResizeInput,
   PreviewSessionSnapshot,
 } from "./preview.ts";
 import {
   PreviewAutomationClickInput,
   PreviewAutomationEvaluateInput,
-  PreviewAutomationOwner,
+  PreviewAutomationHost,
+  PreviewAutomationHostFocus,
   PreviewAutomationPressInput,
-  PreviewAutomationRequest,
   PreviewAutomationResponse,
   PreviewAutomationScrollInput,
   PreviewAutomationSnapshot,
   PreviewAutomationStatus,
+  PreviewAutomationStreamEvent,
   PreviewAutomationTypeInput,
   PreviewAutomationWaitForInput,
 } from "./previewAutomation.ts";
@@ -168,7 +162,7 @@ export type DesktopUpdateStatus =
 export type DesktopRuntimeArch = "arm64" | "x64" | "other";
 export type DesktopTheme = "light" | "dark" | "system";
 export type DesktopUpdateChannel = "latest" | "nightly";
-export type DesktopAppStageLabel = "Dev" | "Nightly";
+export type DesktopAppStageLabel = "Alpha" | "Dev" | "Nightly";
 
 export const DesktopUpdateStatusSchema = Schema.Literals([
   "disabled",
@@ -183,29 +177,17 @@ export const DesktopUpdateStatusSchema = Schema.Literals([
 export const DesktopRuntimeArchSchema = Schema.Literals(["arm64", "x64", "other"]);
 export const DesktopThemeSchema = Schema.Literals(["light", "dark", "system"]);
 export const DesktopUpdateChannelSchema = Schema.Literals(["latest", "nightly"]);
-export const DesktopAppStageLabelSchema = Schema.Literals(["Dev", "Nightly"]);
+export const DesktopAppStageLabelSchema = Schema.Literals(["Alpha", "Dev", "Nightly"]);
 
 export interface DesktopAppBranding {
   baseName: string;
-  stageLabel?: DesktopAppStageLabel;
+  stageLabel: DesktopAppStageLabel;
   displayName: string;
 }
 
-export interface DesktopOpenThreadWindowInput {
-  environmentId: string;
-  projectId?: string;
-  threadId: string;
-}
-
-export const DesktopOpenThreadWindowInputSchema = Schema.Struct({
-  environmentId: Schema.String,
-  projectId: Schema.optionalKey(Schema.String),
-  threadId: Schema.String,
-});
-
 export const DesktopAppBrandingSchema = Schema.Struct({
   baseName: Schema.String,
-  stageLabel: Schema.optionalKey(DesktopAppStageLabelSchema),
+  stageLabel: DesktopAppStageLabelSchema,
   displayName: Schema.String,
 });
 
@@ -434,23 +416,6 @@ export interface PickFolderOptions {
 export const PickFolderOptionsSchema = Schema.Struct({
   initialPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
 });
-
-export const DesktopCloudAuthFetchInputSchema = Schema.Struct({
-  url: Schema.String,
-  method: Schema.optionalKey(Schema.String),
-  headers: Schema.Record(Schema.String, Schema.String),
-  body: Schema.optionalKey(Schema.String),
-});
-export type DesktopCloudAuthFetchInput = typeof DesktopCloudAuthFetchInputSchema.Type;
-
-export const DesktopCloudAuthFetchResultSchema = Schema.Struct({
-  ok: Schema.Boolean,
-  status: Schema.Number,
-  statusText: Schema.String,
-  headers: Schema.Record(Schema.String, Schema.String),
-  body: Schema.String,
-});
-export type DesktopCloudAuthFetchResult = typeof DesktopCloudAuthFetchResultSchema.Type;
 
 /**
  * Renderer-facing snapshot of a desktop preview tab. Mirrors the main-process
@@ -917,15 +882,12 @@ export const DesktopPreviewAutomationWaitForInputSchema = Schema.Struct({
 export interface DesktopBridge {
   getAppBranding: () => DesktopAppBranding | null;
   getLocalEnvironmentBootstrap: () => DesktopEnvironmentBootstrap | null;
+  getLocalEnvironmentBearerToken: () => Promise<string>;
   getClientSettings: () => Promise<ClientSettings | null>;
   setClientSettings: (settings: ClientSettings) => Promise<void>;
-  getSavedEnvironmentRegistry: () => Promise<readonly PersistedSavedEnvironmentRecord[]>;
-  setSavedEnvironmentRegistry: (
-    records: readonly PersistedSavedEnvironmentRecord[],
-  ) => Promise<void>;
-  getSavedEnvironmentSecret: (environmentId: EnvironmentId) => Promise<string | null>;
-  setSavedEnvironmentSecret: (environmentId: EnvironmentId, secret: string) => Promise<boolean>;
-  removeSavedEnvironmentSecret: (environmentId: EnvironmentId) => Promise<void>;
+  getConnectionCatalog?: () => Promise<string | null>;
+  setConnectionCatalog?: (catalog: string) => Promise<boolean>;
+  clearConnectionCatalog?: () => Promise<void>;
   discoverSshHosts: () => Promise<readonly DesktopDiscoveredSshHost[]>;
   ensureSshEnvironment: (
     target: DesktopSshEnvironmentTarget,
@@ -959,15 +921,6 @@ export interface DesktopBridge {
     position?: { x: number; y: number },
   ) => Promise<T | null>;
   openExternal: (url: string) => Promise<boolean>;
-  openThreadWindow?: (input: DesktopOpenThreadWindowInput) => Promise<void>;
-  getWindowFullScreenState?: () => boolean;
-  onWindowFullScreenChange?: (listener: (isFullScreen: boolean) => void) => () => void;
-  createCloudAuthRequest: () => Promise<string>;
-  getCloudAuthToken: () => Promise<string | null>;
-  setCloudAuthToken: (token: string) => Promise<boolean>;
-  clearCloudAuthToken: () => Promise<void>;
-  fetchCloudAuth: (input: DesktopCloudAuthFetchInput) => Promise<DesktopCloudAuthFetchResult>;
-  onCloudAuthCallback: (listener: (rawUrl: string) => void) => () => void;
   onMenuAction: (listener: (action: string) => void) => () => void;
   getUpdateState: () => Promise<DesktopUpdateState>;
   setUpdateChannel: (channel: DesktopUpdateChannel) => Promise<DesktopUpdateState>;
@@ -1062,7 +1015,6 @@ export interface LocalApi {
   shell: {
     openInEditor: (cwd: string, editor: EditorId) => Promise<void>;
     openExternal: (url: string) => Promise<void>;
-    openThreadInNewWindow: (input: DesktopOpenThreadWindowInput) => Promise<void>;
   };
   contextMenu: {
     show: <T extends string>(
@@ -1073,13 +1025,6 @@ export interface LocalApi {
   persistence: {
     getClientSettings: () => Promise<ClientSettings | null>;
     setClientSettings: (settings: ClientSettings) => Promise<void>;
-    getSavedEnvironmentRegistry: () => Promise<readonly PersistedSavedEnvironmentRecord[]>;
-    setSavedEnvironmentRegistry: (
-      records: readonly PersistedSavedEnvironmentRecord[],
-    ) => Promise<void>;
-    getSavedEnvironmentSecret: (environmentId: EnvironmentId) => Promise<string | null>;
-    setSavedEnvironmentSecret: (environmentId: EnvironmentId, secret: string) => Promise<boolean>;
-    removeSavedEnvironmentSecret: (environmentId: EnvironmentId) => Promise<void>;
   };
   server: {
     getConfig: () => Promise<ServerConfig>;
@@ -1186,14 +1131,6 @@ export interface EnvironmentApi {
   review: {
     getDiffPreview: (input: ReviewDiffPreviewInput) => Promise<ReviewDiffPreviewResult>;
   };
-  provider: {
-    getComposerCapabilities: (
-      input: ProviderDiscoveryInput,
-    ) => Promise<ProviderComposerCapabilities>;
-    listModels: (input: ProviderListModelsInput) => Promise<ProviderListModelsResult>;
-    listSkills: (input: ProviderDiscoveryInput) => Promise<ProviderListSkillsResult>;
-    listCommands: (input: ProviderDiscoveryInput) => Promise<ProviderListCommandsResult>;
-  };
   orchestration: {
     dispatchCommand: (command: ClientOrchestrationCommand) => Promise<{ sequence: number }>;
     getTurnDiff: (input: OrchestrationGetTurnDiffInput) => Promise<OrchestrationGetTurnDiffResult>;
@@ -1218,19 +1155,19 @@ export interface EnvironmentApi {
   preview: {
     open: (input: typeof PreviewOpenInput.Encoded) => Promise<PreviewSessionSnapshot>;
     navigate: (input: typeof PreviewNavigateInput.Encoded) => Promise<PreviewSessionSnapshot>;
+    resize: (input: typeof PreviewResizeInput.Encoded) => Promise<PreviewSessionSnapshot>;
     refresh: (input: typeof PreviewRefreshInput.Encoded) => Promise<void>;
     close: (input: typeof PreviewCloseInput.Encoded) => Promise<void>;
     list: (input: typeof PreviewListInput.Encoded) => Promise<PreviewListResult>;
     reportStatus: (input: typeof PreviewReportStatusInput.Encoded) => Promise<void>;
     automation: {
       connect: (
-        input: { clientId: string },
-        callback: (request: PreviewAutomationRequest) => void,
+        input: PreviewAutomationHost,
+        callback: (event: PreviewAutomationStreamEvent) => void,
         options?: { onResubscribe?: () => void },
       ) => () => void;
       respond: (response: PreviewAutomationResponse) => Promise<void>;
-      reportOwner: (owner: PreviewAutomationOwner) => Promise<void>;
-      clearOwner: (input: { clientId: string }) => Promise<void>;
+      focusHost: (input: PreviewAutomationHostFocus) => Promise<void>;
     };
     onEvent: (
       callback: (event: PreviewEvent) => void,
