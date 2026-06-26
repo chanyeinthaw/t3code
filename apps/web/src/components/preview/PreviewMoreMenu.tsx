@@ -19,6 +19,10 @@ interface Props {
   hasWebContents: boolean;
   /** Current zoom factor as a number (1.0 = 100%). */
   zoomFactor: number;
+  /** Fixed viewport modes expose the device toolbar and resize rails. */
+  deviceToolbarVisible: boolean;
+  /** Switches between fill-panel mode and a fixed responsive viewport. */
+  onToggleDeviceToolbar: () => void;
 }
 
 /**
@@ -26,7 +30,13 @@ interface Props {
  * controls, and storage-clearing actions. Only mounted by `PreviewView`
  * when the desktop bridge is present, so we can call it unconditionally.
  */
-export function PreviewMoreMenu({ tabId, hasWebContents, zoomFactor }: Props) {
+export function PreviewMoreMenu({
+  tabId,
+  hasWebContents,
+  zoomFactor,
+  deviceToolbarVisible,
+  onToggleDeviceToolbar,
+}: Props) {
   if (!previewBridge) return null;
   const bridge = previewBridge;
   const tabDisabled = !tabId || !hasWebContents;
@@ -36,7 +46,6 @@ export function PreviewMoreMenu({ tabId, hasWebContents, zoomFactor }: Props) {
   };
 
   const zoomLabel = `${Math.round(zoomFactor * 100)}%`;
-
   return (
     <Menu>
       <Tooltip>
@@ -59,6 +68,9 @@ export function PreviewMoreMenu({ tabId, hasWebContents, zoomFactor }: Props) {
         </MenuItem>
         <MenuItem onClick={callTab(bridge.openDevTools)} disabled={tabDisabled}>
           Open DevTools
+        </MenuItem>
+        <MenuItem onClick={onToggleDeviceToolbar} disabled={tabDisabled}>
+          {deviceToolbarVisible ? "Hide device toolbar" : "Show device toolbar"}
         </MenuItem>
         <MenuSeparator />
         {/*
