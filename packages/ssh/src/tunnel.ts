@@ -1,22 +1,25 @@
-import type { DesktopSshEnvironmentBootstrap, DesktopSshEnvironmentTarget } from "@pulse/contracts";
+import type {
+  DesktopSshEnvironmentBootstrap,
+  DesktopSshEnvironmentTarget,
+} from "@pulse/contracts";
+import {
+  describeReadinessCause,
+  waitForHttpReady as waitForHttpReadyShared,
+} from "@pulse/shared/httpReadiness";
 import * as NetService from "@pulse/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@pulse/shared/schemaJson";
 import { satisfiesSemverRange } from "@pulse/shared/semver";
 import * as Context from "effect/Context";
 import * as Deferred from "effect/Deferred";
-import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Path from "effect/Path";
-import * as Ref from "effect/Ref";
-import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
-import { HttpClient, HttpClientRequest } from "effect/unstable/http";
+import { HttpClient } from "effect/unstable/http";
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process";
 
 import {
@@ -229,33 +232,9 @@ function applyScriptPlaceholders(
   return result;
 }
 
-export function describeReadinessCause(cause: unknown): unknown {
-  if (cause instanceof SshReadinessError) {
-    return {
-      _tag: cause._tag,
-      message: cause.message,
-      ...(cause.cause === undefined ? {} : { cause: describeReadinessCause(cause.cause) }),
-    };
-  }
-  if (cause instanceof Error) {
-    return {
-      name: cause.name,
-      message: cause.message,
-      ...(cause.cause === undefined ? {} : { cause: describeReadinessCause(cause.cause) }),
-    };
-  }
-  if (typeof cause !== "object" || cause === null) {
-    return cause;
-  }
-
-  const record = cause as Readonly<Record<string, unknown>>;
-  return {
-    ...(typeof record._tag === "string" ? { _tag: record._tag } : {}),
-    ...(typeof record.message === "string" ? { message: record.message } : {}),
-    ...(record.reason === undefined ? {} : { reason: describeReadinessCause(record.reason) }),
-    ...(record.cause === undefined ? {} : { cause: describeReadinessCause(record.cause) }),
-  };
-}
+// Re-exported from the shared HTTP readiness module so existing importers
+// (notably tunnel.test.ts) keep resolving it from here.
+export { describeReadinessCause };
 
 export const REMOTE_PICK_PORT_SCRIPT = `const fs = require("node:fs");
 const net = require("node:net");
@@ -395,7 +374,8 @@ ensure_remote_node_path() {
   prepend_path_if_dir "$FNM_DIR"
   prepend_path_if_dir "$HOME/.fnm"
   if ! command -v node >/dev/null 2>&1 && command -v fnm >/dev/null 2>&1; then
-    eval "$(fnm env --use-on-cd --shell sh)" >/dev/null 2>&1 || eval "$(fnm env --shell sh)" >/dev/null 2>&1 || true
+    eval "$(fnm env --shell bash)" >/dev/null 2>&1 || true
+    fnm use --silent-if-unchanged >/dev/null 2>&1 || fnm use default >/dev/null 2>&1 || true
   fi
 
   prepend_path_if_dir "$HOME/.nodenv/bin"
@@ -442,8 +422,8 @@ if [ -n "$T3_NODE_SCRIPT_PATH" ]; then
   fi
   exec node "$T3_NODE_SCRIPT_PATH" "$@"
 fi
-if command -v pulse >/dev/null 2>&1; then
-  exec pulse "$@"
+if command -v t3 >/dev/null 2>&1; then
+  exec t3 "$@"
 fi
 if command -v npx >/dev/null 2>&1; then
   exec npx --yes @@T3_PACKAGE_SPEC@@ "$@"
@@ -451,7 +431,7 @@ fi
 if command -v npm >/dev/null 2>&1; then
   exec npm exec --yes @@T3_PACKAGE_SPEC@@ -- "$@"
 fi
-printf 'Remote host is missing the pulse CLI and could not install @@T3_PACKAGE_SPEC@@ because node/npm/npx are unavailable on PATH. Install Node or configure a supported version manager for non-interactive shells.\\n' >&2
+printf 'Remote host is missing the t3 CLI and could not install @@T3_PACKAGE_SPEC@@ because node/npm/npx are unavailable on PATH. Install Node or configure a supported version manager for non-interactive shells.\\n' >&2
 exit 1
 `;
 
@@ -593,13 +573,13 @@ if [ -z "$REMOTE_PORT" ]; then
     printf 'Failed to find an available port on the remote host. Ensure node is available on PATH.\\n' >&2
     exit 1
   fi
-  nohup env PULSE_NO_BROWSER=1 "$RUNNER_FILE" serve --host 127.0.0.1 --port "$REMOTE_PORT" --base-dir "$DEFAULT_SERVER_HOME" >>"$LOG_FILE" 2>&1 < /dev/null &
+  nohup env T3CODE_NO_BROWSER=1 "$RUNNER_FILE" serve --host 127.0.0.1 --port "$REMOTE_PORT" --base-dir "$DEFAULT_SERVER_HOME" >>"$LOG_FILE" 2>&1 < /dev/null &
   REMOTE_PID="$!"
   printf '%s\\n' "$REMOTE_PID" >"$PID_FILE"
   printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
   printf 'managed\\n' >"$MANAGED_FILE"
   if ! wait_ready "@@T3_READY_TIMEOUT_MS@@"; then
-    printf 'Remote Pulse server did not become ready on 127.0.0.1:%s.\\n' "$REMOTE_PORT" >&2
+    printf 'Remote T3 server did not become ready on 127.0.0.1:%s.\\n' "$REMOTE_PORT" >&2
     tail -n 80 "$LOG_FILE" >&2 2>/dev/null || true
     kill "$REMOTE_PID" 2>/dev/null || true
     wait_for_pid_exit "$REMOTE_PID"
@@ -662,7 +642,7 @@ export function buildRemoteT3RunnerScript(input?: RemoteT3RunnerOptions): string
   );
 }
 
-function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string {
+export function buildRemoteNodeEnvScript(input?: RemoteT3RunnerOptions): string {
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_NODE_ENV_SCRIPT, {
       T3_NODE_ENGINE_RANGE: shellSingleQuote(input?.nodeEngineRange?.trim() || ""),
@@ -861,120 +841,46 @@ const readRemoteServerLogTail = Effect.fn("ssh/tunnel.readRemoteServerLogTail")(
   return result.stdout.trim();
 });
 
-export const waitForHttpReady = Effect.fn("ssh/tunnel.waitForHttpReady")(function* (input: {
+export const waitForHttpReady = (input: {
   readonly baseUrl: string;
   readonly timeoutMs?: number;
   readonly intervalMs?: number;
   readonly probeTimeoutMs?: number;
   readonly path?: string;
-}): Effect.fn.Return<void, SshReadinessError, HttpClient.HttpClient> {
-  const timeoutMs = input.timeoutMs ?? 30_000;
-  const intervalMs = input.intervalMs ?? 100;
-  const probeTimeoutMs = input.probeTimeoutMs ?? SSH_READY_PROBE_TIMEOUT_MS;
-  const retryPolicy = Schedule.spaced(Duration.millis(intervalMs)).pipe(
-    Schedule.take(Math.max(0, Math.ceil(timeoutMs / intervalMs))),
-  );
-  const requestUrl = new URL(input.path ?? "/", input.baseUrl).toString();
-  const client = yield* HttpClient.HttpClient;
-  const lastProbeFailure = yield* Ref.make<unknown>(null);
-  let attempt = 0;
-
-  yield* Effect.logDebug("ssh.tunnel.httpReady.start", {
+}): Effect.Effect<void, SshReadinessError, HttpClient.HttpClient> =>
+  waitForHttpReadyShared({
     baseUrl: input.baseUrl,
-    requestUrl,
-    timeoutMs,
-    intervalMs,
-    probeTimeoutMs,
-  });
-
-  const readinessClient = client.pipe(
-    HttpClient.filterStatusOk,
-    HttpClient.transform((effect) =>
-      Effect.gen(function* () {
-        attempt += 1;
-        const responseOption = yield* effect.pipe(
-          Effect.timeoutOption(Duration.millis(probeTimeoutMs)),
-          Effect.mapError(
-            (cause) =>
-              new SshReadinessError({
-                message: `Backend readiness probe failed at ${requestUrl}.`,
-                cause,
-              }),
-          ),
-        );
-        return yield* Option.match(responseOption, {
-          onSome: Effect.succeed,
-          onNone: () =>
-            Effect.fail(
-              new SshReadinessError({
-                message: `Backend readiness probe exceeded ${probeTimeoutMs}ms at ${requestUrl}.`,
-                cause: {
-                  kind: "probe-timeout",
-                  attempt,
-                  probeTimeoutMs,
-                },
-              }),
-            ),
-        });
-      }).pipe(
-        Effect.mapError((cause) =>
-          cause instanceof SshReadinessError
-            ? cause
-            : new SshReadinessError({
-                message: `Backend readiness probe failed at ${requestUrl}.`,
-                cause,
-              }),
-        ),
-        Effect.tapError((cause) =>
-          Ref.set(lastProbeFailure, {
-            attempt,
-            cause: describeReadinessCause(cause),
-          }),
-        ),
-      ),
-    ),
-    HttpClient.tap((response) => response.text.pipe(Effect.ignore)),
-    HttpClient.retry(retryPolicy),
-  );
-
-  const result = yield* readinessClient.execute(HttpClientRequest.get(requestUrl)).pipe(
-    Effect.mapError((cause) =>
-      cause instanceof SshReadinessError
-        ? cause
-        : new SshReadinessError({
-            message: `Backend readiness probe failed at ${requestUrl}.`,
+    ...(input.path === undefined ? {} : { path: input.path }),
+    ...(input.timeoutMs === undefined ? {} : { timeoutMs: input.timeoutMs }),
+    ...(input.intervalMs === undefined ? {} : { intervalMs: input.intervalMs }),
+    probeTimeoutMs: input.probeTimeoutMs ?? SSH_READY_PROBE_TIMEOUT_MS,
+    makeError: ({ requestUrl, probeTimeoutMs, cause }) => {
+      if (typeof cause === "object" && cause !== null && "kind" in cause) {
+        const kind = (cause as { readonly kind?: unknown }).kind;
+        if (kind === "probe-timeout") {
+          return new SshReadinessError({
+            message: `Backend readiness probe exceeded ${probeTimeoutMs}ms at ${requestUrl}.`,
             cause,
-          }),
-    ),
-    Effect.timeoutOption(Duration.millis(timeoutMs)),
-  );
-
-  return yield* Option.match(result, {
-    onSome: () =>
-      Effect.logDebug("ssh.tunnel.httpReady.succeeded", {
-        baseUrl: input.baseUrl,
-        requestUrl,
-        attempts: attempt,
-      }),
-    onNone: () =>
-      Effect.gen(function* () {
-        const lastFailure = yield* Ref.get(lastProbeFailure);
-        yield* Effect.logWarning("ssh.tunnel.httpReady.timedOut", {
-          baseUrl: input.baseUrl,
-          requestUrl,
-          timeoutMs,
-          intervalMs,
-          probeTimeoutMs,
-          attempts: attempt,
-          lastFailure,
-        });
-        return yield* new SshReadinessError({
-          message: `Timed out waiting ${timeoutMs}ms for backend readiness at ${input.baseUrl}.`,
-          cause: lastFailure,
-        });
-      }),
+          });
+        }
+        if (kind === "overall-timeout") {
+          const overall = cause as unknown as {
+            readonly baseUrl: string;
+            readonly timeoutMs: number;
+            readonly lastFailure: unknown;
+          };
+          return new SshReadinessError({
+            message: `Timed out waiting ${overall.timeoutMs}ms for backend readiness at ${overall.baseUrl}.`,
+            cause: overall.lastFailure,
+          });
+        }
+      }
+      return new SshReadinessError({
+        message: `Backend readiness probe failed at ${requestUrl}.`,
+        cause,
+      });
+    },
   });
-});
 
 function isLoopbackHostname(hostname: string): boolean {
   const normalized = hostname
