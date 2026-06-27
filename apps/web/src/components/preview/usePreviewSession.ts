@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "@effect/atom-react";
-import { parseScopedThreadKey, scopedThreadKey } from "@pulse/client-runtime/environment";
+import { parseScopedThreadKey, scopedThreadKey } from "@pulse/client-runtime";
 import { runAtomCommand } from "@pulse/client-runtime/state/runtime";
 import type { ScopedThreadRef } from "@pulse/contracts";
 import * as Schema from "effect/Schema";

@@ -30,7 +30,7 @@ import {
   scopedThreadKey,
   scopeProjectRef,
   scopeThreadRef,
-} from "@pulse/client-runtime/environment";
+} from "@pulse/client-runtime";
 import {
   applyClaudePromptEffortPrefix,
   createModelSelection,

@@ -1,4 +1,4 @@
-import { scopedThreadKey, scopeThreadRef } from "@pulse/client-runtime/environment";
+import { scopedThreadKey, scopeThreadRef } from "@pulse/client-runtime";
 import { type EnvironmentId, type PreviewSessionSnapshot, ThreadId } from "@pulse/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 

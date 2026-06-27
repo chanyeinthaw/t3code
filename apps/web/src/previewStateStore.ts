@@ -6,7 +6,7 @@
  * is the one place that must enumerate every live preview tab.
  */
 import { useAtomValue } from "@effect/atom-react";
-import { scopedThreadKey } from "@pulse/client-runtime/environment";
+import { scopedThreadKey } from "@pulse/client-runtime";
 import {
   type PreviewEvent,
   type PreviewSessionSnapshot,

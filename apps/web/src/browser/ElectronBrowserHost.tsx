@@ -1,6 +1,6 @@
 "use client";
 
-import { parseScopedThreadKey } from "@pulse/client-runtime/environment";
+import { parseScopedThreadKey } from "@pulse/client-runtime";
 import { FILL_PREVIEW_VIEWPORT } from "@pulse/contracts";
 import { useEffect, useMemo } from "react";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { scopedThreadKey } from "@pulse/client-runtime/environment";
+import { scopedThreadKey } from "@pulse/client-runtime";
 import { squashAtomCommandFailure } from "@pulse/client-runtime/state/runtime";
 import {
   FILL_PREVIEW_VIEWPORT,
