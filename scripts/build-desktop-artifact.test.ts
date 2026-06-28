@@ -404,9 +404,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.equal(config.appId, "com.pulsetools.pulse");
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/pulse.provisionprofile");
-      assert.deepStrictEqual(mac.protocols, [
-        { name: "Pulse", schemes: ["pulse", "pulse-dev"] },
-      ]);
+      assert.deepStrictEqual(mac.protocols, [{ name: "Pulse", schemes: ["pulse", "pulse-dev"] }]);
     }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })))),
   );
 
