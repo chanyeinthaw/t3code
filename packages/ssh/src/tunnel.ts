@@ -1,7 +1,4 @@
-import type {
-  DesktopSshEnvironmentBootstrap,
-  DesktopSshEnvironmentTarget,
-} from "@pulse/contracts";
+import type { DesktopSshEnvironmentBootstrap, DesktopSshEnvironmentTarget } from "@pulse/contracts";
 import {
   describeReadinessCause,
   waitForHttpReady as waitForHttpReadyShared,

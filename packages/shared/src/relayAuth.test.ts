@@ -9,9 +9,9 @@ const clerkPublishableKey = (hostname: string): string => `pk_test_${btoa(`${hos
 
 describe("Clerk relay auth", () => {
   it("derives a custom Frontend API hostname from a Clerk publishable key", () => {
-    expect(clerkFrontendApiHostnameFromPublishableKey(clerkPublishableKey("clerk.pulse.codes"))).toBe(
-      "clerk.pulse.codes",
-    );
+    expect(
+      clerkFrontendApiHostnameFromPublishableKey(clerkPublishableKey("clerk.pulse.codes")),
+    ).toBe("clerk.pulse.codes");
   });
 
   it("allows standard Clerk hosts and an exact configured custom hostname", () => {
