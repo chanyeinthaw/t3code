@@ -4,10 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 import {
   getPrimaryKnownEnvironment,
-  isDesktopEnvironmentBootstrapIncompleteError,
-  isPrimaryEnvironmentProtocolUnsupportedError,
-  isPrimaryEnvironmentUrlInvalidError,
-  readPrimaryEnvironmentTarget,
   resolvePrimaryEnvironmentHttpUrl,
   resolveInitialPrimaryEnvironmentDescriptor,
   resetPrimaryEnvironmentDescriptorForTests,
@@ -45,15 +41,6 @@ function installTestBrowser(url: string) {
       replaceState: vi.fn(),
     },
   });
-}
-
-function captureThrown(run: () => unknown): unknown {
-  try {
-    run();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected the operation to throw.");
 }
 
 describe("environmentBootstrap", () => {
@@ -122,8 +109,8 @@ describe("environmentBootstrap", () => {
     await installDescriptorApi();
 
     await expect(resolveInitialPrimaryEnvironmentDescriptor()).resolves.toEqual(BASE_ENVIRONMENT);
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "https://remote.example.com/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/pulse/environment")).toBe(
+      "https://remote.example.com/.well-known/pulse/environment",
     );
   });
 
@@ -132,8 +119,8 @@ describe("environmentBootstrap", () => {
     await installDescriptorApi();
 
     await expect(resolveInitialPrimaryEnvironmentDescriptor()).resolves.toEqual(BASE_ENVIRONMENT);
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "https://remote.example.com/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/pulse/environment")).toBe(
+      "https://remote.example.com/.well-known/pulse/environment",
     );
     expect(getPrimaryKnownEnvironment()?.target).toEqual({
       httpBaseUrl: "https://remote.example.com/",
@@ -146,8 +133,8 @@ describe("environmentBootstrap", () => {
     await installDescriptorApi();
 
     await expect(resolveInitialPrimaryEnvironmentDescriptor()).resolves.toEqual(BASE_ENVIRONMENT);
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "https://remote.example.com/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/pulse/environment")).toBe(
+      "https://remote.example.com/.well-known/pulse/environment",
     );
     expect(getPrimaryKnownEnvironment()?.target).toEqual({
       httpBaseUrl: "https://remote.example.com/",
@@ -160,8 +147,8 @@ describe("environmentBootstrap", () => {
     await installDescriptorApi();
 
     await expect(resolveInitialPrimaryEnvironmentDescriptor()).resolves.toEqual(BASE_ENVIRONMENT);
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "http://localhost:5735/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/pulse/environment")).toBe(
+      "http://localhost:5735/.well-known/pulse/environment",
     );
   });
 
@@ -173,88 +160,19 @@ describe("environmentBootstrap", () => {
         replaceState: vi.fn(),
       },
       desktopBridge: {
-        getLocalEnvironmentBootstraps: () => [
-          {
-            id: "primary",
-            label: "Windows",
-            httpBaseUrl: "http://127.0.0.1:3773",
-            wsBaseUrl: "ws://127.0.0.1:3773",
-            bootstrapToken: "desktop-bootstrap-token",
-          },
-        ],
+        getLocalEnvironmentBootstrap: () => ({
+          label: "Local environment",
+          httpBaseUrl: "http://127.0.0.1:3773",
+          wsBaseUrl: "ws://127.0.0.1:3773",
+          bootstrapToken: "desktop-bootstrap-token",
+        }),
       },
     });
     await installDescriptorApi();
 
     await expect(resolveInitialPrimaryEnvironmentDescriptor()).resolves.toEqual(BASE_ENVIRONMENT);
-    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/t3/environment")).toBe(
-      "http://127.0.0.1:5733/.well-known/t3/environment",
+    expect(resolvePrimaryEnvironmentHttpUrl("/.well-known/pulse/environment")).toBe(
+      "http://127.0.0.1:5733/.well-known/pulse/environment",
     );
-  });
-
-  it("retains the URL parser cause without exposing the configured URL in its message", () => {
-    vi.stubEnv("VITE_HTTP_URL", "http://[");
-
-    const error = captureThrown(readPrimaryEnvironmentTarget);
-
-    expect(isPrimaryEnvironmentUrlInvalidError(error)).toBe(true);
-    if (!isPrimaryEnvironmentUrlInvalidError(error)) {
-      throw new Error("Expected a structured primary environment URL error.");
-    }
-    expect(error).toMatchObject({
-      source: "configured",
-      urlKind: "http-base-url",
-      message: "Could not parse http-base-url for the configured primary environment target.",
-    });
-    expect(error.cause).toBeInstanceOf(TypeError);
-    expect(error.message).not.toContain("http://[");
-  });
-
-  it("describes which desktop bootstrap endpoint is missing", () => {
-    vi.stubGlobal("window", {
-      location: new URL("http://127.0.0.1:5733/"),
-      history: { replaceState: vi.fn() },
-      desktopBridge: {
-        getLocalEnvironmentBootstraps: () => [
-          {
-            id: "primary",
-            label: "Local environment",
-            httpBaseUrl: "http://127.0.0.1:3773",
-            bootstrapToken: "desktop-bootstrap-token",
-          },
-        ],
-      },
-    });
-
-    const error = captureThrown(readPrimaryEnvironmentTarget);
-
-    expect(isDesktopEnvironmentBootstrapIncompleteError(error)).toBe(true);
-    if (!isDesktopEnvironmentBootstrapIncompleteError(error)) {
-      throw new Error("Expected a structured desktop bootstrap error.");
-    }
-    expect(error).toMatchObject({
-      hasHttpBaseUrl: true,
-      hasWsBaseUrl: false,
-      message: "Desktop bootstrap is missing wsBaseUrl for the local environment.",
-    });
-  });
-
-  it("preserves an unsupported window-origin protocol", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "file:///tmp/pulse/" },
-      history: { replaceState: vi.fn() },
-    });
-
-    const error = captureThrown(readPrimaryEnvironmentTarget);
-
-    expect(isPrimaryEnvironmentProtocolUnsupportedError(error)).toBe(true);
-    if (!isPrimaryEnvironmentProtocolUnsupportedError(error)) {
-      throw new Error("Expected a structured primary environment protocol error.");
-    }
-    expect(error).toMatchObject({
-      source: "window-origin",
-      protocol: "file:",
-      message: "The window-origin primary environment target uses unsupported protocol file:.",
-    });
   });
 });

@@ -15,14 +15,6 @@ private struct ComposerSelectionPayload: Decodable {
   let end: Int
 }
 
-private struct ComposerControlledDocumentPayload: Decodable {
-  let value: String
-  let selection: ComposerSelectionPayload?
-  let tokensJson: String
-  let mostRecentEventCount: Int
-  let isNativeEcho: Bool
-}
-
 private struct ComposerThemePayload: Decodable {
   let text: String
   let placeholder: String
@@ -289,7 +281,6 @@ public final class PulseComposerEditorView: ExpoView, UITextViewDelegate {
   private var shouldAutoFocus = false
   private var didAutoFocus = false
   private var isApplyingControlledValue = false
-  private var nativeEventCount = 0
   private var lastContentSize = CGSize.zero
   private var iconImages: [String: UIImage] = [:]
   private var pendingIconUris = Set<String>()
@@ -359,26 +350,30 @@ public final class PulseComposerEditorView: ExpoView, UITextViewDelegate {
     }
   }
 
-  func setControlledDocumentJson(_ documentJson: String) {
-    guard let document = decode(ComposerControlledDocumentPayload.self, from: documentJson),
-          document.mostRecentEventCount >= nativeEventCount else {
-      return
-    }
-    if document.isNativeEcho && textView.serializedText() != document.value {
-      return
-    }
-    if tokensJson != document.tokensJson {
-      tokensJson = document.tokensJson
-      tokens = decode([ComposerTokenPayload].self, from: document.tokensJson) ?? []
-      tokensNeedRebuild = true
-    }
-    value = document.value
-    requestedSelection = document.selection
+  func setValue(_ value: String) {
+    self.value = value
     applyControlledDocument(force: tokensNeedRebuild)
-    applyRequestedSelection()
     if tokensMatchCurrentValue() {
       tokensNeedRebuild = false
     }
+  }
+
+  func setTokensJson(_ tokensJson: String) {
+    guard self.tokensJson != tokensJson else {
+      return
+    }
+    self.tokensJson = tokensJson
+    tokens = decode([ComposerTokenPayload].self, from: tokensJson) ?? []
+    tokensNeedRebuild = true
+    applyControlledDocument(force: true)
+    if tokensMatchCurrentValue() {
+      tokensNeedRebuild = false
+    }
+  }
+
+  func setSelectionJson(_ selectionJson: String) {
+    requestedSelection = decode(ComposerSelectionPayload.self, from: selectionJson)
+    applyRequestedSelection()
   }
 
   func setThemeJson(_ themeJson: String) {
@@ -682,23 +677,18 @@ public final class PulseComposerEditorView: ExpoView, UITextViewDelegate {
     }
     value = textView.serializedText()
     let selection = sourceSelection()
-    nativeEventCount += 1
     onComposerChange([
       "value": value,
       "selection": ["start": selection.start, "end": selection.end],
-      "eventCount": nativeEventCount,
     ])
     updatePlaceholderVisibility()
     emitContentSizeIfNeeded()
   }
 
   private func emitSelection() {
-    let currentValue = textView.serializedText()
     let selection = sourceSelection()
     onComposerSelectionChange([
-      "value": currentValue,
       "selection": ["start": selection.start, "end": selection.end],
-      "eventCount": nativeEventCount,
     ])
   }
 
@@ -739,7 +729,6 @@ public final class PulseComposerEditorView: ExpoView, UITextViewDelegate {
     isApplyingControlledValue = true
     textView.selectedRange = nextRange
     isApplyingControlledValue = false
-    self.requestedSelection = nil
   }
 
   private func updatePlaceholderVisibility() {

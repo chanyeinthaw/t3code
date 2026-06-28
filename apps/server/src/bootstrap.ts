@@ -164,12 +164,9 @@ const makeDirectBootstrapStream = (fd: number): Readable => {
   }
 };
 
-// Stdin pipes inherited across the wsl.exe boundary report EACCES when we try
-// to re-open them via /proc/self/fd/0 — fall back to reading the fd directly
-// in that case, the same way we already do for ENXIO/EINVAL/EPERM.
 const isBootstrapFdPathDuplicationError = Predicate.compose(
   Predicate.hasProperty("code"),
-  (_) => _.code === "ENXIO" || _.code === "EINVAL" || _.code === "EPERM" || _.code === "EACCES",
+  (_) => _.code === "ENXIO" || _.code === "EINVAL" || _.code === "EPERM",
 );
 
 function resolveFdPath(fd: number, platform: NodeJS.Platform): string | undefined {

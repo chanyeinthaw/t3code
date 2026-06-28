@@ -1,5 +1,5 @@
 included:
-  - ios/Pulse
+  - ios/T3Code
   - modules/pulse-terminal/ios
   - modules/pulse-review-diff/ios
 

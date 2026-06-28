@@ -23,22 +23,22 @@ const VARIANT_CONFIG: Record<
     appName: "Pulse Dev",
     scheme: "pulse-dev",
     iosIcon: "./assets/icon-composer-dev.icon",
-    iosBundleIdentifier: "com.pulsetools.pulse.dev",
-    androidPackage: "com.pulsetools.pulse.dev",
+    iosBundleIdentifier: "com.t3tools.pulse.dev",
+    androidPackage: "com.t3tools.pulse.dev",
   },
   preview: {
     appName: "Pulse Preview",
     scheme: "pulse-preview",
     iosIcon: "./assets/icon-composer-prod.icon",
-    iosBundleIdentifier: "com.pulsetools.pulse.preview",
-    androidPackage: "com.pulsetools.pulse.preview",
+    iosBundleIdentifier: "com.t3tools.pulse.preview",
+    androidPackage: "com.t3tools.pulse.preview",
   },
   production: {
     appName: "Pulse",
     scheme: "pulse",
     iosIcon: "./assets/icon-composer-prod.icon",
-    iosBundleIdentifier: "com.pulsetools.pulse",
-    androidPackage: "com.pulsetools.pulse",
+    iosBundleIdentifier: "com.t3tools.pulse",
+    androidPackage: "com.t3tools.pulse",
   },
 };
 

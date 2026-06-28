@@ -71,9 +71,7 @@ const makeDesktopWindowLayer = (selectedAction: Deferred.Deferred<string>) =>
     revealOrCreateMain: Effect.die("unexpected revealOrCreateMain"),
     activate: Effect.void,
     createMainIfBackendReady: Effect.void,
-    showConnectingSplash: Effect.void,
-    handleBackendReady: () => Effect.void,
-    handleBackendNotReady: Effect.void,
+    handleBackendReady: Effect.void,
     dispatchMenuAction: (action) => Deferred.succeed(selectedAction, action).pipe(Effect.asVoid),
     syncAppearance: Effect.void,
   } satisfies DesktopWindow.DesktopWindowShape);

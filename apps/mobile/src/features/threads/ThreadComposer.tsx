@@ -1,9 +1,8 @@
 import { isLiquidGlassSupported, LiquidGlassView } from "@callstack/liquid-glass";
 import type {
   EnvironmentId,
-  MessageId,
   ModelSelection,
-  OrchestrationThreadShell,
+  OrchestrationThread,
   ProviderInteractionMode,
   RuntimeMode,
   ServerConfig as T3ServerConfig,
@@ -16,14 +15,7 @@ import {
 } from "@pulse/shared/composerTrigger";
 import type { ReactNode } from "react";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  useColorScheme,
-  View,
-  type ViewStyle,
-} from "react-native";
+import { Image, Pressable, useColorScheme, View, type ViewStyle } from "react-native";
 import ImageViewing from "react-native-image-viewing";
 import { useThemeColor } from "../../lib/useThemeColor";
 
@@ -44,7 +36,6 @@ import { ControlPill, ControlPillMenu } from "../../components/ControlPill";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import type { DraftComposerImageAttachment } from "../../lib/composerImages";
 import { buildModelOptions, groupByProvider } from "../../lib/modelOptions";
-import { MOBILE_TYPOGRAPHY } from "../../lib/typography";
 import type { RemoteClientConnectionState } from "../../lib/connection";
 import {
   insertRankedSearchResult,
@@ -52,12 +43,11 @@ import {
   scoreQueryMatch,
 } from "@pulse/shared/searchRanking";
 import {
-  applyProviderOptionMenuEvent,
-  buildProviderOptionMenuActions,
-  providerOptionsConfigurationLabel,
-  resolveProviderOptionDescriptors,
-} from "../../lib/providerOptions";
+  getModelSelectionBooleanOptionValue,
+  getModelSelectionStringOptionValue,
+} from "@pulse/shared/model";
 import { useComposerPathSearch } from "../../state/use-composer-path-search";
+import { CLAUDE_AGENT_EFFORT_OPTIONS } from "./claudeEffortOptions";
 import { ComposerCommandPopover, type ComposerCommandItem } from "./ComposerCommandPopover";
 
 /**
@@ -78,9 +68,7 @@ export interface ThreadComposerProps {
   readonly placeholder: string;
   readonly bottomInset?: number;
   readonly connectionState: RemoteClientConnectionState;
-  readonly connectionError: string | null;
-  readonly environmentLabel: string | null;
-  readonly selectedThread: OrchestrationThreadShell;
+  readonly selectedThread: OrchestrationThread;
   readonly serverConfig: T3ServerConfig | null;
   readonly queueCount: number;
   readonly activeThreadBusy: boolean;
@@ -91,12 +79,11 @@ export interface ThreadComposerProps {
   readonly onPickDraftImages: () => Promise<void>;
   readonly onNativePasteImages: (uris: ReadonlyArray<string>) => Promise<void>;
   readonly onRemoveDraftImage: (imageId: string) => void;
-  readonly onStopThread: () => void;
-  readonly onSendMessage: () => Promise<MessageId | null>;
-  readonly onUpdateModelSelection: (modelSelection: ModelSelection) => void;
-  readonly onUpdateRuntimeMode: (runtimeMode: RuntimeMode) => void;
-  readonly onUpdateInteractionMode: (interactionMode: ProviderInteractionMode) => void;
-  readonly onReconnectEnvironment: () => void;
+  readonly onStopThread: () => Promise<void>;
+  readonly onSendMessage: () => void;
+  readonly onUpdateModelSelection: (modelSelection: ModelSelection) => Promise<void>;
+  readonly onUpdateRuntimeMode: (runtimeMode: RuntimeMode) => Promise<void>;
+  readonly onUpdateInteractionMode: (interactionMode: ProviderInteractionMode) => Promise<void>;
   readonly onExpandedChange?: (expanded: boolean) => void;
 }
 
@@ -139,67 +126,21 @@ function ComposerSurface(props: {
   );
 }
 
-function composerConnectionStatus(input: {
-  readonly connectionError: string | null;
-  readonly connectionState: RemoteClientConnectionState;
-  readonly environmentLabel: string | null;
-}): { readonly kind: "unavailable" | "reconnecting"; readonly label: string } | null {
-  const environmentLabel = input.environmentLabel ?? "Environment";
-
-  switch (input.connectionState) {
-    case "connecting":
-    case "reconnecting":
-      return {
-        kind: "reconnecting",
-        label:
-          input.connectionError === null
-            ? `Reconnecting to ${environmentLabel}...`
-            : `Failed to connect. Retrying ${environmentLabel}...`,
-      };
-    case "offline":
-      return { kind: "unavailable", label: "You are offline" };
-    case "error":
-      return {
-        kind: "unavailable",
-        label: input.connectionError
-          ? `Failed to connect to ${environmentLabel}: ${input.connectionError}`
-          : `Failed to connect to ${environmentLabel}`,
-      };
-    case "available":
-      return { kind: "unavailable", label: `${environmentLabel} is not connected` };
-    case "connected":
-      return null;
-  }
+function withModelSelectionOption(
+  selection: ModelSelection,
+  id: string,
+  value: string | boolean | undefined,
+): ModelSelection {
+  const options = (selection.options ?? []).filter((option) => option.id !== id);
+  return {
+    ...selection,
+    options: value === undefined ? options : [...options, { id, value }],
+  };
 }
 
-const ComposerConnectionStatusPill = memo(function ComposerConnectionStatusPill(props: {
-  readonly onPress: () => void;
-  readonly status: { readonly kind: "unavailable" | "reconnecting"; readonly label: string };
-}) {
-  const isReconnecting = props.status.kind === "reconnecting";
-
-  return (
-    <View className="items-center pb-2">
-      <Pressable
-        accessibilityRole="button"
-        onPress={props.onPress}
-        className="max-w-full flex-row items-center gap-2 rounded-full bg-white/90 px-3 py-2 shadow-sm active:opacity-70 dark:bg-neutral-900/90"
-      >
-        {isReconnecting ? (
-          <ActivityIndicator size="small" color="#8e8e93" />
-        ) : (
-          <View className="h-2 w-2 rounded-full bg-red-500" />
-        )}
-        <Text
-          className="max-w-[260px] text-sm font-pulse-bold leading-[17px] text-foreground"
-          numberOfLines={1}
-        >
-          {props.status.label}
-        </Text>
-      </Pressable>
-    </View>
-  );
-});
+function formatTitleCase(value: string): string {
+  return value.length === 0 ? value : `${value.charAt(0).toUpperCase()}${value.slice(1)}`;
+}
 
 export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposerProps) {
   const isDarkMode = useColorScheme() === "dark";
@@ -213,7 +154,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   const [previewImageUri, setPreviewImageUri] = useState<string | null>(null);
   const hasContent = props.draftMessage.trim().length > 0 || props.draftAttachments.length > 0;
   const isExpanded = isFocused;
-  const canSend = hasContent;
+  const canSend = props.connectionState === "ready" && hasContent;
 
   const onPressImage = useCallback(
     (uri: string) => {
@@ -241,20 +182,13 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   }, [onExpandedChange]);
   const showStopAction =
     props.selectedThread.session?.status === "running" ||
-    props.selectedThread.session?.status === "starting";
+    props.selectedThread.session?.status === "starting" ||
+    props.queueCount > 0;
 
-  const sendLabel =
-    props.connectionState !== "connected" || props.activeThreadBusy || props.queueCount > 0
-      ? "Queue"
-      : "Send";
+  const sendLabel = props.activeThreadBusy || props.queueCount > 0 ? "Queue" : "Send";
   const currentModelSelection = props.selectedThread.modelSelection;
   const currentRuntimeMode = props.selectedThread.runtimeMode;
   const currentInteractionMode = props.selectedThread.interactionMode ?? "default";
-  const connectionStatus = composerConnectionStatus({
-    connectionError: props.connectionError,
-    connectionState: props.connectionState,
-    environmentLabel: props.environmentLabel,
-  });
   const toolbarFadeOpaque = isDarkMode ? "rgba(0,0,0,0.95)" : "rgba(255,255,255,0.95)";
   const toolbarFadeTransparent = isDarkMode ? "rgba(0,0,0,0)" : "rgba(255,255,255,0)";
   const selectedProviderStatus = useMemo(() => {
@@ -266,6 +200,18 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
     );
   }, [props.serverConfig, props.selectedThread.modelSelection.instanceId]);
 
+  // Extract current model options (effort, fastMode, contextWindow)
+  const selectedProviderDriver = selectedProviderStatus?.driver ?? null;
+  const currentEffort =
+    selectedProviderDriver === "claudeAgent"
+      ? (getModelSelectionStringOptionValue(currentModelSelection, "effort") ?? "high")
+      : "high";
+  const currentFastMode =
+    getModelSelectionBooleanOptionValue(currentModelSelection, "fastMode") ?? false;
+  const currentContextWindow =
+    selectedProviderDriver === "claudeAgent"
+      ? (getModelSelectionStringOptionValue(currentModelSelection, "contextWindow") ?? "1M")
+      : "1M";
   // ── Trigger detection ────────────────────────────────────
   const [composerSelection, setComposerSelection] = useState(() => ({
     start: props.draftMessage.length,
@@ -448,7 +394,8 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   const { onChangeDraftMessage, onUpdateInteractionMode, draftMessage, onSendMessage } = props;
 
   const handleSend = useCallback(() => {
-    void onSendMessage();
+    onSendMessage();
+    inputRef.current?.blur();
   }, [onSendMessage]);
   const handleCommandSelect = useCallback(
     (item: ComposerCommandItem) => {
@@ -466,7 +413,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         );
         setComposerSelection({ start: result.cursor, end: result.cursor });
         onChangeDraftMessage(result.text);
-        onUpdateInteractionMode(item.command);
+        void onUpdateInteractionMode(item.command);
         return;
       }
 
@@ -505,18 +452,14 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         option.selection.instanceId === currentModelSelection.instanceId &&
         option.selection.model === currentModelSelection.model,
     ) ?? null;
-  const providerOptionDescriptors = useMemo(
-    () =>
-      resolveProviderOptionDescriptors({
-        capabilities: currentModelOption?.capabilities,
-        selections: currentModelSelection.options,
-      }),
-    [currentModelOption?.capabilities, currentModelSelection.options],
-  );
-  const configurationLabel = useMemo(
-    () => providerOptionsConfigurationLabel(providerOptionDescriptors),
-    [providerOptionDescriptors],
-  );
+  const configurationLabel = useMemo(() => {
+    const parts = [
+      formatTitleCase(currentEffort),
+      currentFastMode ? "Fast" : null,
+      currentContextWindow !== "1M" ? currentContextWindow : null,
+    ].filter((part): part is string => Boolean(part));
+    return parts.length > 0 ? parts.join(" · ") : "Configuration";
+  }, [currentContextWindow, currentEffort, currentFastMode]);
   const modelMenuActions = useMemo(
     () =>
       providerGroups.map((group) => ({
@@ -543,7 +486,36 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
   // ── Options menu ─────────────────────────────────────────
   const optionsMenuActions = useMemo(
     () => [
-      ...buildProviderOptionMenuActions(providerOptionDescriptors),
+      {
+        id: "options-effort",
+        title: "Effort",
+        subtitle: `${currentEffort.charAt(0).toUpperCase()}${currentEffort.slice(1)}`,
+        subactions: CLAUDE_AGENT_EFFORT_OPTIONS.map((level) => ({
+          id: `options:effort:${level}`,
+          title: `${level}${level === "high" ? " (default)" : ""}`,
+          state: currentEffort === level ? ("on" as const) : undefined,
+        })),
+      },
+      {
+        id: "options-fast-mode",
+        title: "Fast Mode",
+        subtitle: currentFastMode ? "On" : "Off",
+        subactions: ([false, true] as const).map((value) => ({
+          id: `options:fast-mode:${value ? "on" : "off"}`,
+          title: value ? "On" : "Off",
+          state: currentFastMode === value ? ("on" as const) : undefined,
+        })),
+      },
+      {
+        id: "options-context-window",
+        title: "Context Window",
+        subtitle: currentContextWindow,
+        subactions: (["200k", "1M"] as const).map((value) => ({
+          id: `options:context-window:${value}`,
+          title: `${value}${value === "1M" ? " (default)" : ""}`,
+          state: currentContextWindow === value ? ("on" as const) : undefined,
+        })),
+      },
       {
         id: "options-runtime",
         title: "Runtime",
@@ -583,7 +555,13 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
         }),
       },
     ],
-    [currentInteractionMode, currentRuntimeMode, providerOptionDescriptors],
+    [
+      currentEffort,
+      currentFastMode,
+      currentContextWindow,
+      currentRuntimeMode,
+      currentInteractionMode,
+    ],
   );
 
   // ── Menu handlers ────────────────────────────────────────
@@ -594,27 +572,51 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
     const modelKey = event.slice("model:".length);
     const option = modelOptions.find((o) => o.key === modelKey);
     if (option) {
-      props.onUpdateModelSelection(option.selection);
+      void props.onUpdateModelSelection(option.selection);
     }
   }
 
   function handleOptionsMenuAction(event: string) {
-    const providerOptions = applyProviderOptionMenuEvent(providerOptionDescriptors, event);
-    if (providerOptions) {
-      props.onUpdateModelSelection({
-        ...currentModelSelection,
-        options: providerOptions,
-      });
+    if (event.startsWith("options:effort:")) {
+      const effort = event.slice("options:effort:".length);
+      const updated: ModelSelection =
+        selectedProviderDriver === "claudeAgent"
+          ? withModelSelectionOption(
+              currentModelSelection,
+              "effort",
+              effort as typeof currentEffort,
+            )
+          : currentModelSelection;
+      void props.onUpdateModelSelection(updated);
+      return;
+    }
+    if (event.startsWith("options:fast-mode:")) {
+      const fastMode = event.endsWith(":on");
+      const nextFast = fastMode || undefined;
+      if (selectedProviderDriver === "opencode") {
+        return;
+      }
+      const updated = withModelSelectionOption(currentModelSelection, "fastMode", nextFast);
+      void props.onUpdateModelSelection(updated);
+      return;
+    }
+    if (event.startsWith("options:context-window:")) {
+      const contextWindow = event.slice("options:context-window:".length);
+      const updated: ModelSelection =
+        selectedProviderDriver === "claudeAgent"
+          ? withModelSelectionOption(currentModelSelection, "contextWindow", contextWindow)
+          : currentModelSelection;
+      void props.onUpdateModelSelection(updated);
       return;
     }
     if (event.startsWith("options:runtime:")) {
       const runtimeMode = event.slice("options:runtime:".length) as RuntimeMode;
-      props.onUpdateRuntimeMode(runtimeMode);
+      void props.onUpdateRuntimeMode(runtimeMode);
       return;
     }
     if (event.startsWith("options:interaction:")) {
       const interactionMode = event.slice("options:interaction:".length) as ProviderInteractionMode;
-      props.onUpdateInteractionMode(interactionMode);
+      void props.onUpdateInteractionMode(interactionMode);
     }
   }
 
@@ -648,13 +650,6 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
               onSelect={handleCommandSelect}
             />
           </View>
-        ) : null}
-
-        {connectionStatus ? (
-          <ComposerConnectionStatusPill
-            status={connectionStatus}
-            onPress={props.onReconnectEnvironment}
-          />
         ) : null}
 
         <ComposerSurface
@@ -717,7 +712,8 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                     }
               }
               textStyle={{
-                ...MOBILE_TYPOGRAPHY.composer,
+                fontSize: 15,
+                lineHeight: isExpanded ? 22 : 20,
                 color: foregroundColor,
                 fontFamily: "DMSans_400Regular",
               }}
@@ -750,7 +746,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                     justifyContent: "center",
                   }}
                 >
-                  <Text className="text-foreground-muted text-2xs font-pulse-bold">
+                  <Text className="text-foreground-muted text-[11px] font-pulse-bold">
                     +{props.draftAttachments.length - 3}
                   </Text>
                 </View>
@@ -759,7 +755,11 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
           ) : null}
           {!isExpanded ? (
             showStopAction ? (
-              <ControlPill icon="stop.fill" variant="danger" onPress={props.onStopThread} />
+              <ControlPill
+                icon="stop.fill"
+                variant="danger"
+                onPress={() => void props.onStopThread()}
+              />
             ) : (
               <ControlPill
                 icon="arrow.up"
@@ -809,7 +809,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                 <ComposerToolbarButton
                   icon="stop.fill"
                   variant="danger"
-                  onPress={props.onStopThread}
+                  onPress={() => void props.onStopThread()}
                   showChevron={false}
                 />
               ) : null}
@@ -830,7 +830,8 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
           <Text
             className="text-foreground-muted"
             style={{
-              ...MOBILE_TYPOGRAPHY.label,
+              fontSize: 12,
+              lineHeight: 18,
               paddingTop: 8,
             }}
           >

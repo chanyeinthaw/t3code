@@ -22,7 +22,7 @@ describe("resolveDraftEnvModeAfterBranchChange", () => {
     expect(
       resolveDraftEnvModeAfterBranchChange({
         nextWorktreePath: null,
-        currentWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        currentWorktreePath: "/repo/.t3/worktrees/feature-a",
         effectiveEnvMode: "worktree",
       }),
     ).toBe("local");
@@ -41,7 +41,7 @@ describe("resolveDraftEnvModeAfterBranchChange", () => {
   it("uses worktree mode when selecting a ref already attached to a worktree", () => {
     expect(
       resolveDraftEnvModeAfterBranchChange({
-        nextWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        nextWorktreePath: "/repo/.t3/worktrees/feature-a",
         currentWorktreePath: null,
         effectiveEnvMode: "local",
       }),
@@ -123,7 +123,7 @@ describe("resolveEffectiveEnvMode", () => {
   it("treats draft threads already attached to a worktree as current-checkout mode", () => {
     expect(
       resolveEffectiveEnvMode({
-        activeWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        activeWorktreePath: "/repo/.t3/worktrees/feature-a",
         hasServerThread: false,
         draftThreadEnvMode: "worktree",
       }),
@@ -154,7 +154,7 @@ describe("resolveCurrentWorkspaceLabel", () => {
   });
 
   it("describes the active checkout as a worktree when one is attached", () => {
-    expect(resolveCurrentWorkspaceLabel("/repo/.pulse/worktrees/feature-a")).toBe("Current worktree");
+    expect(resolveCurrentWorkspaceLabel("/repo/.t3/worktrees/feature-a")).toBe("Current worktree");
   });
 });
 
@@ -164,7 +164,7 @@ describe("resolveLockedWorkspaceLabel", () => {
   });
 
   it("shows the worktree name for an attached worktree", () => {
-    expect(resolveLockedWorkspaceLabel("/repo/.pulse/worktrees/feature-a")).toBe("feature-a");
+    expect(resolveLockedWorkspaceLabel("/repo/.t3/worktrees/feature-a")).toBe("feature-a");
   });
 });
 
@@ -296,15 +296,15 @@ describe("resolveBranchSelectionTarget", () => {
     expect(
       resolveBranchSelectionTarget({
         activeProjectCwd: "/repo",
-        activeWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        activeWorktreePath: "/repo/.t3/worktrees/feature-a",
         refName: {
           isDefault: false,
-          worktreePath: "/repo/.pulse/worktrees/feature-b",
+          worktreePath: "/repo/.t3/worktrees/feature-b",
         },
       }),
     ).toEqual({
-      checkoutCwd: "/repo/.pulse/worktrees/feature-b",
-      nextWorktreePath: "/repo/.pulse/worktrees/feature-b",
+      checkoutCwd: "/repo/.t3/worktrees/feature-b",
+      nextWorktreePath: "/repo/.t3/worktrees/feature-b",
       reuseExistingWorktree: true,
     });
   });
@@ -313,7 +313,7 @@ describe("resolveBranchSelectionTarget", () => {
     expect(
       resolveBranchSelectionTarget({
         activeProjectCwd: "/repo",
-        activeWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        activeWorktreePath: "/repo/.t3/worktrees/feature-a",
         refName: {
           isDefault: true,
           worktreePath: "/repo",
@@ -330,7 +330,7 @@ describe("resolveBranchSelectionTarget", () => {
     expect(
       resolveBranchSelectionTarget({
         activeProjectCwd: "/repo",
-        activeWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        activeWorktreePath: "/repo/.t3/worktrees/feature-a",
         refName: {
           isDefault: true,
           worktreePath: null,
@@ -347,15 +347,15 @@ describe("resolveBranchSelectionTarget", () => {
     expect(
       resolveBranchSelectionTarget({
         activeProjectCwd: "/repo",
-        activeWorktreePath: "/repo/.pulse/worktrees/feature-a",
+        activeWorktreePath: "/repo/.t3/worktrees/feature-a",
         refName: {
           isDefault: false,
           worktreePath: null,
         },
       }),
     ).toEqual({
-      checkoutCwd: "/repo/.pulse/worktrees/feature-a",
-      nextWorktreePath: "/repo/.pulse/worktrees/feature-a",
+      checkoutCwd: "/repo/.t3/worktrees/feature-a",
+      nextWorktreePath: "/repo/.t3/worktrees/feature-a",
       reuseExistingWorktree: false,
     });
   });

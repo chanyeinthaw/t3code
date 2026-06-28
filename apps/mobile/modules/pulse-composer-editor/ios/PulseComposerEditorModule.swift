@@ -5,8 +5,14 @@ public class PulseComposerEditorModule: Module {
     Name("PulseComposerEditor")
 
     View(PulseComposerEditorView.self) {
-      Prop("controlledDocumentJson") { (view: PulseComposerEditorView, documentJson: String) in
-        view.setControlledDocumentJson(documentJson)
+      Prop("value") { (view: PulseComposerEditorView, value: String) in
+        view.setValue(value)
+      }
+      Prop("tokensJson") { (view: PulseComposerEditorView, tokensJson: String) in
+        view.setTokensJson(tokensJson)
+      }
+      Prop("selectionJson") { (view: PulseComposerEditorView, selectionJson: String) in
+        view.setSelectionJson(selectionJson)
       }
       Prop("themeJson") { (view: PulseComposerEditorView, themeJson: String) in
         view.setThemeJson(themeJson)
