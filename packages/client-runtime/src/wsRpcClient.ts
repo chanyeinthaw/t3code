@@ -89,7 +89,8 @@ export interface WsRpcClient {
     readonly automation: {
       readonly connect: RpcInputStreamMethod<typeof WS_METHODS.previewAutomationConnect>;
       readonly respond: RpcUnaryMethod<typeof WS_METHODS.previewAutomationRespond>;
-      readonly focusHost: RpcUnaryMethod<typeof WS_METHODS.previewAutomationFocusHost>;
+      readonly reportOwner: RpcUnaryMethod<typeof WS_METHODS.previewAutomationReportOwner>;
+      readonly clearOwner: RpcUnaryMethod<typeof WS_METHODS.previewAutomationClearOwner>;
     };
     readonly onEvent: RpcStreamMethod<typeof WS_METHODS.subscribePreviewEvents>;
     readonly subscribePorts: RpcStreamMethod<typeof WS_METHODS.subscribeDiscoveredLocalServers>;
@@ -257,8 +258,10 @@ export function createWsRpcClient(
           ),
         respond: (input) =>
           transport.request((client) => client[WS_METHODS.previewAutomationRespond](input)),
-        focusHost: (input) =>
-          transport.request((client) => client[WS_METHODS.previewAutomationFocusHost](input)),
+        reportOwner: (input) =>
+          transport.request((client) => client[WS_METHODS.previewAutomationReportOwner](input)),
+        clearOwner: (input) =>
+          transport.request((client) => client[WS_METHODS.previewAutomationClearOwner](input)),
       },
       onEvent: (listener, options) =>
         transport.subscribe(

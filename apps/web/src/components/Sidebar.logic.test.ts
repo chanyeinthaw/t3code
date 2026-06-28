@@ -199,12 +199,12 @@ describe("resolveSidebarNewThreadSeedContext", () => {
         activeThread: {
           projectId: "project-1",
           branch: "feature/existing",
-          worktreePath: "/repo/.pulse/worktrees/existing",
+          worktreePath: "/repo/.t3/worktrees/existing",
         },
         activeDraftThread: {
           projectId: "project-1",
           branch: "feature/draft",
-          worktreePath: "/repo/.pulse/worktrees/draft",
+          worktreePath: "/repo/.t3/worktrees/draft",
           envMode: "worktree",
         },
       }),

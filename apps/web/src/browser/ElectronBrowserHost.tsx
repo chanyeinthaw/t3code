@@ -1,12 +1,11 @@
 "use client";
 
 import { parseScopedThreadKey } from "@pulse/client-runtime";
-import { FILL_PREVIEW_VIEWPORT } from "@pulse/contracts";
 import { useEffect, useMemo } from "react";
 
 import { isElectron } from "~/env";
 import { useTheme } from "~/hooks/useTheme";
-import { useActivePreviewSessions } from "~/previewStateStore";
+import { usePreviewStateStore } from "~/previewStateStore";
 
 import { readPreviewAnnotationTheme } from "./annotationTheme";
 import { useBrowserPointerStore } from "./browserPointerStore";
@@ -14,7 +13,7 @@ import { HostedBrowserWebview } from "./HostedBrowserWebview";
 
 export function ElectronBrowserHost() {
   const { resolvedTheme } = useTheme();
-  const previewByThreadKey = useActivePreviewSessions();
+  const previewByThreadKey = usePreviewStateStore((state) => state.byThreadKey);
   const sessions = useMemo(
     () =>
       Object.entries(previewByThreadKey).flatMap(([threadKey, previewState]) => {
@@ -23,7 +22,7 @@ export function ElectronBrowserHost() {
           ? Object.values(previewState.sessions).map((snapshot) => ({
               threadRef,
               snapshot,
-              zoomFactor: previewState.desktopByTabId[snapshot.tabId]?.zoomFactor ?? 1,
+              active: previewState.activeTabId === snapshot.tabId,
             }))
           : [];
       }),
@@ -74,7 +73,7 @@ export function ElectronBrowserHost() {
   if (!isElectron) return null;
   return (
     <div className="contents" data-electron-browser-host>
-      {sessions.map(({ threadRef, snapshot, zoomFactor }) => {
+      {sessions.map(({ threadRef, snapshot }) => {
         const url = snapshot.navStatus._tag === "Idle" ? null : snapshot.navStatus.url;
         return (
           <HostedBrowserWebview
@@ -82,8 +81,6 @@ export function ElectronBrowserHost() {
             threadRef={threadRef}
             tabId={snapshot.tabId}
             initialUrl={url}
-            viewport={snapshot.viewport ?? FILL_PREVIEW_VIEWPORT}
-            zoomFactor={zoomFactor}
           />
         );
       })}

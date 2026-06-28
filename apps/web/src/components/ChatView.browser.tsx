@@ -229,7 +229,7 @@ function createBaseServerConfig(): ServerConfig {
     ],
     availableEditors: [],
     observability: {
-      logsDirectoryPath: "/repo/project/.pulse/logs",
+      logsDirectoryPath: "/repo/project/.t3/logs",
       localTracingEnabled: true,
       otlpTracesEnabled: false,
       otlpMetricsEnabled: false,
@@ -4294,7 +4294,7 @@ describe("ChatView timeline estimator parity (full app)", () => {
           thread.id === THREAD_ID
             ? Object.assign({}, thread, {
                 branch: "feature/existing",
-                worktreePath: "/repo/.pulse/worktrees/existing",
+                worktreePath: "/repo/.t3/worktrees/existing",
               })
             : thread,
         ),

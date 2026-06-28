@@ -26,7 +26,7 @@ const baseInput = {
   providerSessionId,
   makeSnapshotToolView: async (snapshot: unknown) => ({
     artifact: {
-      artifactPath: "/tmp/pulse/browser-artifacts/thread/preview-snapshot.json",
+      artifactPath: "/tmp/t3/browser-artifacts/thread/preview-snapshot.json",
       artifactBytes: JSON.stringify(snapshot).length,
       relativePath: "browser-artifacts/thread/preview-snapshot.json",
     },
@@ -42,7 +42,7 @@ const baseInput = {
           ? { mimeType: "image/png", width: 10, height: 5 }
           : undefined,
       fullSnapshotArtifact: {
-        artifactPath: "/tmp/pulse/browser-artifacts/thread/preview-snapshot.json",
+        artifactPath: "/tmp/t3/browser-artifacts/thread/preview-snapshot.json",
       },
     },
   }),

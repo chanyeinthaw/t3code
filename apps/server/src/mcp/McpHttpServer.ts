@@ -202,4 +202,7 @@ const McpTransportLive = McpServer.layerHttp({
   path: "/mcp",
 }).pipe(Layer.provide(McpAuthMiddlewareLive));
 
-export const layer = PreviewToolkitRegistrationLive.pipe(Layer.provideMerge(McpTransportLive));
+export const layer = PreviewToolkitRegistrationLive.pipe(
+  Layer.provideMerge(McpTransportLive),
+  Layer.provide(PreviewAutomationBroker.layer),
+);
