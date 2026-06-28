@@ -17,8 +17,8 @@ const devBundleIdSuffix = NodePath.basename(repoRoot)
   .replaceAll(/[^a-z0-9]+/g, "");
 export const APP_DISPLAY_NAME = isDevelopment ? "Pulse (Dev)" : "Pulse (Alpha)";
 export const APP_BUNDLE_ID = isDevelopment
-  ? `com.t3tools.pulse.dev.${devBundleIdSuffix || "local"}`
-  : "com.t3tools.pulse";
+  ? `com.pulsetools.pulse.dev.${devBundleIdSuffix || "local"}`
+  : "com.pulsetools.pulse";
 const APP_PROTOCOL_SCHEMES = isDevelopment ? ["pulse-dev"] : ["pulse"];
 const LAUNCHER_VERSION = 12;
 const defaultIconPath = NodePath.join(desktopDir, "resources", "icon.icns");
@@ -108,12 +108,12 @@ export function makeDevelopmentLauncherScript({
 }) {
   const envEntries = [
     ["VITE_DEV_SERVER_URL", environment.VITE_DEV_SERVER_URL],
-    ["T3CODE_PORT", environment.T3CODE_PORT],
-    ["T3CODE_HOME", environment.T3CODE_HOME],
-    ["T3CODE_COMMIT_HASH", environment.T3CODE_COMMIT_HASH],
-    ["T3CODE_OTLP_TRACES_URL", environment.T3CODE_OTLP_TRACES_URL],
-    ["T3CODE_OTLP_EXPORT_INTERVAL_MS", environment.T3CODE_OTLP_EXPORT_INTERVAL_MS],
-    ["T3CODE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
+    ["PULSE_PORT", environment.PULSE_PORT],
+    ["PULSE_HOME", environment.PULSE_HOME],
+    ["PULSE_COMMIT_HASH", environment.PULSE_COMMIT_HASH],
+    ["PULSE_OTLP_TRACES_URL", environment.PULSE_OTLP_TRACES_URL],
+    ["PULSE_OTLP_EXPORT_INTERVAL_MS", environment.PULSE_OTLP_EXPORT_INTERVAL_MS],
+    ["PULSE_DESKTOP_APP_USER_MODEL_ID", APP_BUNDLE_ID],
   ].filter((entry) => typeof entry[1] === "string" && entry[1].trim().length > 0);
   return [
     "#!/bin/sh",

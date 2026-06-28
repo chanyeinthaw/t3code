@@ -273,8 +273,8 @@ export const resolveServerConfig = (
       Option.getOrUndefined(
         resolveOptionPrecedence(
           normalizedFlags.baseDir,
-          Option.fromUndefinedOr(env.t3Home),
-          Option.fromUndefinedOr(bootstrap?.t3Home),
+          Option.fromUndefinedOr(env.pulseHome),
+          Option.fromUndefinedOr(bootstrap?.pulseHome),
         ),
       ),
     );
