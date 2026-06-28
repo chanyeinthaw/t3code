@@ -191,7 +191,7 @@ const ComposerConnectionStatusPill = memo(function ComposerConnectionStatusPill(
           <View className="h-2 w-2 rounded-full bg-red-500" />
         )}
         <Text
-          className="max-w-[260px] text-sm font-t3-bold leading-[17px] text-foreground"
+          className="max-w-[260px] text-sm font-pulse-bold leading-[17px] text-foreground"
           numberOfLines={1}
         >
           {props.status.label}
@@ -750,7 +750,7 @@ export const ThreadComposer = memo(function ThreadComposer(props: ThreadComposer
                     justifyContent: "center",
                   }}
                 >
-                  <Text className="text-foreground-muted text-2xs font-t3-bold">
+                  <Text className="text-foreground-muted text-2xs font-pulse-bold">
                     +{props.draftAttachments.length - 3}
                   </Text>
                 </View>
