@@ -22,6 +22,7 @@ import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Fiber from "effect/Fiber";
+import * as PubSub from "effect/PubSub";
 import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
 import * as Scope from "effect/Scope";
@@ -824,7 +825,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const crypto = yield* Crypto.Crypto;
-  const runtimeEvents = yield* Queue.unbounded<ProviderRuntimeEvent>();
+  const runtimeEvents = yield* PubSub.unbounded<ProviderRuntimeEvent>();
   const effectContext = yield* Effect.context<never>();
   const runFork = Effect.runForkWith(effectContext);
   const runPromise = Effect.runPromiseWith(effectContext);
@@ -860,7 +861,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     };
   });
 
-  const emit = (event: ProviderRuntimeEvent) => Queue.offer(runtimeEvents, event);
+  const emit = (event: ProviderRuntimeEvent) => PubSub.publish(runtimeEvents, event);
 
   const writeNativeEvent = Effect.fn("writePiNativeEvent")(function* (
     threadId: ThreadId,
@@ -2340,7 +2341,7 @@ export const makePiAdapter = Effect.fn("makePiAdapter")(function* (
     listSkills,
     listCommands,
     get streamEvents() {
-      return Stream.fromQueue(runtimeEvents);
+      return Stream.fromPubSub(runtimeEvents);
     },
   } satisfies PiAdapterShape;
 });
