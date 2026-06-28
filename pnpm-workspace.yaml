@@ -92,6 +92,8 @@ packageExtensions:
     dependencies:
       vite: "catalog:"
 
+allowUnusedPatches: true
+
 patchedDependencies:
   "@effect/vitest@4.0.0-beta.78": patches/@effect__vitest@4.0.0-beta.78.patch
   "@expo/metro-config@56.0.13": patches/@expo%2Fmetro-config@56.0.13.patch

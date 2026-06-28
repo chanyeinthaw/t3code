@@ -94,9 +94,9 @@ describe("ssh tunnel scripts", () => {
 
     assert.include(script, "T3_NODE_SCRIPT_PATH=''");
     assert.include(script, 'exec pulse "$@"');
-    assert.include(script, "exec npx --yes 't3@latest' \"$@\"");
-    assert.include(script, "exec npm exec --yes 't3@latest' -- \"$@\"");
-    assert.include(script, "could not install 't3@latest'");
+    assert.include(script, "exec npx --yes 'pulse@latest' \"$@\"");
+    assert.include(script, "exec npm exec --yes 'pulse@latest' -- \"$@\"");
+    assert.include(script, "could not install 'pulse@latest'");
     assert.include(script, 'prepend_path_if_dir "$HOME/.local/bin"');
     assert.include(script, `T3_NODE_ENGINE_RANGE='${TEST_NODE_ENGINE_RANGE}'`);
     assert.include(script, "remote_node_satisfies_engine()");
@@ -105,7 +105,7 @@ describe("ssh tunnel scripts", () => {
     assert.include(script, 'prepend_path_if_dir "$VOLTA_HOME/bin"');
     assert.include(script, 'prepend_path_if_dir "$HOME/.asdf/shims"');
     assert.include(script, 'prepend_path_if_dir "$HOME/.local/share/mise/shims"');
-    assert.include(script, 'eval "$(fnm env --use-on-cd --shell sh)"');
+    assert.include(script, 'eval "$(fnm env --shell bash)"');
     assert.include(script, 'prepend_path_if_dir "$HOME/.nodenv/shims"');
     assert.include(script, 'NVM_DIR="$HOME/.nvm"');
     assert.include(script, "nvm use --silent default");
