@@ -1961,7 +1961,7 @@ it.layer(NodeServices.layer)("server router seam", (it) => {
       Effect.gen(function* () {
         const installedRelayClient = {
           status: "available" as const,
-          executablePath: "/tmp/t3/tools/cloudflared",
+          executablePath: "/tmp/pulse/tools/cloudflared",
           source: "managed" as const,
           version: RelayClient.CLOUDFLARED_VERSION,
         };

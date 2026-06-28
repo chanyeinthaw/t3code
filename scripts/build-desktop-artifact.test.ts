@@ -108,7 +108,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                T3CODE_DESKTOP_UPDATE_REPOSITORY: "sats-lab/pulse",
+                PULSE_DESKTOP_UPDATE_REPOSITORY: "sats-lab/pulse",
               },
             }),
           ),
@@ -280,13 +280,13 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
   it("derives macOS passkey signing configuration from the Clerk publishable key", () => {
     const configuration = resolveMacPasskeySigningConfiguration({
-      T3CODE_APPLE_TEAM_ID: "abc1234567",
-      T3CODE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
-      T3CODE_CLERK_PUBLISHABLE_KEY: `pk_test_${btoa("example.clerk.accounts.dev$")}`,
+      PULSE_APPLE_TEAM_ID: "abc1234567",
+      PULSE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
+      PULSE_CLERK_PUBLISHABLE_KEY: `pk_test_${btoa("example.clerk.accounts.dev$")}`,
     });
 
     assert.deepStrictEqual(configuration, {
-      appId: "com.t3tools.pulse",
+      appId: "com.pulsetools.pulse",
       teamId: "ABC1234567",
       rpDomains: ["example.clerk.accounts.dev"],
       provisioningProfilePath: "/tmp/pulse.provisionprofile",
@@ -295,9 +295,9 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
   it("normalizes explicit macOS passkey RP domains and renders required entitlements", () => {
     const configuration = resolveMacPasskeySigningConfiguration({
-      T3CODE_APPLE_TEAM_ID: "ABC1234567",
-      T3CODE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
-      T3CODE_CLERK_PASSKEY_RP_DOMAINS:
+      PULSE_APPLE_TEAM_ID: "ABC1234567",
+      PULSE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
+      PULSE_CLERK_PASSKEY_RP_DOMAINS:
         " Clerk.Example.com,example.clerk.accounts.dev,clerk.example.com ",
     });
     const entitlements = renderMacPasskeyEntitlements(configuration);
@@ -306,7 +306,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       "clerk.example.com",
       "example.clerk.accounts.dev",
     ]);
-    assert.include(entitlements, "<string>ABC1234567.com.t3tools.pulse</string>");
+    assert.include(entitlements, "<string>ABC1234567.com.pulsetools.pulse</string>");
     assert.include(entitlements, "<string>webcredentials:clerk.example.com</string>");
     assert.include(entitlements, "<string>webcredentials:example.clerk.accounts.dev</string>");
     assert.include(entitlements, "<key>com.apple.security.cs.allow-jit</key>");
@@ -323,21 +323,21 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     };
 
     const missingProfileError = captureError({
-      T3CODE_APPLE_TEAM_ID: "ABC1234567",
-      T3CODE_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev",
+      PULSE_APPLE_TEAM_ID: "ABC1234567",
+      PULSE_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev",
     });
     assert.instanceOf(missingProfileError, MissingMacPasskeyProvisioningProfileError);
     assert.equal(
       missingProfileError.message,
-      "T3CODE_MACOS_PROVISIONING_PROFILE must point to an Associated Domains provisioning profile.",
+      "PULSE_MACOS_PROVISIONING_PROFILE must point to an Associated Domains provisioning profile.",
     );
 
     const unsafeDomain =
       "https://domain-user:domain-secret@example.clerk.accounts.dev/path?token=query-secret";
     const invalidDomainError = captureError({
-      T3CODE_APPLE_TEAM_ID: "ABC1234567",
-      T3CODE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
-      T3CODE_CLERK_PASSKEY_RP_DOMAINS: unsafeDomain,
+      PULSE_APPLE_TEAM_ID: "ABC1234567",
+      PULSE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
+      PULSE_CLERK_PASSKEY_RP_DOMAINS: unsafeDomain,
     });
     assert.instanceOf(invalidDomainError, InvalidMacPasskeyRpDomainError);
     assert.equal(invalidDomainError.reason, "scheme-not-allowed");
@@ -353,20 +353,20 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     assert.throws(
       () =>
         resolveMacPasskeySigningConfiguration({
-          T3CODE_APPLE_TEAM_ID: "ABC1234567",
-          T3CODE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
-          T3CODE_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev:8443",
+          PULSE_APPLE_TEAM_ID: "ABC1234567",
+          PULSE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
+          PULSE_CLERK_PASSKEY_RP_DOMAINS: "example.clerk.accounts.dev:8443",
         }),
       /Invalid passkey RP domain/u,
     );
     const invalidPublishableKeyError = captureError({
-      T3CODE_APPLE_TEAM_ID: "ABC1234567",
-      T3CODE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
-      T3CODE_CLERK_PUBLISHABLE_KEY: "pk_test_%",
+      PULSE_APPLE_TEAM_ID: "ABC1234567",
+      PULSE_MACOS_PROVISIONING_PROFILE: "/tmp/pulse.provisionprofile",
+      PULSE_CLERK_PUBLISHABLE_KEY: "pk_test_%",
     });
     assert.instanceOf(invalidPublishableKeyError, InvalidMacPasskeyPublishableKeyError);
     assert.ok(invalidPublishableKeyError.cause);
-    assert.equal(invalidPublishableKeyError.message, "T3CODE_CLERK_PUBLISHABLE_KEY is invalid.");
+    assert.equal(invalidPublishableKeyError.message, "PULSE_CLERK_PUBLISHABLE_KEY is invalid.");
     assert.notProperty(invalidPublishableKeyError, "publishableKey");
     assert.notInclude(invalidPublishableKeyError.message, "pk_test_%");
   });
@@ -401,7 +401,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       });
 
       const mac = config.mac as Record<string, unknown>;
-      assert.equal(config.appId, "com.t3tools.pulse");
+      assert.equal(config.appId, "com.pulsetools.pulse");
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/pulse.provisionprofile");
       assert.deepStrictEqual(mac.protocols, [
@@ -573,11 +573,11 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
           ConfigProvider.layer(
             ConfigProvider.fromEnv({
               env: {
-                T3CODE_DESKTOP_SKIP_BUILD: "true",
-                T3CODE_DESKTOP_KEEP_STAGE: "true",
-                T3CODE_DESKTOP_SIGNED: "true",
-                T3CODE_DESKTOP_VERBOSE: "true",
-                T3CODE_DESKTOP_MOCK_UPDATES: "true",
+                PULSE_DESKTOP_SKIP_BUILD: "true",
+                PULSE_DESKTOP_KEEP_STAGE: "true",
+                PULSE_DESKTOP_SIGNED: "true",
+                PULSE_DESKTOP_VERBOSE: "true",
+                PULSE_DESKTOP_MOCK_UPDATES: "true",
               },
             }),
           ),

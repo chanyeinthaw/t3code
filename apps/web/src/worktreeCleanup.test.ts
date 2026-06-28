@@ -86,19 +86,19 @@ describe("getOrphanedWorktreePathForThread", () => {
 describe("formatWorktreePathForDisplay", () => {
   it("shows only the last path segment for unix-like paths", () => {
     const result = formatWorktreePathForDisplay(
-      "/Users/julius/.t3/worktrees/pulse-mvp/pulse-4e609bb8",
+      "/Users/julius/.pulse/worktrees/pulse-mvp/pulse-4e609bb8",
     );
     expect(result).toBe("pulse-4e609bb8");
   });
 
   it("normalizes windows separators before selecting the final segment", () => {
     const result = formatWorktreePathForDisplay(
-      "C:\\Users\\julius\\.t3\\worktrees\\pulse-mvp\\pulse-4e609bb8",
+      "C:\\Users\\julius\\.pulse\\worktrees\\pulse-mvp\\pulse-4e609bb8",
     );
     expect(result).toBe("pulse-4e609bb8");
   });
 
-  it("uses the final segment even when outside ~/.t3/worktrees", () => {
+  it("uses the final segment even when outside ~/.pulse/worktrees", () => {
     const result = formatWorktreePathForDisplay("/tmp/custom-worktrees/my-worktree");
     expect(result).toBe("my-worktree");
   });

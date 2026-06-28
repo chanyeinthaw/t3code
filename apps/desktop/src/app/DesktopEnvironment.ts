@@ -152,7 +152,7 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
       : input.platform === "darwin"
         ? path.join(homeDirectory, "Library", "Application Support")
         : Option.getOrElse(config.xdgConfigHome, () => path.join(homeDirectory, ".config"));
-  const baseDir = Option.getOrElse(config.t3Home, () => path.join(homeDirectory, ".t3"));
+  const baseDir = Option.getOrElse(config.pulseHome, () => path.join(homeDirectory, ".pulse"));
   const rootDir = path.resolve(input.dirname, "../../..");
   const appRoot = input.isPackaged ? input.appPath : rootDir;
   const branding = resolveDesktopAppBranding({
@@ -201,7 +201,7 @@ const makeDesktopEnvironment = Effect.fn("desktop.environment.make")(function* (
     otlpExportIntervalMs: config.otlpExportIntervalMs,
     branding,
     displayName,
-    appUserModelId: isDevelopment ? "com.t3tools.pulse.dev" : "com.t3tools.pulse",
+    appUserModelId: isDevelopment ? "com.pulsetools.pulse.dev" : "com.pulsetools.pulse",
     linuxDesktopEntryName: isDevelopment ? "pulse-dev.desktop" : "pulse.desktop",
     linuxWmClass: isDevelopment ? "pulse-dev" : "pulse",
     userDataDirName,
