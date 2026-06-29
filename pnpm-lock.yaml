@@ -104,7 +104,7 @@ importers:
         version: 7.0.0-dev.20260604.1
       vite-plus:
         specifier: 'catalog:'
-        version: 0.2.1(@opentelemetry/api@1.9.0)(@types/node@24.12.4)(@vitest/browser-playwright@4.1.9)(bufferutil@4.1.0)(esbuild@0.28.1)(jiti@2.7.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+        version: 0.2.1(@opentelemetry/api@1.9.0)(@types/node@24.12.4)(@vitest/browser-playwright@4.1.9(@voidzero-dev/vite-plus-core@0.2.1(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(yaml@2.9.0))(bufferutil@4.1.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(playwright@1.61.1)(utf-8-validate@6.0.6)(vitest@4.1.9))(bufferutil@4.1.0)(esbuild@0.28.1)(jiti@2.7.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
 
   apps/desktop:
     dependencies:
@@ -138,6 +138,9 @@ importers:
       electron:
         specifier: 41.5.0
         version: 41.5.0
+      electron-store:
+        specifier: ^8.2.0
+        version: 8.2.0
       electron-updater:
         specifier: ^6.6.2
         version: 6.8.3
@@ -165,7 +168,7 @@ importers:
         version: 4.3.0
       vite-plus:
         specifier: 'catalog:'
-        version: 0.2.1(@opentelemetry/api@1.9.0)(@types/node@24.12.4)(@vitest/browser-playwright@4.1.9(@voidzero-dev/vite-plus-core@0.2.1(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(yaml@2.9.0))(bufferutil@4.1.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(playwright@1.61.1)(utf-8-validate@6.0.6)(vitest@4.1.9))(bufferutil@4.1.0)(esbuild@0.28.1)(jiti@2.7.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+        version: 0.2.1(@opentelemetry/api@1.9.0)(@types/node@24.12.4)(@vitest/browser-playwright@4.1.9)(bufferutil@4.1.0)(esbuild@0.28.1)(jiti@2.7.0)(msw@2.12.11(@types/node@24.12.4)(typescript@6.0.3))(terser@5.48.0)(typescript@6.0.3)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
 
   apps/marketing:
     dependencies:
@@ -15438,7 +15441,6 @@ snapshots:
   ajv-formats@2.1.1(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
-    optional: true
 
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
@@ -15743,8 +15745,7 @@ snapshots:
 
   at-least-node@1.0.0: {}
 
-  atomically@1.7.0:
-    optional: true
+  atomically@1.7.0: {}
 
   auto-bind@5.0.1: {}
 
@@ -16230,7 +16231,6 @@ snapshots:
       onetime: 5.1.2
       pkg-up: 3.1.0
       semver: 7.8.5
-    optional: true
 
   connect@3.7.0:
     dependencies:
@@ -16339,7 +16339,6 @@ snapshots:
   debounce-fn@4.0.0:
     dependencies:
       mimic-fn: 3.1.0
-    optional: true
 
   debug@2.6.9:
     dependencies:
@@ -16475,7 +16474,6 @@ snapshots:
   dot-prop@6.0.1:
     dependencies:
       is-obj: 2.0.0
-    optional: true
 
   dotenv-expand@11.0.7:
     dependencies:
@@ -16577,7 +16575,6 @@ snapshots:
     dependencies:
       conf: 10.2.0
       type-fest: 2.19.0
-    optional: true
 
   electron-to-chromium@1.5.364: {}
 
@@ -17306,7 +17303,6 @@ snapshots:
   find-up@3.0.0:
     dependencies:
       locate-path: 3.0.0
-    optional: true
 
   flattie@1.1.1: {}
 
@@ -17878,8 +17874,7 @@ snapshots:
 
   is-number@7.0.0: {}
 
-  is-obj@2.0.0:
-    optional: true
+  is-obj@2.0.0: {}
 
   is-plain-obj@4.1.0: {}
 
@@ -17985,8 +17980,7 @@ snapshots:
 
   json-schema-traverse@1.0.0: {}
 
-  json-schema-typed@7.0.3:
-    optional: true
+  json-schema-typed@7.0.3: {}
 
   json-schema-typed@8.0.2: {}
 
@@ -18230,7 +18224,6 @@ snapshots:
     dependencies:
       p-locate: 3.0.0
       path-exists: 3.0.0
-    optional: true
 
   lodash.debounce@4.0.8: {}
 
@@ -18883,8 +18876,7 @@ snapshots:
 
   mimic-fn@2.1.0: {}
 
-  mimic-fn@3.1.0:
-    optional: true
+  mimic-fn@3.1.0: {}
 
   mimic-function@5.0.1: {}
 
@@ -19291,7 +19283,6 @@ snapshots:
   p-limit@2.3.0:
     dependencies:
       p-try: 2.2.0
-    optional: true
 
   p-limit@3.1.0:
     dependencies:
@@ -19304,7 +19295,6 @@ snapshots:
   p-locate@3.0.0:
     dependencies:
       p-limit: 2.3.0
-    optional: true
 
   p-queue@9.3.0:
     dependencies:
@@ -19318,8 +19308,7 @@ snapshots:
 
   p-timeout@7.0.1: {}
 
-  p-try@2.2.0:
-    optional: true
+  p-try@2.2.0: {}
 
   package-manager-detector@1.6.0: {}
 
@@ -19361,8 +19350,7 @@ snapshots:
 
   path-browserify@1.0.1: {}
 
-  path-exists@3.0.0:
-    optional: true
+  path-exists@3.0.0: {}
 
   path-expression-matcher@1.5.0: {}
 
@@ -19455,7 +19443,6 @@ snapshots:
   pkg-up@3.1.0:
     dependencies:
       find-up: 3.0.0
-    optional: true
 
   playwright-core@1.60.0: {}
 
@@ -20767,8 +20754,7 @@ snapshots:
 
   type-fest@0.7.1: {}
 
-  type-fest@2.19.0:
-    optional: true
+  type-fest@2.19.0: {}
 
   type-fest@5.7.0:
     dependencies:

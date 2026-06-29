@@ -28,7 +28,7 @@ Install the latest version of the desktop app from [GitHub Releases](https://git
 #### Windows (`winget`)
 
 ```bash
-winget install T3Tools.Pulse
+winget install Pulse.Pulse
 ```
 
 #### macOS (Homebrew)
