@@ -492,11 +492,13 @@ jobs:
           name: desktop-${{ matrix.platform }}-${{ matrix.arch }}
           path: release-publish/*
           if-no-files-found: error
+          compression-level: 0
 
   publish_cli:
     name: Publish CLI to npm
     needs: [preflight, build]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build.result == 'success' }}
+    if: false
+    # if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04 # blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     permissions:
@@ -515,7 +517,7 @@ jobs:
           cache: true
           run-install: |
             args:
-              - --filter=t3...
+              - --filter=@sats-lab/pulse...
               - --filter=@pulse/web...
               - --filter=@pulse/scripts...
 
@@ -526,26 +528,21 @@ jobs:
         run: vp run --filter @pulse/web build
 
       - name: Build CLI package
-        run: vp run --filter t3 build
+        run: node apps/server/scripts/cli.ts build --verbose
 
       - name: Publish CLI package
         run: node apps/server/scripts/cli.ts publish --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --app-version "${{ needs.preflight.outputs.version }}" --verbose
 
   release:
     name: Publish GitHub Release
-    needs: [preflight, build, publish_cli]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build.result == 'success' && needs.publish_cli.result == 'success' }}
+    needs: [preflight, build]
+    # if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build.result == 'success' && needs.publish_cli.result == 'success' }}
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build.result == 'success' }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - id: app_token
-        name: Mint release app token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -626,7 +623,6 @@ jobs:
             release-assets/*.blockmap
             release-assets/*.yml
           fail_on_unmatched_files: true
-          token: ${{ steps.app_token.outputs.token }}
 
       - name: Publish first release
         if: needs.preflight.outputs.previous_tag == ''
@@ -646,7 +642,6 @@ jobs:
             release-assets/*.blockmap
             release-assets/*.yml
           fail_on_unmatched_files: true
-          token: ${{ steps.app_token.outputs.token }}
 
   finalize:
     name: Finalize release
@@ -654,32 +649,15 @@ jobs:
     needs: [preflight, release]
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
+    permissions:
+      contents: write
     steps:
-      - id: app_token
-        name: Mint release app token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 0
-          token: ${{ steps.app_token.outputs.token }}
           persist-credentials: true
-
-      - id: app_bot
-        name: Resolve GitHub App bot identity
-        env:
-          GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          APP_SLUG: ${{ steps.app_token.outputs.app-slug }}
-        run: |
-          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
-          echo "name=${APP_SLUG}[bot]" >> "$GITHUB_OUTPUT"
-          echo "email=${user_id}+${APP_SLUG}[bot]@users.noreply.github.com" >> "$GITHUB_OUTPUT"
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
@@ -716,8 +694,8 @@ jobs:
             exit 0
           fi
 
-          git config user.name "${{ steps.app_bot.outputs.name }}"
-          git config user.email "${{ steps.app_bot.outputs.email }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add apps/server/package.json apps/desktop/package.json apps/web/package.json packages/contracts/package.json pnpm-lock.yaml
           git commit -m "chore(release): prepare $RELEASE_TAG"

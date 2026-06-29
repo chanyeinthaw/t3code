@@ -155,8 +155,8 @@ describe("serializeRelayClientTracingEnvironment", () => {
   });
 });
 
-describe("release workflow relay config propagation", () => {
-  it.effect("propagates relay tracing config through the release workflow", () =>
+describe("release workflow relay config isolation", () => {
+  it.effect("keeps relay deployment config out of the release workflow", () =>
     Effect.gen(function* () {
       const fileSystem = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -165,8 +165,8 @@ describe("release workflow relay config propagation", () => {
       );
       const workflow = yield* fileSystem.readFileString(workflowPath);
 
-      expect(workflow).toContain("relay_public_config");
-      expect(workflow).toContain("relay-client-tracing-config");
+      expect(workflow).not.toContain("relay_public_config");
+      expect(workflow).not.toContain("relay-client-tracing-config");
     }).pipe(Effect.provide(NodeServices.layer)),
   );
 });
