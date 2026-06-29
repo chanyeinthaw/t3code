@@ -286,7 +286,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
     });
 
     assert.deepStrictEqual(configuration, {
-      appId: "com.pulsetools.pulse",
+      appId: "com.pulse.pulse",
       teamId: "ABC1234567",
       rpDomains: ["example.clerk.accounts.dev"],
       provisioningProfilePath: "/tmp/pulse.provisionprofile",
@@ -306,7 +306,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       "clerk.example.com",
       "example.clerk.accounts.dev",
     ]);
-    assert.include(entitlements, "<string>ABC1234567.com.pulsetools.pulse</string>");
+    assert.include(entitlements, "<string>ABC1234567.com.pulse.pulse</string>");
     assert.include(entitlements, "<string>webcredentials:clerk.example.com</string>");
     assert.include(entitlements, "<string>webcredentials:example.clerk.accounts.dev</string>");
     assert.include(entitlements, "<key>com.apple.security.cs.allow-jit</key>");
@@ -401,7 +401,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       });
 
       const mac = config.mac as Record<string, unknown>;
-      assert.equal(config.appId, "com.pulsetools.pulse");
+      assert.equal(config.appId, "com.pulse.pulse");
       assert.equal(mac.entitlements, "/tmp/entitlements.mac.plist");
       assert.equal(mac.provisioningProfile, "/tmp/pulse.provisionprofile");
       assert.deepStrictEqual(mac.protocols, [{ name: "Pulse", schemes: ["pulse", "pulse-dev"] }]);

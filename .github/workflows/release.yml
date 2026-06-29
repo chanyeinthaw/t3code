@@ -842,9 +842,9 @@ jobs:
             exit 1
           fi
 
-          router_url="${PULSE_WEB_ROUTER_URL:-https://app.pulse.codes}"
-          latest_domain="${PULSE_WEB_LATEST_DOMAIN:-latest.app.pulse.codes}"
-          nightly_domain="${PULSE_WEB_NIGHTLY_DOMAIN:-nightly.app.pulse.codes}"
+          router_url="${PULSE_WEB_ROUTER_URL:-https://app.t3.codes}"
+          latest_domain="${PULSE_WEB_LATEST_DOMAIN:-latest.app.t3.codes}"
+          nightly_domain="${PULSE_WEB_NIGHTLY_DOMAIN:-nightly.app.t3.codes}"
           router_domain="${router_url#http://}"
           router_domain="${router_domain#https://}"
           router_domain="${router_domain%%/*}"
