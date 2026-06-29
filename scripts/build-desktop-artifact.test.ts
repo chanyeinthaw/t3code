@@ -83,7 +83,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
   });
 
   it("switches desktop packaging product names to nightly for nightly builds", () => {
-    assert.equal(resolveDesktopProductName("0.0.17"), "Pulse (Alpha)");
+    assert.equal(resolveDesktopProductName("0.0.17"), "Pulse");
     assert.equal(resolveDesktopProductName("0.0.17-nightly.20260413.42"), "Pulse (Nightly)");
   });
 
@@ -128,13 +128,13 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
 
       assert.deepStrictEqual(latestConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "sats-lab",
         repo: "pulse",
         releaseType: "release",
       });
       assert.deepStrictEqual(nightlyConfig, {
         provider: "github",
-        owner: "pingdotgg",
+        owner: "sats-lab",
         repo: "pulse",
         releaseType: "prerelease",
         channel: "nightly",
