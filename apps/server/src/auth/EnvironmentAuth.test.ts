@@ -193,7 +193,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       );
 
       expect(exchanged.access_token).not.toBe(token);
-      expect(exchanged.scope).toBe("orchestration:read");
+      expect(exchanged.scope).toBe("orchestration:read diagnostics:read filesystem:read");
       const dpop = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
         ["orchestration:read"],
@@ -203,7 +203,7 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       expect(dpop.access_token).not.toBe(token);
       expect(dpop.access_token).not.toBe(exchanged.access_token);
       expect(dpop.token_type).toBe("DPoP");
-      expect(dpop.scope).toBe("orchestration:read");
+      expect(dpop.scope).toBe("orchestration:read diagnostics:read filesystem:read");
 
       const secondBearer = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         token,
@@ -390,8 +390,8 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
         makeBearerRequest(token.access_token),
       );
 
-      expect(token.scope).toBe("orchestration:read");
-      expect(session.scopes).toEqual(["orchestration:read"]);
+      expect(token.scope).toBe("orchestration:read diagnostics:read filesystem:read");
+      expect(session.scopes).toEqual(["orchestration:read", "diagnostics:read", "filesystem:read"]);
       expect((yield* serverAuth.listPairingLinks()).map((link) => link.id)).not.toContain(
         pairingCredential.id,
       );
@@ -403,6 +403,82 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
         )
         .pipe(Effect.flip);
       expect(reused._tag).toBe("ServerAuthInvalidCredentialError");
+    }).pipe(Effect.provide(layerEnvironmentAuth())),
+  );
+
+  it.effect.each([
+    {
+      label: "legacy mobile scopes against a standard grant",
+      grantScopes: AuthStandardClientScopes,
+      requestedScopes: [
+        "orchestration:read",
+        "orchestration:operate",
+        "terminal:operate",
+        "review:write",
+        "relay:read",
+      ],
+      expectedScopes: AuthStandardClientScopes,
+    },
+    {
+      label: "legacy read access against a standard grant",
+      grantScopes: AuthStandardClientScopes,
+      requestedScopes: ["orchestration:read"],
+      expectedScopes: ["orchestration:read", "filesystem:read", "diagnostics:read"],
+    },
+    {
+      label: "legacy scopes against a restricted grant",
+      grantScopes: ["orchestration:read"],
+      requestedScopes: ["orchestration:read", "orchestration:operate", "terminal:operate"],
+      expectedScopes: ["orchestration:read"],
+    },
+    {
+      label: "a legacy parent against a granular-only grant",
+      grantScopes: ["filesystem:read"],
+      requestedScopes: ["orchestration:read"],
+      expectedScopes: ["filesystem:read"],
+    },
+    {
+      label: "explicit granular scopes alongside a legacy parent",
+      grantScopes: AuthStandardClientScopes,
+      requestedScopes: ["orchestration:read", "providers:manage"],
+      expectedScopes: ["orchestration:read", "providers:manage"],
+    },
+    {
+      label: "an explicit filesystem permission",
+      grantScopes: AuthStandardClientScopes,
+      requestedScopes: ["filesystem:read"],
+      expectedScopes: ["filesystem:read"],
+    },
+    {
+      label: "an omitted scope",
+      grantScopes: AuthStandardClientScopes,
+      requestedScopes: undefined,
+      expectedScopes: AuthStandardClientScopes,
+    },
+  ] as const)("exchanges $label for HTTP and WebSocket access", (testCase) =>
+    Effect.gen(function* () {
+      const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
+      const sessions = yield* SessionStore.SessionStore;
+      for (const proofKeyThumbprint of [undefined, "mobile-proof-key"]) {
+        const pairing = yield* serverAuth.issuePairingCredential({
+          scopes: testCase.grantScopes,
+          ...(proofKeyThumbprint ? { proofKeyThumbprint } : {}),
+        });
+        const token = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
+          pairing.credential,
+          testCase.requestedScopes,
+          { deviceType: "mobile", os: "iOS" },
+          proofKeyThumbprint ? { proofKeyThumbprint } : undefined,
+        );
+        const session = yield* sessions.verify(token.access_token);
+        const ticket = yield* serverAuth.issueWebSocketTicket(session);
+        const websocketSession = yield* sessions.verifyWebSocketToken(ticket.ticket);
+
+        expect(token.token_type).toBe(proofKeyThumbprint ? "DPoP" : "Bearer");
+        expect(new Set(token.scope.split(" "))).toEqual(new Set(testCase.expectedScopes));
+        expect(new Set(session.scopes)).toEqual(new Set(testCase.expectedScopes));
+        expect(new Set(websocketSession.scopes)).toEqual(new Set(testCase.expectedScopes));
+      }
     }).pipe(Effect.provide(layerEnvironmentAuth())),
   );
 
@@ -434,15 +510,15 @@ it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;
       const token = yield* serverAuth.exchangeBootstrapCredentialForAccessToken(
         "desktop-bootstrap-token",
-        ["orchestration:read"],
+        ["orchestration:read", "filesystem:read"],
         requestMetadata,
       );
       const session = yield* serverAuth.authenticateHttpRequest(
         makeBearerRequest(token.access_token),
       );
 
-      expect(token.scope).toBe("orchestration:read");
-      expect(session.scopes).toEqual(["orchestration:read"]);
+      expect(token.scope).toBe("orchestration:read filesystem:read");
+      expect(session.scopes).toEqual(["orchestration:read", "filesystem:read"]);
     }).pipe(
       Effect.provide(layerEnvironmentAuth({ desktopBootstrapToken: "desktop-bootstrap-token" })),
     ),

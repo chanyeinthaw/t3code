@@ -149,8 +149,8 @@ const authScopeResponseFields = {
   permissions: Schema.optionalKey(ForwardCompatibleArray(AuthEnvironmentScope)),
 };
 
-// Only clients talking to an old server use these parent checks. Servers never
-// expand stored grants, and an explicitly empty permissions array grants nothing.
+// Client checks against old servers use these parent permissions. An explicitly
+// empty permissions array grants nothing.
 const legacyParents: Partial<Record<AuthEnvironmentScope, AuthEnvironmentScope>> = {
   [AuthFilesystemReadScope]: AuthOrchestrationReadScope,
   [AuthDiagnosticsReadScope]: AuthOrchestrationReadScope,
@@ -162,6 +162,16 @@ const legacyParents: Partial<Record<AuthEnvironmentScope, AuthEnvironmentScope>>
   [AuthFilesystemWriteScope]: AuthOrchestrationOperateScope,
   [AuthTerminalReadScope]: AuthTerminalOperateScope,
 };
+
+/** Translate old-only token requests before intersecting them with the bootstrap grant. */
+export function expandLegacyTokenRequestScopes(scopes: ReadonlyArray<AuthEnvironmentScope>) {
+  if (!scopes.every((scope) => legacyScopes.has(scope))) return scopes;
+  const impliedScopes = AuthEnvironmentScope.literals.filter((scope) => {
+    const parent = legacyParents[scope];
+    return parent !== undefined && scopes.includes(parent);
+  });
+  return [...new Set([...scopes, ...impliedScopes])];
+}
 
 /** Keep permission denials decodable by clients with the original scope enum. */
 export function authScopeRequiredResponse(requiredPermission: AuthEnvironmentScope) {

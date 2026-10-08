@@ -17,6 +17,7 @@ import {
   type AuthSessionId,
   type AuthSessionState,
   authScopeResponse,
+  expandLegacyTokenRequestScopes,
   type ServerAuthDescriptor,
   type ServerAuthSessionMethod,
   type AuthWebSocketTicketResult,
@@ -892,16 +893,22 @@ export const make = Effect.gen(function* () {
 
   const exchangeBootstrapCredentialForAccessToken: EnvironmentAuth["Service"]["exchangeBootstrapCredentialForAccessToken"] =
     (credential, requestedScopes, requestMetadata, input) => {
+      const effectiveRequestedScopes =
+        requestedScopes === undefined ? undefined : expandLegacyTokenRequestScopes(requestedScopes);
       return resolveBootstrapGrant(credential, {
         ...input,
-        ...(requestedScopes !== undefined ? { requestedScopes } : {}),
+        ...(effectiveRequestedScopes !== undefined
+          ? { requestedScopes: effectiveRequestedScopes }
+          : {}),
       }).pipe(
         Effect.flatMap((grant) =>
           Effect.gen(function* () {
             const grantedScopes =
-              requestedScopes === undefined
+              effectiveRequestedScopes === undefined
                 ? grant.scopes
-                : [...new Set(requestedScopes)].filter((scope) => grant.scopes.includes(scope));
+                : [...new Set(effectiveRequestedScopes)].filter((scope) =>
+                    grant.scopes.includes(scope),
+                  );
             if (grantedScopes.length === 0) {
               return yield* new ServerAuthScopeNotGrantedError({});
             }
