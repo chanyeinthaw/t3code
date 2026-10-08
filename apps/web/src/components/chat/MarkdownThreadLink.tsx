@@ -33,7 +33,8 @@ export function MarkdownThreadLink(props: {
     <Link
       to="/$environmentId/$threadId"
       params={{ environmentId: props.environmentId, threadId }}
-      title={project?.title}
+      // Like an attached thread chip: archived threads are not in the index but still open.
+      title={thread === null ? "Thread no longer available" : project?.title}
       data-markdown-copy={formatThreadLink(threadId, title)}
     >
       <span
