@@ -273,7 +273,8 @@ const rootIsVisible = (sql: SqlClient.SqlClient) => sql`
  * Copies the source into the empty snapshot, without the rows of thread families whose root is
  * hidden. The prune drops those anyway, and they hold nearly all of a long-lived database's
  * events, so copying them is what used to make this take a full-size copy of the real db.
- * One transaction reads the source, so the copy is consistent while the real server writes.
+ * A source from before the V2 thread tables has no visibility to filter on, so it is copied
+ * whole. One transaction reads the source, so the copy is consistent while the real server writes.
  */
 const copySourceSlice = Effect.fn("copyDevDbSourceSlice")(function* (sourcePath: string) {
   const sql = yield* SqlClient.SqlClient;
@@ -286,21 +287,25 @@ const copySourceSlice = Effect.fn("copyDevDbSourceSlice")(function* (sourcePath:
     WHERE m.type = 'table' AND c.name = 'thread_id'`;
   const threadIdNullable = new Map(threadColumns.map((row) => [row.name, row.notnull === 0]));
   const tables = schema.filter((entry) => entry.type === "table");
+  const filtered = tables.some((table) => table.name === "orchestration_v2_projection_threads");
 
   yield* sql.withTransaction(
     Effect.gen(function* () {
       for (const table of tables) yield* sql.unsafe(table.sql).unprepared;
-      yield* sql`CREATE TEMP TABLE copied_threads (thread_id TEXT PRIMARY KEY)`;
-      yield* sql`INSERT OR IGNORE INTO copied_threads
-        SELECT family.thread_id FROM src.orchestration_v2_projection_threads family
-        JOIN src.orchestration_v2_projection_threads root ON root.thread_id =
-          COALESCE(json_extract(family.payload_json, '$.lineage.rootThreadId'), family.thread_id)
-        WHERE ${rootIsVisible(sql)}`;
+      if (filtered) {
+        yield* sql`CREATE TEMP TABLE copied_threads (thread_id TEXT PRIMARY KEY)`;
+        yield* sql`INSERT OR IGNORE INTO copied_threads
+          SELECT family.thread_id FROM src.orchestration_v2_projection_threads family
+          JOIN src.orchestration_v2_projection_threads root ON root.thread_id =
+            COALESCE(json_extract(family.payload_json, '$.lineage.rootThreadId'), family.thread_id)
+          WHERE ${rootIsVisible(sql)}`;
+      }
       for (const { name } of tables) {
         if (CLEARED_TABLES.includes(name)) continue;
         const nullable = threadIdNullable.get(name);
-        const filter =
-          name === "orchestration_events"
+        const filter = !filtered
+          ? ""
+          : name === "orchestration_events"
             ? // Two ranges rather than `<>`, so SQLite seeks the (aggregate_kind, stream_id)
               // index instead of scanning every event.
               `WHERE (aggregate_kind = 'thread' AND stream_id IN (SELECT thread_id FROM copied_threads))
