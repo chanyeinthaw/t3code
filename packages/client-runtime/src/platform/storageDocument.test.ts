@@ -16,6 +16,7 @@ import {
 import {
   BearerConnectionTarget,
   ConnectionTransientError,
+  HubConnectionTarget,
   PrimaryConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
@@ -73,6 +74,51 @@ const REMOTE_TOKEN = new TokenStore.RemoteDpopAccessToken({
 });
 
 describe("ConnectionCatalogDocument", () => {
+  it.effect("keeps hub GitHub sharing bound to environments across restarts", () =>
+    Effect.gen(function* () {
+      let document = EMPTY_CONNECTION_CATALOG_DOCUMENT;
+      const entry = {
+        target: new HubConnectionTarget({
+          environmentId: ENVIRONMENT_ID,
+          label: "Hub environment",
+          httpBaseUrl: "https://hub.example.test/environments/environment-1",
+          wsBaseUrl: "wss://hub.example.test/environments/environment-1",
+        }),
+        profile: Option.none(),
+        enabled: true,
+      };
+      const storage = {
+        read: Effect.sync(() => document.githubRoutingPermissions ?? []),
+        write: (githubRoutingPermissions: NonNullable<typeof document.githubRoutingPermissions>) =>
+          Effect.sync(() => {
+            document = { ...document, githubRoutingPermissions };
+          }),
+      };
+      const permissions = yield* makeGitHubRoutingPermissions(storage);
+      expect(yield* permissions.get(entry)).toBe("off");
+      yield* permissions.set(entry, "read-write");
+      const restarted = yield* makeGitHubRoutingPermissions(storage);
+      expect(yield* restarted.get(entry)).toBe("read-write");
+      for (const change of [
+        { environmentId: EnvironmentId.make("environment-2") },
+        { httpBaseUrl: "https://other-hub.example.test/environments/environment-1" },
+        { wsBaseUrl: "wss://other-hub.example.test/environments/environment-1" },
+      ]) {
+        expect(
+          yield* restarted.get({
+            ...entry,
+            target: new HubConnectionTarget({ ...entry.target, ...change }),
+          }),
+        ).toBe("off");
+      }
+      yield* restarted.set(entry, "read");
+      expect(yield* restarted.get(entry)).toBe("read");
+      yield* restarted.set(entry, "off");
+      expect(yield* restarted.get(entry)).toBe("off");
+      expect(document.githubRoutingPermissions).toEqual([]);
+    }),
+  );
+
   it.effect("persists explicit GitHub trust and forgets it when a connection is removed", () =>
     Effect.gen(function* () {
       let document = EMPTY_CONNECTION_CATALOG_DOCUMENT;

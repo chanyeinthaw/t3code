@@ -28,6 +28,8 @@ export type ServiceUpdateRecord = PendingServiceUpdate | ServerSelfUpdateOutcome
 export interface ServiceState {
   readonly protocol: typeof SERVICE_LAUNCHER_PROTOCOL;
   readonly activeVersion: string;
+  /** Runtime command and arguments retained across service restarts and updates. */
+  readonly runtimeArgs?: ReadonlyArray<string>;
   readonly update?: ServiceUpdateRecord;
 }
 
@@ -154,6 +156,10 @@ export function decodeServiceState(value: unknown): ServiceState | undefined {
     value.protocol !== SERVICE_LAUNCHER_PROTOCOL ||
     typeof value.activeVersion !== "string" ||
     !isExactServiceVersion(value.activeVersion) ||
+    (value.runtimeArgs !== undefined &&
+      (!Array.isArray(value.runtimeArgs) ||
+        value.runtimeArgs.length === 0 ||
+        !value.runtimeArgs.every((argument) => typeof argument === "string"))) ||
     (value.update !== undefined && update === undefined) ||
     (update !== undefined &&
       compareExactServiceVersions(update.targetVersion, update.fromVersion) <= 0) ||
@@ -167,6 +173,7 @@ export function decodeServiceState(value: unknown): ServiceState | undefined {
   return {
     protocol: SERVICE_LAUNCHER_PROTOCOL,
     activeVersion: value.activeVersion,
+    ...(value.runtimeArgs === undefined ? {} : { runtimeArgs: value.runtimeArgs }),
     ...(update === undefined ? {} : { update }),
   };
 }

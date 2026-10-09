@@ -38,7 +38,7 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
 import * as ServerConfig from "../config.ts";
-import { resolveBaseDir } from "../os-jank.ts";
+import { resolvePulseBaseDir } from "../pulse/paths.ts";
 import {
   type PersistedServerRuntimeState,
   isProcessAlive,
@@ -241,7 +241,7 @@ const discoverPairTarget = Effect.fn("pair.discoverPairTarget")(function* (
 ) {
   const bases: Array<string> = [];
   if (explicitBaseDir !== undefined && explicitBaseDir.trim().length > 0) {
-    bases.push(yield* resolveBaseDir(explicitBaseDir));
+    bases.push(yield* resolvePulseBaseDir(explicitBaseDir));
   } else {
     // Same precedence as dev-runner: inside a linked worktree its own `.t3`
     // outranks the shared home, so `t3 pair` in a worktree pairs with the dev
@@ -250,8 +250,8 @@ const discoverPairTarget = Effect.fn("pair.discoverPairTarget")(function* (
     if (worktreeHome !== undefined) {
       bases.push(worktreeHome);
     }
-    const envHome = yield* Config.String("T3CODE_HOME").pipe(Config.option);
-    bases.push(yield* resolveBaseDir(Option.getOrUndefined(envHome)));
+    const envHome = yield* Config.String("PULSE_HOME").pipe(Config.option);
+    bases.push(yield* resolvePulseBaseDir(Option.getOrUndefined(envHome)));
   }
 
   const checkedStatePaths: Array<string> = [];

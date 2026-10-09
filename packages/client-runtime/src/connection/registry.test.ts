@@ -30,6 +30,7 @@ import {
   type ConnectionCatalogEntry,
   type ConnectionRegistration,
   type ConnectionRoute,
+  HubConnectionRegistration,
   PrimaryConnectionRegistration,
   RelayConnectionRegistration,
   SshConnectionProfile,
@@ -46,6 +47,7 @@ import {
   ConnectionTransientError,
   ConnectionBlockedError,
   BearerConnectionTarget,
+  HubConnectionTarget,
   PrimaryConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
@@ -1640,6 +1642,50 @@ describe("EnvironmentRegistry", () => {
         const error = yield* Fiber.join(stateLookup);
         expect(error._tag).toBe("EnvironmentNotRegisteredError");
       }).pipe(Effect.provide(harness.layer), Effect.scoped);
+    }),
+  );
+
+  it.effect("hub discovery keeps a switched-off environment disconnected until switched on", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeHarness([]);
+      yield* Effect.gen(function* () {
+        const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
+        const target = new HubConnectionTarget({
+          environmentId: TARGET.environmentId,
+          label: TARGET.label,
+          httpBaseUrl: TARGET.httpBaseUrl,
+          wsBaseUrl: TARGET.wsBaseUrl,
+        });
+        const registration = new HubConnectionRegistration({ target });
+        yield* registry.reconcilePlatform([registration]);
+        yield* awaitConnectionState(
+          registry,
+          target.environmentId,
+          (state) => state.phase === "connected",
+        );
+        yield* registry.setEnabled(target.environmentId, false);
+        yield* awaitConnectionState(
+          registry,
+          target.environmentId,
+          (state) => state.phase === "available",
+        );
+        yield* registry.reconcilePlatform([registration]);
+        expect(
+          (yield* SubscriptionRef.get(registry.entries)).get(target.environmentId)?.enabled,
+        ).toBe(false);
+        expect(yield* Ref.get(harness.sessions)).toHaveLength(1);
+        yield* registry.setEnabled(target.environmentId, true);
+        yield* awaitConnectionState(
+          registry,
+          target.environmentId,
+          (state) => state.phase === "connected",
+        );
+        yield* registry.reconcilePlatform([registration]);
+        expect(
+          (yield* SubscriptionRef.get(registry.entries)).get(target.environmentId)?.enabled,
+        ).toBe(true);
+        expect(yield* Ref.get(harness.sessions)).toHaveLength(2);
+      }).pipe(Effect.provide(harness.layer));
     }),
   );
 

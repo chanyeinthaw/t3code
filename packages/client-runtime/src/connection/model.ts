@@ -15,6 +15,16 @@ export class PrimaryConnectionTarget extends Schema.TaggedClass<PrimaryConnectio
   },
 ) {}
 
+/** A daemon discovered through the connected hub; it has no direct client route. */
+export class HubConnectionTarget extends Schema.TaggedClass<HubConnectionTarget>()(
+  "HubConnectionTarget",
+  {
+    ...ConnectionTargetBase,
+    httpBaseUrl: Schema.String,
+    wsBaseUrl: Schema.String,
+  },
+) {}
+
 export class BearerConnectionTarget extends Schema.TaggedClass<BearerConnectionTarget>()(
   "BearerConnectionTarget",
   {
@@ -39,6 +49,7 @@ export class SshConnectionTarget extends Schema.TaggedClass<SshConnectionTarget>
 ) {}
 
 export const ConnectionTarget = Schema.Union([
+  HubConnectionTarget,
   PrimaryConnectionTarget,
   BearerConnectionTarget,
   RelayConnectionTarget,

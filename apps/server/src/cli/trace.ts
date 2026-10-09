@@ -17,7 +17,7 @@ import { Command, Flag } from "effect/cli";
 
 import * as ServerConfig from "../config.ts";
 import { streamTraceFileLines, toRotatedTracePaths } from "../diagnostics/TraceDiagnostics.ts";
-import { resolveBaseDir } from "../os-jank.ts";
+import { resolvePulseBaseDir } from "../pulse/paths.ts";
 import { baseDirFlag, DurationFromString, traceFileConfig, traceMaxFilesConfig } from "./config.ts";
 
 // Only the fields the summary needs. Other record fields are ignored.
@@ -183,9 +183,9 @@ const traceSummaryCommand = Command.make("summary", {
     Effect.fn("cli.trace.summary")(function* (flags) {
       const fs = yield* FileSystem.FileSystem;
       // T3CODE_TRACE_FILE, else the userdata trace file for --base-dir or
-      // T3CODE_HOME. Implicit dev runs write elsewhere; set T3CODE_TRACE_FILE.
-      const envHome = yield* Config.String("T3CODE_HOME").pipe(Config.option);
-      const baseDir = yield* resolveBaseDir(
+      // PULSE_HOME. Implicit dev runs write elsewhere; set T3CODE_TRACE_FILE.
+      const envHome = yield* Config.String("PULSE_HOME").pipe(Config.option);
+      const baseDir = yield* resolvePulseBaseDir(
         Option.getOrUndefined(Option.orElse(flags.baseDir, () => envHome)),
       );
       const traceFilePath =

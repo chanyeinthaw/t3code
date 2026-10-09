@@ -1,3 +1,9 @@
+import {
+  loadHubBootstrap,
+  readHubCatalog,
+  loadHubSession,
+  HUB_SESSION_CHANGED_EVENT,
+} from "../hub";
 import { PermissionUpdateNotice } from "../components/PermissionUpdateNotice";
 import { type ServerLifecycleWelcomePayload } from "@t3tools/contracts";
 import { scopedProjectKey, scopeProjectRef } from "@t3tools/client-runtime/environment";
@@ -86,6 +92,22 @@ import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
+    const hub = await loadHubBootstrap();
+    if (hub) {
+      const session = await loadHubSession().catch(() => ({ authenticated: true }));
+      if (session.authenticated && location.pathname === "/pair")
+        throw redirect({ to: "/", replace: true });
+      if (!session.authenticated && location.pathname !== "/pair")
+        throw redirect({ to: "/pair", replace: true });
+      if (location.pathname === "/hub") throw redirect({ to: "/", replace: true });
+      return {
+        authGateState: {
+          status: hub.environments.some((environment) => environment.connected)
+            ? "authenticated"
+            : "hosted-static",
+        } as const,
+      };
+    }
     if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -139,6 +161,21 @@ function RootRouteNotFoundView() {
 }
 
 function RootRouteView() {
+  const router = useRouter();
+  useEffect(() => {
+    const invalidate = () => {
+      void router.invalidate();
+    };
+    const recheck = () => {
+      if (readHubCatalog()) void loadHubSession().catch(() => undefined);
+    };
+    window.addEventListener(HUB_SESSION_CHANGED_EVENT, invalidate);
+    window.addEventListener("focus", recheck);
+    return () => {
+      window.removeEventListener(HUB_SESSION_CHANGED_EVENT, invalidate);
+      window.removeEventListener("focus", recheck);
+    };
+  }, [router]);
   useEffect(() => installDesktopPasteAsText(window.desktopBridge, window), []);
   const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
@@ -224,8 +261,8 @@ function RootRouteView() {
         <ProviderAuthCallbackCoordinator />
         <ChatGptWelcomeCoordinator />
         <FirstRunGate
-          enabled={primaryEnvironmentAuthenticated}
-          hostedStatic={authGateState.status === "hosted-static"}
+          enabled={primaryEnvironmentAuthenticated && readHubCatalog() === null}
+          hostedStatic={authGateState.status === "hosted-static" && readHubCatalog() === null}
         >
           {primaryEnvironmentAuthenticated ? <AuthenticatedTracingBootstrap /> : null}
           {primaryEnvironmentAuthenticated ? <DesktopAppActivationCoordinator /> : null}

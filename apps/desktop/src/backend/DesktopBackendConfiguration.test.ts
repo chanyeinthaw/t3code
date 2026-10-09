@@ -83,7 +83,7 @@ function layerEnvironment(
       Layer.mergeAll(
         NodeServices.layer,
         DesktopConfig.layerTest({
-          T3CODE_HOME: baseDir,
+          PULSE_HOME: baseDir,
           T3CODE_PORT: "9999",
           T3CODE_MODE: "desktop",
           T3CODE_DESKTOP_LAN_HOST: "192.168.1.50",
@@ -476,6 +476,7 @@ describe("DesktopBackendConfiguration", () => {
             "env",
             `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${resolvedPath}`,
             `${linuxAppRoot}/t3`,
+            "serve",
             "--bootstrap-fd",
             "0",
           ]);
@@ -727,6 +728,7 @@ describe("DesktopBackendConfiguration", () => {
           "PATH=/home/test user's/.nvm/versions/node/v22.0.0/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/test user/bin:/opt/test's tools/bin:/usr/bin:/bin",
           nodePath,
           linuxEntryPath,
+          "serve",
           "--bootstrap-fd",
           "0",
           "--dev-url",

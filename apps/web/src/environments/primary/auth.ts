@@ -1,3 +1,4 @@
+import { readHubCatalog, pairWithHub } from "../../hub";
 import type {
   AuthBrowserSessionResult,
   AuthClientMetadata,
@@ -344,6 +345,11 @@ export async function submitServerAuthCredential(credential: string): Promise<vo
     });
   }
 
+  if (readHubCatalog() !== null) {
+    await pairWithHub(trimmedCredential);
+    window.location.assign("/");
+    return;
+  }
   resolvedAuthenticatedGateState = null;
   await exchangeBootstrapCredential(trimmedCredential);
   await waitForAuthenticatedSessionAfterBootstrap();

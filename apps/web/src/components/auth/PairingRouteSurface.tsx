@@ -1,3 +1,4 @@
+import { readHubCatalog } from "../../hub";
 import { Alert, AlertDescription } from "../ui/alert";
 import type { AuthSessionState } from "@t3tools/contracts";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
@@ -90,8 +91,8 @@ export function PairingRouteSurface({
     <StandalonePage tone="pairing">
       <StandalonePageHeader
         eyebrow={APP_DISPLAY_NAME}
-        title="Pair with this environment"
-        description={describeAuthGate(auth.bootstrapMethods)}
+        title={readHubCatalog() ? "Pair with this hub" : "Pair with this environment"}
+        description={readHubCatalog() ? undefined : describeAuthGate(auth.bootstrapMethods)}
       />
 
       <form className="mt-6 space-y-4" onSubmit={(event) => void handleSubmit(event)}>

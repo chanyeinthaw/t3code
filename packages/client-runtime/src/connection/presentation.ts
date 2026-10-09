@@ -136,6 +136,7 @@ function mcpUrlFromBase(httpBaseUrl: string): string | null {
 
 export function connectionCatalogDisplayUrl(entry: ConnectionCatalogEntry): string | null {
   switch (entry.target._tag) {
+    case "HubConnectionTarget":
     case "PrimaryConnectionTarget":
       return entry.target.httpBaseUrl;
     case "RelayConnectionTarget":

@@ -198,6 +198,8 @@ export default defineConfig({
         // These clients are session metadata, device streams, and an Expo update adapter.
         files: [
           "apps/web/src/components/settings/ConnectionsSettings.tsx",
+          "apps/web/src/components/settings/HubAccessSettings.tsx",
+          "apps/web/src/components/settings/PairingAccessList.tsx",
           "apps/mobile/src/features/updates/app-updates.ts",
           "apps/web/src/components/device/DevicePhoneViewport.tsx",
           "apps/web/src/components/device/DeviceDuoViewport.tsx",

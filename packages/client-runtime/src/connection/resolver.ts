@@ -1,3 +1,4 @@
+import { environmentEndpointUrl } from "../environment/endpoint.ts";
 import type {
   AuthClientPresentationMetadata,
   ExecutionEnvironmentDescriptor,
@@ -267,6 +268,7 @@ export const make = Effect.gen(function* () {
   const relay = yield* makeRelayBroker();
   const ssh = yield* makeSshBroker();
   const httpClient = yield* HttpClient.HttpClient;
+  const presentation = yield* ClientCapabilities.ClientPresentation;
 
   const authorize = Effect.fn("clientRuntime.connection.broker.authorize")(function* (
     entry: ConnectionCatalogEntry,
@@ -278,6 +280,18 @@ export const make = Effect.gen(function* () {
     });
     const prepared = yield* (() => {
       switch (target._tag) {
+        case "HubConnectionTarget": {
+          const socket = new URL(environmentEndpointUrl(target.wsBaseUrl, "/ws"));
+          appendClientConnectionParams(socket, presentation.metadata, "direct");
+          return Effect.succeed({
+            environmentId: target.environmentId,
+            label: target.label,
+            httpBaseUrl: target.httpBaseUrl,
+            socketUrl: socket.toString(),
+            httpAuthorization: null,
+            target,
+          } satisfies PreparedConnection);
+        }
         case "PrimaryConnectionTarget":
           return primary(target);
         case "BearerConnectionTarget":

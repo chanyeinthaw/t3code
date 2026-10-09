@@ -47,7 +47,7 @@ it("treats stable installs as direct invocations", () => {
   ]) {
     assert.equal(
       formatCliCommand({ subcommand: "serve", entryPath, version: "0.0.31" }),
-      "t3 serve",
+      "pulse serve",
     );
   }
 });
@@ -93,12 +93,12 @@ it("formats serve suggestions to match the launching command", () => {
       entryPath: "/usr/local/lib/node_modules/t3/dist/bin.mjs",
       version: "0.0.31-nightly.20260729",
     }),
-    "t3 serve",
+    "pulse serve",
   );
 });
 
 it.layer(NodeServices.layer)("root CLI commands", (it) => {
-  /** `sudo t3 browser setup` as this process would render it, with `t3` on PATH or not. */
+  /** `sudo pulse browser setup` as this process would render it, with `pulse` on PATH or not. */
   const rootCommand = (input: {
     readonly node: string;
     readonly entry: string;
@@ -114,12 +114,12 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
       Effect.provideService(HostProcess.Environment, { PATH: input.path ?? "", ...input.env }),
     );
 
-  /** A directory holding an executable `t3`, to stand in for one on PATH. */
-  const pathWithT3 = Effect.gen(function* () {
+  /** A directory holding an executable `pulse`, to stand in for one on PATH. */
+  const pathWithPulse = Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
     const bin = yield* fs.makeTempDirectoryScoped();
-    yield* fs.writeFileString(path.join(bin, "t3"), "#!/bin/sh\n", { mode: 0o755 });
+    yield* fs.writeFileString(path.join(bin, "pulse"), "#!/bin/sh\n", { mode: 0o755 });
     return bin;
   });
 
@@ -138,13 +138,13 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
         yield* rootCommand({
           node: "/home/theo/.local/node/bin/node",
           entry: "/home/theo/.local/lib/node_modules/t3/dist/bin.mjs",
-          path: yield* pathWithT3,
+          path: yield* pathWithPulse,
         }),
-      ).toBe('sudo env "PATH=$PATH" t3 browser setup');
+      ).toBe('sudo env "PATH=$PATH" pulse browser setup');
     }).pipe(Effect.scoped),
   );
 
-  it.effect("names this install's launcher when t3 is not on PATH", () =>
+  it.effect("names this install's launcher when pulse is not on PATH", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
@@ -159,22 +159,22 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
       };
       // The desktop app's shim, quoted for the shell and run as root as is.
       expect(yield* rootCommand(desktop)).toBe(`sudo '${shim}' browser setup`);
-      // A `t3` the person put on PATH still wins.
-      expect(yield* rootCommand({ ...desktop, path: yield* pathWithT3 })).toBe(
-        'sudo env "PATH=$PATH" t3 browser setup',
+      // A `pulse` the person put on PATH still wins.
+      expect(yield* rootCommand({ ...desktop, path: yield* pathWithPulse })).toBe(
+        'sudo env "PATH=$PATH" pulse browser setup',
       );
       // A standalone binary names itself.
       expect(
         yield* rootCommand({
-          node: "/opt/t3/t3",
-          entry: "/opt/t3/t3",
+          node: "/opt/pulse/pulse",
+          entry: "/opt/pulse/pulse",
           executable: true,
         }),
-      ).toBe("sudo /opt/t3/t3 browser setup");
-      // A stale shim path, then no launcher at all, fall back to plain `t3`.
+      ).toBe("sudo /opt/pulse/pulse browser setup");
+      // A stale shim path, then no launcher at all, fall back to plain `pulse`.
       expect(
         yield* rootCommand({ ...desktop, env: { T3CODE_CLI_PATH: path.join(home, "gone") } }),
-      ).toBe('sudo env "PATH=$PATH" t3 browser setup');
+      ).toBe('sudo env "PATH=$PATH" pulse browser setup');
     }).pipe(Effect.scoped),
   );
 });
@@ -212,13 +212,13 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       const prefix = path.join(root, "bunx-tools");
       const packageRoot = path.join(prefix, "lib/node_modules/t3");
       const entry = path.join(packageRoot, "dist/bin.mjs");
-      const globalBin = path.join(prefix, "bin/t3");
+      const globalBin = path.join(prefix, "bin/pulse");
       yield* fs.makeDirectory(path.dirname(entry), { recursive: true });
       yield* fs.makeDirectory(path.dirname(globalBin), { recursive: true });
       yield* fs.writeFileString(entry, "");
       yield* fs.writeFileString(
         path.join(packageRoot, "package.json"),
-        '{"name":"t3","version":"0.0.45","bin":{"t3":"./dist/bin.mjs"}}',
+        '{"name":"t3","version":"0.0.45","bin":{"pulse":"./dist/bin.mjs"}}',
       );
       const resolve = resolveServerInstallation.pipe(
         Effect.provideService(HostProcess.Arguments, ["node", entry]),
@@ -251,9 +251,9 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       yield* fs.writeFileString(entry, "");
       yield* fs.writeFileString(
         path.join(packageRoot, "package.json"),
-        '{"name":"t3","version":"0.0.45","bin":{"t3":"./bin/t3.js"},"optionalDependencies":{"@t3code/t3-linux-x64":"0.0.45"}}',
+        '{"name":"t3","version":"0.0.45","bin":{"pulse":"./bin/t3.js"},"optionalDependencies":{"@t3code/t3-linux-x64":"0.0.45"}}',
       );
-      yield* fs.symlink(launcher, path.join(prefix, "bin/t3"));
+      yield* fs.symlink(launcher, path.join(prefix, "bin/pulse"));
       const resolve = resolveServerInstallation.pipe(
         Effect.provideService(HostProcess.ExecutablePath, entry),
         Effect.provideService(HostProcess.IsExecutable, true),

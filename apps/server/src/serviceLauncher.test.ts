@@ -199,8 +199,11 @@ it.layer(NodeServices.layer)("service state persistence", (it) => {
       yield* fs.makeDirectory(path.dirname(databasePath), { recursive: true });
       yield* fs.writeFileString(databasePath, "before trial");
       const encodedDatabasePath = JSON.stringify(databasePath);
+      const runtimeArgs = ["serve", "--no-daemon", "--port", "4780"];
+      const argvLog = path.join(root, "runtime-args.log");
       const childSource = `
 const context = JSON.parse(process.env.T3_SERVICE_LAUNCHER_CONTEXT);
+require("node:fs").appendFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)) + "\\n");
 if (context.update?.status === "pending") {
   process.send({ type: "prepared", updateId: context.update.id });
   process.on("message", (message) => {
@@ -225,6 +228,7 @@ if (context.update?.status === "pending") {
         writeServiceState(statePath, {
           protocol: SERVICE_LAUNCHER_PROTOCOL,
           activeVersion: "1.0.0",
+          runtimeArgs,
         }),
       );
 
@@ -239,6 +243,14 @@ if (context.update?.status === "pending") {
       const state = yield* Effect.promise(() => readServiceState(statePath));
       assert.equal(state.activeVersion, "1.1.0");
       assert.equal(state.update?.status, "committed");
+      assert.deepEqual(state.runtimeArgs, runtimeArgs);
+      assert.deepEqual(
+        (yield* fs.readFileString(argvLog))
+          .trim()
+          .split("\n")
+          .map((line) => JSON.parse(line)),
+        [runtimeArgs, runtimeArgs],
+      );
     }),
   );
 

@@ -3,6 +3,51 @@
 Connect a phone, browser, or another desktop app to T3 Code running on a different
 machine. That machine must stay running and reachable while you work.
 
+## Connect through a hub
+
+Run `pulse serve` to serve the app and a local hub with this machine connected.
+Electron starts this setup automatically. Open the served URL to use the app.
+
+Use `pulse serve --no-environment` to host the app and hub without running agents on the
+host. A hub admin creates an environment invitation in **Settings > Hub**.
+Connect an execution machine with:
+
+```bash
+pulse environment --hub <hub-url> --invitation <code>
+```
+
+The environment saves its credential in its own Pulse home and reconnects without an
+invitation on later runs.
+
+Use `pulse client --hub <hub-url>` to serve a web client for an existing hub without
+starting a hub or environment. The client connects through its served origin.
+`pulse hub` runs only the hub transport and does not serve a web client.
+
+To join another hub, open **Settings > Hub** and enter its URL under
+**Hub**, then enter a pairing code from the destination hub. If this installation
+has an environment, also enter its environment invitation. This switches both the app and this machine to that hub and stops local
+hub hosting. Your app URL stays the same. Choose **Use local hub** to host again.
+The hub choice survives restarts.
+
+### Pair clients and manage access
+
+The startup link grants admin access to the hub you host. Electron signs into
+its own hub automatically. To connect another browser, a hub admin creates a
+pairing link in **Settings > Hub > Authorized clients**, or runs
+`pulse hub pair` on the hub machine. Open the link in the browser that needs access.
+Pairing defaults to Standard access. Use `--role read-only` or `--role admin`
+to choose another role.
+Each link can be used once; the resulting session survives reconnects.
+
+Pairing links default to **Standard** access. **Read-only** clients can view
+projects and threads. Standard clients can also run agents, edit files, and use
+terminals. **Admin** clients can create pairing links, invite environments, and revoke
+access. Choose Admin explicitly when another device needs to manage the hub.
+
+Revoke a client or environment in Hub to disconnect it and block further
+access. Revoking a client does not stop agent turns it already started. Unused
+pairing links and environment invitations can also be revoked there.
+
 ## T3 Connect
 
 T3 Connect makes an environment available to your other devices without setting
@@ -17,7 +62,7 @@ t3 connect
 
 Follow the sign-in instructions. Setup offers a
 [background service](./background-service.md); if you decline it, start the
-server with `t3 serve`. Saving your sign-in alone does not make the machine
+server with `pulse serve`. Saving your sign-in alone does not make the machine
 reachable.
 
 On your other device, sign in to the same T3 Connect account and choose the
@@ -42,13 +87,13 @@ For a command-line host, replace `<private-ip>` with the host's LAN or tailnet
 address:
 
 ```bash
-t3 serve --host <private-ip>
+pulse serve --host <private-ip>
 ```
 
 If a server is already running, generate a fresh link without restarting it:
 
 ```bash
-t3 pair
+pulse hub pair
 ```
 
 Scan the QR code on your phone or paste the pairing URL into **Add environment**
@@ -127,13 +172,13 @@ HTTPS** in **Settings → Connections**. Turn it off there to remove that route.
 To start a command-line server with Tailscale HTTPS:
 
 ```bash
-t3 serve --tailscale-serve
+pulse serve --tailscale-serve
 ```
 
 For an already-running server:
 
 ```bash
-t3 pair --tailscale
+pulse hub pair --tailscale
 ```
 
 The pairing link uses an address such as `https://machine.tailnet.ts.net/`.
@@ -145,7 +190,7 @@ tailscale serve --https=443 off
 ```
 
 If that port is already in use, choose another with
-`--tailscale-serve-port`. See `t3 pair --help` for other pairing options.
+`--tailscale-serve-port`. See `pulse hub pair --help` for other pairing options.
 
 ### Hosted web app
 
@@ -250,7 +295,7 @@ expires.
 To choose a token's permissions, pass `--scope` once for each scope you want:
 
 ```sh
-npx t3 pair --scope orchestration:read --scope relay:read
+npx pulse hub pair --scope orchestration:read --scope relay:read
 ```
 
 The selected scopes replace the default permissions. The same option works with
@@ -315,7 +360,7 @@ screenshots, logs, or bug reports.
 
 Run `t3 connect status` on the host to inspect saved authorization and link
 configuration. It is not a live reachability check. If the environment appears
-offline, run `t3 service status` and read the displayed log. If it disappears
+offline, run `pulse service status` and read the displayed log. If it disappears
 when SSH closes, see [background-service troubleshooting](./background-service.md#troubleshooting).
 
 | Error                                                     | Recovery                                                                                                                                    |
@@ -328,7 +373,7 @@ when SSH closes, see [background-service troubleshooting](./background-service.m
 
 After fixing a permanent rejection, restart the host's server. On Linux, use
 `systemctl --user restart t3code.service` for the background service. For a
-foreground server, stop it and run `t3 serve` again with your usual options.
+foreground server, stop it and run `pulse serve` again with your usual options.
 Include the diagnostic message and trace ID when reporting a persistent failure.
 
 For a connection that still fails after linking, check the date and time on both

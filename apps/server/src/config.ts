@@ -83,12 +83,18 @@ export class ServerConfig extends Context.Service<
     readonly otlpLogsExport: SignalExport;
     readonly otelEnvironment: OtelEnvironment.OtelEnvironment;
     readonly mode: RuntimeMode;
+    /** Explicit unsafe mode for legacy tests and deployments. */
+    readonly noAuth?: boolean;
+    /** Authenticates scoped requests from this environment’s outbound hub tunnel bridge. */
+    readonly hubIngressSecret?: string;
     readonly port: number;
     readonly host: string | undefined;
     readonly cwd: string;
     readonly baseDir: string;
     readonly staticDir: string | undefined;
     readonly devUrl: URL | undefined;
+    /** Externally reachable client/hub origin when a tunnel or proxy terminates HTTP. */
+    readonly publicUrl?: URL;
     readonly devAuthToken?: Redacted.Redacted<string> | undefined;
     readonly devAllowedOrigins: ReadonlyArray<string>;
     readonly noBrowser: boolean;

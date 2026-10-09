@@ -1,3 +1,4 @@
+import { environmentEndpointUrl } from "../environment/endpoint.ts";
 import {
   type AssetCreateUrlInput,
   type AssetCreateUrlResult,
@@ -57,6 +58,13 @@ export function parseAssetCollectionKey(
 
 export function resolveAssetUrl(httpBaseUrl: string, relativeUrl: string): string | null {
   try {
+    if (relativeUrl.startsWith("/") && !relativeUrl.startsWith("//")) {
+      const relative = new URL(relativeUrl, httpBaseUrl);
+      const routed = new URL(environmentEndpointUrl(httpBaseUrl, relative.pathname));
+      routed.search = relative.search;
+      routed.hash = relative.hash;
+      return routed.toString();
+    }
     return new URL(relativeUrl, httpBaseUrl).toString();
   } catch {
     return null;

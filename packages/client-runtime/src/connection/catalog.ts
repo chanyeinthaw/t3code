@@ -4,6 +4,7 @@ import * as Schema from "effect/Schema";
 
 import {
   BearerConnectionTarget,
+  HubConnectionTarget,
   PrimaryConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
@@ -92,6 +93,11 @@ export class PrimaryConnectionRegistration extends Schema.TaggedClass<PrimaryCon
   },
 ) {}
 
+export class HubConnectionRegistration extends Schema.TaggedClass<HubConnectionRegistration>()(
+  "HubConnectionRegistration",
+  { target: HubConnectionTarget },
+) {}
+
 export class RelayConnectionRegistration extends Schema.TaggedClass<RelayConnectionRegistration>()(
   "RelayConnectionRegistration",
   {
@@ -133,15 +139,17 @@ export type ConnectionRegistration = typeof ConnectionRegistration.Type;
  * from their bootstrap credential (`BearerConnectionRegistration`).
  */
 export const PlatformConnectionRegistration = Schema.Union([
+  HubConnectionRegistration,
   PrimaryConnectionRegistration,
   BearerConnectionRegistration,
 ]);
 export type PlatformConnectionRegistration = typeof PlatformConnectionRegistration.Type;
 
 export function connectionRegistrationCatalogEntry(
-  registration: ConnectionRegistration | PrimaryConnectionRegistration,
+  registration: ConnectionRegistration | PlatformConnectionRegistration,
 ): ConnectionCatalogEntry {
   switch (registration._tag) {
+    case "HubConnectionRegistration":
     case "PrimaryConnectionRegistration":
     case "RelayConnectionRegistration":
       return {

@@ -27,6 +27,7 @@ import {
   BearerConnectionTarget,
   ConnectionTransientError,
   PrimaryConnectionTarget,
+  HubConnectionTarget,
   RelayConnectionTarget,
   SshConnectionTarget,
   type ConnectionTarget,
@@ -244,6 +245,26 @@ describe("ConnectionResolver", () => {
         httpAuthorization: null,
         target,
       });
+    }),
+  );
+
+  it.effect("preserves the hub environment route without obtaining credentials", () =>
+    Effect.gen(function* () {
+      const layerBroker = yield* makeDependencies();
+      const broker = yield* ConnectionResolver.ConnectionResolver.pipe(Effect.provide(layerBroker));
+      const target = new HubConnectionTarget({
+        environmentId: ENVIRONMENT_ID,
+        label: "Worker",
+        httpBaseUrl: "https://hub.test/hub/environments/environment-1/",
+        wsBaseUrl: "wss://hub.test/hub/environments/environment-1/",
+      });
+      const prepared = yield* broker.prepare(catalogEntry(target));
+      expect(prepared.httpAuthorization).toBeNull();
+      expect(prepared.httpBaseUrl).toBe(target.httpBaseUrl);
+      const socket = new URL(prepared.socketUrl);
+      expect(socket.pathname).toBe("/hub/environments/environment-1/ws");
+      expect(socket.searchParams.getAll("orchestrationProtocol")).toEqual(["2"]);
+      expect(socket.searchParams.has("token")).toBe(false);
     }),
   );
 

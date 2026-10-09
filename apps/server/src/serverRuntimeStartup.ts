@@ -322,7 +322,8 @@ const resolveStartupBrowserTarget = Effect.gen(function* () {
       ? `http://${formatHostForUrl(serverConfig.host)}:${serverConfig.port}`
       : localUrl;
   const baseTarget = serverConfig.devUrl?.toString() ?? bindUrl;
-  return serverConfig.mode === "desktop"
+  // Pairing startup entry point is bypassed for the initial unauthenticated hub/environment flow.
+  return serverConfig.noAuth || serverConfig.mode === "desktop"
     ? baseTarget
     : yield* serverAuth.issueStartupPairingUrl(baseTarget);
 });
@@ -585,7 +586,9 @@ const make = (options?: StartupOptions) =>
             Effect.withSpan("server.startup.heartbeat.record"),
             Effect.ignoreCause({ log: true }),
           );
-          if (serverConfig.startupPresentation === "headless") {
+          if (serverConfig.noAuth || serverConfig.hubIngressSecret) {
+            yield* Console.log(`Environment ready on loopback port ${serverConfig.port}`);
+          } else if (serverConfig.startupPresentation === "headless") {
             yield* Effect.logDebug("startup phase: headless access info");
             const accessInfo = yield* issueHeadlessServeAccessInfo();
             yield* runStartupPhase(

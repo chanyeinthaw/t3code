@@ -35,6 +35,8 @@ export const RELAY_ROUTE_ID = "relay";
 
 export function connectionRouteId(target: ConnectionTarget): string {
   switch (target._tag) {
+    case "HubConnectionTarget":
+      return `hub:${target.httpBaseUrl}`;
     case "PrimaryConnectionTarget":
       return "primary";
     case "RelayConnectionTarget":
@@ -78,7 +80,11 @@ export function routeEntry(
 
 /** The base URL of a direct route, or null for T3 Connect and SSH. */
 export function routeHttpBaseUrl(route: ConnectionRoute): string | null {
-  if (route.target._tag === "PrimaryConnectionTarget") return route.target.httpBaseUrl;
+  if (
+    route.target._tag === "PrimaryConnectionTarget" ||
+    route.target._tag === "HubConnectionTarget"
+  )
+    return route.target.httpBaseUrl;
   const profile = Option.getOrNull(route.profile);
   return profile?._tag === "BearerConnectionProfile" ? profile.httpBaseUrl : null;
 }
@@ -99,6 +105,7 @@ export function connectionRouteKind(route: ConnectionRoute): ConnectionRouteKind
       return "relay";
     case "SshConnectionTarget":
       return "ssh";
+    case "HubConnectionTarget":
     case "PrimaryConnectionTarget":
     case "BearerConnectionTarget": {
       const hostname = routeHostname(route);
@@ -181,6 +188,7 @@ function routeAddressKey(route: ConnectionRoute): string | null {
 
 /** Short user-facing route description: "LAN", "Tailscale", "VPN", "T3 Connect", a URL, or an SSH host. */
 export function connectionRouteLabel(route: ConnectionRoute): string {
+  if (route.target._tag === "HubConnectionTarget") return "Hub";
   switch (connectionRouteKind(route)) {
     case "relay":
       return "T3 Connect";

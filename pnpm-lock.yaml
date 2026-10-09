@@ -78,6 +78,9 @@ catalogs:
     unified:
       specifier: 11.0.5
       version: 11.0.5
+    ws:
+      specifier: 8.22.0
+      version: 8.22.0
 
 overrides:
   '@exodus/bytes>@noble/hashes': 1.8.0
@@ -690,6 +693,9 @@ importers:
       stream-json:
         specifier: 3.6.0
         version: 3.6.0
+      ws:
+        specifier: 'catalog:'
+        version: 8.22.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
       yaml:
         specifier: ^2.9.0
         version: 2.9.0
@@ -730,6 +736,9 @@ importers:
       '@types/proper-lockfile':
         specifier: ^4.1.4
         version: 4.1.4
+      '@types/ws':
+        specifier: 8.18.2
+        version: 8.18.2
       '@types/yauzl':
         specifier: ^3.4.0
         version: 3.4.0

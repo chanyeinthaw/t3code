@@ -21,6 +21,11 @@ export interface CreateAdvertisedEndpointInput {
   readonly description?: string;
 }
 
+/** Preserve only the hub's environment route when normalizing an endpoint. */
+export function environmentRoutePrefix(pathname: string): string {
+  return /^\/hub\/environments\/[^/]+(?=\/|$)/.exec(pathname)?.[0] ?? "";
+}
+
 export function normalizeHttpBaseUrl(rawValue: string): string {
   const url = new URL(rawValue);
   if (url.protocol === "ws:") {
@@ -33,7 +38,7 @@ export function normalizeHttpBaseUrl(rawValue: string): string {
     throw new Error(`Endpoint must use HTTP or HTTPS. Received ${url.protocol}`);
   }
 
-  url.pathname = "/";
+  url.pathname = `${environmentRoutePrefix(url.pathname)}/`;
   url.search = "";
   url.hash = "";
   return url.toString();

@@ -623,11 +623,19 @@ export const make = Effect.gen(function* () {
         target.environmentId,
         Effect.gen(function* () {
           const previous = (yield* SubscriptionRef.get(entries)).get(target.environmentId);
+          // Hub discovery refreshes availability without changing this client's switch.
+          const refreshed =
+            target._tag === "HubConnectionTarget" &&
+            previous?.target._tag === "HubConnectionTarget" &&
+            previous.target.httpBaseUrl === target.httpBaseUrl &&
+            previous.target.wsBaseUrl === target.wsBaseUrl
+              ? { ...registered, enabled: previous.enabled }
+              : registered;
           const entry: ConnectionCatalogEntry =
             previous?.unsupportedReason !== undefined &&
             gitHubRoutingConnectionKey(previous) === gitHubRoutingConnectionKey(registered)
-              ? { ...registered, enabled: false, ...unsupportedState(previous) }
-              : registered;
+              ? { ...refreshed, enabled: false, ...unsupportedState(previous) }
+              : refreshed;
           const persisted = (yield* Ref.get(persistedEnvironmentIds)).has(target.environmentId);
           if (
             persisted ||

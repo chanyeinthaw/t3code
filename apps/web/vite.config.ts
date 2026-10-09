@@ -248,12 +248,15 @@ export default defineConfig(() => {
             // plus a vite-hmr subprotocol), so the upgrade handlers don't
             // collide.
             proxy: Object.fromEntries(
-              DEV_PROXIED_PATH_PREFIXES.map((prefix) => [
+              [...DEV_PROXIED_PATH_PREFIXES, "/hub"].map((prefix) => [
                 prefix,
                 {
                   target: devProxyTarget,
-                  changeOrigin: !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
-                  ...(prefix === "/ws" || prefix === "/api" ? { ws: true } : {}),
+                  changeOrigin:
+                    prefix !== "/hub" && !DEV_PROXIED_ORIGIN_PRESERVING_PREFIXES.has(prefix),
+                  ...(prefix === "/ws" || prefix === "/api" || prefix === "/hub"
+                    ? { ws: true }
+                    : {}),
                 },
               ]),
             ),

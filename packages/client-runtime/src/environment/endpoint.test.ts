@@ -5,6 +5,7 @@ import {
   createAdvertisedEndpoint,
   deriveWsBaseUrl,
   normalizeHttpBaseUrl,
+  environmentEndpointUrl,
 } from "./endpoint.ts";
 
 const coreProvider = {
@@ -20,6 +21,21 @@ describe("advertised endpoint helpers", () => {
     expect(normalizeHttpBaseUrl("wss://example.com/socket")).toBe("https://example.com/");
     expect(deriveWsBaseUrl("https://example.com/api")).toBe("wss://example.com/");
     expect(deriveWsBaseUrl("http://127.0.0.1:3773")).toBe("ws://127.0.0.1:3773/");
+  });
+
+  it("keeps each hub environment address through normalization and HTTP requests", () => {
+    const base = "https://hub.example/hub/environments/machine-a/";
+    expect(normalizeHttpBaseUrl(`${base}?ignored=1`)).toBe(base);
+    expect(deriveWsBaseUrl(base)).toBe("wss://hub.example/hub/environments/machine-a/");
+    expect(environmentEndpointUrl(base, "/api/orchestration/shell")).toBe(
+      `${base}api/orchestration/shell`,
+    );
+    expect(
+      environmentEndpointUrl(
+        "https://hub.example/hub/environments/machine-b/",
+        "/api/orchestration/shell",
+      ),
+    ).toBe("https://hub.example/hub/environments/machine-b/api/orchestration/shell");
   });
 
   it("marks HTTP endpoints as blocked from hosted HTTPS apps", () => {

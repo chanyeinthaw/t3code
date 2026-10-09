@@ -1,14 +1,17 @@
+import { HUB_INGRESS_HEADER, signHubIngress } from "../hub/ingress.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   authScopeResponse,
   AuthAdministrativeScopes,
   AuthStandardClientScopes,
+  AuthSessionId,
 } from "@t3tools/contracts";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Redacted from "effect/Redacted";
 import * as Schema from "effect/Schema";
+import * as HttpServerRequest from "effect/http/HttpServerRequest";
 import * as SqlClient from "effect/sql/SqlClient";
 
 import * as ServerConfig from "../config.ts";
@@ -82,6 +85,66 @@ const requestMetadata = {
 };
 
 it.layer(NodeServices.layer)("EnvironmentAuth.layer", (it) => {
+  it.effect("allows credential-free HTTP and WebSocket access only in explicit unsafe mode", () =>
+    Effect.gen(function* () {
+      const auth = yield* EnvironmentAuth.EnvironmentAuth;
+      const request = HttpServerRequest.fromWeb(new Request("http://localhost/ws"));
+      const http = yield* auth.authenticateHttpRequest(request);
+      const websocket = yield* auth.authenticateWebSocketUpgrade(request);
+      expect(http.subject).toBe("hub-no-auth");
+      expect(http.scopes).toEqual(AuthAdministrativeScopes);
+      expect(websocket.sessionId).toBe(http.sessionId);
+    }).pipe(Effect.provide(layerEnvironmentAuth({ noAuth: true }))),
+  );
+  it.effect("authenticates scoped tunnel requests and rejects forged or retargeted ingress", () =>
+    Effect.gen(function* () {
+      const auth = yield* EnvironmentAuth.EnvironmentAuth;
+      const secret = "daemon-ingress-test-secret";
+      const principal = {
+        sessionId: AuthSessionId.make("hub-reader"),
+        subject: "reader",
+        scopes: ["orchestration:read" as const],
+      };
+      const token = signHubIngress(secret, principal, "GET", "/api/auth/session");
+      const request = HttpServerRequest.fromWeb(
+        new Request("http://localhost/api/auth/session", {
+          headers: { [HUB_INGRESS_HEADER]: token },
+        }),
+      );
+      const session = yield* auth.authenticateHttpRequest(request);
+      expect(session.scopes).toEqual(["orchestration:read"]);
+      expect(session.sessionId).toBe(principal.sessionId);
+      const forged = HttpServerRequest.fromWeb(
+        new Request("http://localhost/api/auth/session", {
+          headers: {
+            [HUB_INGRESS_HEADER]: signHubIngress(
+              "wrong-secret",
+              principal,
+              "GET",
+              "/api/auth/session",
+            ),
+          },
+        }),
+      );
+      expect((yield* Effect.flip(auth.authenticateHttpRequest(forged)))._tag).toBe(
+        "ServerAuthInvalidCredentialError",
+      );
+      const retargeted = HttpServerRequest.fromWeb(
+        new Request("http://localhost/ws?orchestrationProtocol=2", {
+          headers: { [HUB_INGRESS_HEADER]: token },
+        }),
+      );
+      expect((yield* Effect.flip(auth.authenticateWebSocketUpgrade(retargeted)))._tag).toBe(
+        "ServerAuthInvalidCredentialError",
+      );
+      const missing = HttpServerRequest.fromWeb(new Request("http://localhost/ws"));
+      expect((yield* Effect.flip(auth.authenticateWebSocketUpgrade(missing)))._tag).toBe(
+        "ServerAuthInvalidCredentialError",
+      );
+    }).pipe(
+      Effect.provide(layerEnvironmentAuth({ hubIngressSecret: "daemon-ingress-test-secret" })),
+    ),
+  );
   it.effect("uses the reusable dev cookie without overriding a normal scoped cookie", () =>
     Effect.gen(function* () {
       const serverAuth = yield* EnvironmentAuth.EnvironmentAuth;

@@ -20,7 +20,8 @@ import * as Path from "effect/Path";
 import * as Schema from "effect/Schema";
 import { Argument, Command } from "effect/cli";
 
-import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
+import { expandHomePath } from "../os-jank.ts";
+import { resolvePulseBaseDir } from "../pulse/paths.ts";
 import { baseDirFlag } from "./config.ts";
 
 const CLI_RESPONSE_TIMEOUT_MS = 17_000;
@@ -32,7 +33,7 @@ export class DesktopAppSshUnsupportedError extends Schema.TaggedError<DesktopApp
   {},
 ) {
   override get message(): string {
-    return "`t3 app` only controls a desktop app on the same machine. It cannot run over SSH.";
+    return "`pulse app` only controls a desktop app on the same machine. It cannot run over SSH.";
   }
 }
 
@@ -41,7 +42,7 @@ export class DesktopAppPlatformUnsupportedError extends Schema.TaggedError<Deskt
   { platform: Schema.String },
 ) {
   override get message(): string {
-    return `\`t3 app\` is not supported on ${this.platform}.`;
+    return `\`pulse app\` is not supported on ${this.platform}.`;
   }
 }
 
@@ -55,7 +56,7 @@ export class DesktopAppUnreachableError extends Schema.TaggedError<DesktopAppUnr
   },
 ) {
   override get message(): string {
-    return "Could not reach the T3 Code desktop app. Start or update the desktop app on this machine, then run `t3 app` again. A running T3 Code server is not enough.";
+    return "Could not reach the T3 Code desktop app. Start or update the desktop app on this machine, then run `pulse app` again. A running T3 Code server is not enough.";
   }
 }
 
@@ -174,7 +175,7 @@ function sendDesktopAppActivationRequest(input: {
 }
 
 const appEnvironment = Config.all({
-  t3Home: Config.String("T3CODE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  t3Home: Config.String("PULSE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
   sshConnection: Config.String("SSH_CONNECTION").pipe(Config.option),
   sshTty: Config.String("SSH_TTY").pipe(Config.option),
 });
@@ -194,7 +195,7 @@ const runAppCommand = Effect.fn("cli.app")(function* (flags: {
 
   const path = yield* Path.Path;
   const configuredBaseDir = Option.getOrUndefined(flags.baseDir) ?? environment.t3Home;
-  const baseDir = yield* resolveBaseDir(configuredBaseDir);
+  const baseDir = yield* resolvePulseBaseDir(configuredBaseDir);
   const allowDevFallback = Option.isNone(flags.baseDir) && !environment.t3Home?.trim();
   const rawWorkspaceRoot =
     Option.getOrUndefined(flags.workspaceRoot) ?? (yield* HostProcess.WorkingDirectory);

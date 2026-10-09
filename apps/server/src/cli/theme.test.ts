@@ -8,6 +8,7 @@ import * as ConfigProvider from "effect/ConfigProvider";
 import * as NetService from "@t3tools/shared/Net";
 import { assert, describe, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as TestConsole from "effect/testing/TestConsole";
 import { Command } from "effect/cli";
@@ -21,7 +22,14 @@ import * as HostProcess from "@t3tools/shared/HostProcess";
 const windowsHost = HostProcess.Platform.defaultValue() === "win32";
 
 const runCli = (args: ReadonlyArray<string>) =>
-  Command.runWith(cli, { version: "0.0.0" })(args).pipe(
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const home = yield* fs.makeTempDirectoryScoped({ prefix: "pulse-theme-test-home-" });
+    return yield* Command.runWith(cli, { version: "0.0.0" })(args).pipe(
+      Effect.provideService(HostProcess.HomeDirectory, home),
+    );
+  }).pipe(
+    Effect.scoped,
     Effect.provide(Layer.mergeAll(NodeServices.layer, NetService.layer, TestConsole.layer)),
   );
 
@@ -343,12 +351,12 @@ describe("t3 theme", () => {
     }),
   );
 
-  it.effect("honors T3CODE_HOME like the rest of the CLI", () =>
+  it.effect("honors PULSE_HOME like the rest of the CLI", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();
       yield* runCli(["theme", "set", "ocean"]).pipe(
         Effect.provide(
-          ConfigProvider.layer(ConfigProvider.fromEnv({ env: { T3CODE_HOME: baseDir } })),
+          ConfigProvider.layer(ConfigProvider.fromEnv({ env: { PULSE_HOME: baseDir } })),
         ),
       );
       assert.equal(readSettings(baseDir).defaultTheme, "ocean");

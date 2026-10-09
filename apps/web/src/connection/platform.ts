@@ -1,4 +1,13 @@
 import {
+  readHubCatalog,
+  hubEnvironmentBaseUrl,
+  updateHubCatalog,
+  invalidateHubSession,
+} from "../hub";
+import { HubEnvironmentCatalog } from "@t3tools/contracts";
+import { HttpClient, HttpClientResponse } from "effect/http";
+import { HubConnectionRegistration, HubConnectionTarget } from "@t3tools/client-runtime/connection";
+import {
   ClientCapabilities,
   PlatformConnectionSource,
   Persistence,
@@ -567,6 +576,37 @@ export function secondaryRegistrationsToRetainAfterTopologyRead(
 const layerPlatformConnectionSource = Layer.effect(
   PlatformConnectionSource.PlatformConnectionSource,
   Effect.gen(function* () {
+    if (readHubCatalog()) {
+      const client = yield* HttpClient.HttpClient;
+      const discover = client.get(`${window.location.origin}/hub/environments`).pipe(
+        Effect.tap((response) =>
+          response.status === 401 ? Effect.sync(invalidateHubSession) : Effect.void,
+        ),
+        Effect.flatMap(HttpClientResponse.schemaBodyJson(HubEnvironmentCatalog)),
+        Effect.tap((catalog) => Effect.sync(() => updateHubCatalog(catalog))),
+        Effect.map((catalog) =>
+          catalog.environments.map((environment) => {
+            const httpBaseUrl = hubEnvironmentBaseUrl(environment.environmentId);
+            const ws = new URL(httpBaseUrl);
+            ws.protocol = ws.protocol === "https:" ? "wss:" : "ws:";
+            return new HubConnectionRegistration({
+              target: new HubConnectionTarget({
+                environmentId: environment.environmentId,
+                label: environment.label,
+                httpBaseUrl,
+                wsBaseUrl: ws.toString(),
+              }),
+            });
+          }),
+        ),
+      );
+      return PlatformConnectionSource.PlatformConnectionSource.of({
+        registrations: Stream.tick(PLATFORM_POLL_INTERVAL).pipe(
+          Stream.mapEffect(() => discover.pipe(Effect.result)),
+          Stream.filterMap((result) => result),
+        ),
+      });
+    }
     if (isHostedStaticApp() || isLocalEnvironmentDisabled()) {
       return PlatformConnectionSource.PlatformConnectionSource.of({
         registrations: Stream.empty,

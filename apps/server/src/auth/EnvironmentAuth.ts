@@ -1,3 +1,4 @@
+import { HUB_INGRESS_HEADER, verifyHubIngress } from "../hub/ingress.ts";
 import {
   AuthAccessTokenType,
   AuthAccessWriteScope,
@@ -677,13 +678,30 @@ export function selectRequestCredential(
 
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.gen(function* () {
+  const config = yield* ServerConfig.ServerConfig;
   const policy = yield* EnvironmentAuthPolicy.EnvironmentAuthPolicy;
   const bootstrapCredentials = yield* PairingGrantStore.PairingGrantStore;
   const sessions = yield* SessionStore.SessionStore;
   const secretStore = yield* ServerSecretStore.ServerSecretStore;
   const crypto = yield* Crypto.Crypto;
   const descriptor = yield* policy.getDescriptor();
-  const config = yield* ServerConfig.ServerConfig;
+  // Explicit unsafe mode retains a session row for existing RPC bookkeeping.
+  const anonymous = config.noAuth
+    ? yield* sessions
+        .issue({
+          method: "bearer-access-token",
+          subject: "hub-no-auth",
+          scopes: AuthAdministrativeScopes,
+          ttl: Duration.days(365),
+          replaceActiveForSubjectAndMethod: true,
+        })
+        .pipe(
+          Effect.map(
+            (session) => ({ ...session, subject: "hub-no-auth" }) satisfies AuthenticatedSession,
+          ),
+          Effect.mapError((cause) => new ServerAuthAuthenticatedSessionIssueError({ cause })),
+        )
+    : undefined;
   const devAuth = resolveReusableDevAuth(config);
 
   const authenticateToken = (
@@ -717,6 +735,23 @@ export const make = Effect.gen(function* () {
   const authenticateRequest = (
     request: HttpServerRequest.HttpServerRequest,
   ): Effect.Effect<AuthenticatedSession, ServerAuthCredentialError | ServerAuthInternalError> => {
+    if (config.hubIngressSecret) {
+      const ingressUrl = new URL(request.originalUrl, "http://environment");
+      const principal = verifyHubIngress(
+        config.hubIngressSecret,
+        request.headers[HUB_INGRESS_HEADER],
+        request.method,
+        `${ingressUrl.pathname}${ingressUrl.search}`,
+      );
+      return principal
+        ? Effect.succeed({ ...principal, method: "bearer-access-token" as const })
+        : Effect.fail(
+            new ServerAuthInvalidCredentialError({
+              diagnostic: "Authenticated hub ingress is required.",
+            }),
+          );
+    }
+    if (anonymous) return Effect.succeed(anonymous);
     const selectedCredential = selectRequestCredential(
       request,
       sessions.cookieName,
@@ -1172,6 +1207,8 @@ export const make = Effect.gen(function* () {
 
   const authenticateWebSocketUpgrade: EnvironmentAuth["Service"]["authenticateWebSocketUpgrade"] =
     Effect.fn("EnvironmentAuth.authenticateWebSocketUpgrade")(function* (request) {
+      if (config.hubIngressSecret) return yield* authenticateRequest(request);
+      if (anonymous) return anonymous;
       const requestUrl = HttpServerRequest.toURL(request);
       if (Option.isSome(requestUrl)) {
         const websocketTicket = requestUrl.value.searchParams.get(WEBSOCKET_TICKET_QUERY_PARAM);

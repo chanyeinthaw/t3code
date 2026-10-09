@@ -23,8 +23,34 @@ import * as CliError from "effect/cli/CliError";
 
 import { readBootstrapEnvelope } from "../bootstrap.ts";
 import * as ServerConfig from "../config.ts";
-import { expandHomePath, resolveBaseDir } from "../os-jank.ts";
+import { expandHomePath } from "../os-jank.ts";
+import { resolvePulseBaseDir } from "../pulse/paths.ts";
 import { isProcessAlive, readPersistedServerRuntimeState } from "../serverRuntimeState.ts";
+
+const PublicUrlFromString = Schema.URLFromString.pipe(
+  Schema.check(
+    Schema.makeFilter(
+      (url) =>
+        ["http:", "https:"].includes(url.protocol) &&
+        !url.username &&
+        !url.password &&
+        url.pathname === "/" &&
+        !url.search &&
+        !url.hash,
+      {
+        message:
+          "Use an HTTP or HTTPS public origin without credentials, path, query, or fragment.",
+      },
+    ),
+  ),
+);
+const publicUrlFlag = Flag.String("public-url").pipe(
+  Flag.withSchema(PublicUrlFromString),
+  Flag.withDescription(
+    "Public client/hub URL behind a reverse proxy or tunnel (PULSE_PUBLIC_URL).",
+  ),
+  Flag.optional,
+);
 
 const modeFlag = Flag.Literals("mode", ServerConfig.RuntimeMode.literals).pipe(
   Flag.withDescription("Runtime mode. `desktop` keeps loopback defaults unless overridden."),
@@ -41,7 +67,7 @@ const hostFlag = Flag.String("host").pipe(
 );
 export const baseDirFlag = Flag.String("base-dir").pipe(
   Flag.withDescription(
-    "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to T3CODE_HOME).",
+    "Explicit T3 Code data directory; runtime state is stored under userdata (equivalent to PULSE_HOME).",
   ),
   Flag.optional,
 );
@@ -129,7 +155,11 @@ const EnvServerConfig = Config.all({
   ),
   port: Config.Port("T3CODE_PORT").pipe(Config.option, Config.map(Option.getOrUndefined)),
   host: Config.String("T3CODE_HOST").pipe(Config.option, Config.map(Option.getOrUndefined)),
-  t3Home: Config.String("T3CODE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
+  publicUrl: Config.schema(PublicUrlFromString, "PULSE_PUBLIC_URL").pipe(
+    Config.option,
+    Config.map(Option.getOrUndefined),
+  ),
+  t3Home: Config.String("PULSE_HOME").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devUrl: Config.URL("VITE_DEV_SERVER_URL").pipe(Config.option, Config.map(Option.getOrUndefined)),
   devAllowedOrigins: Config.String("T3CODE_DEV_ALLOWED_ORIGINS").pipe(
     Config.withDefault(""),
@@ -193,6 +223,7 @@ export interface CliServerFlags {
   readonly baseDir: Option.Option<string>;
   readonly cwd: Option.Option<string>;
   readonly devUrl: Option.Option<URL>;
+  readonly publicUrl?: Option.Option<URL>;
   readonly noBrowser: Option.Option<boolean>;
   readonly bootstrapFd: Option.Option<number>;
   readonly autoBootstrapProjectFromCwd: Option.Option<boolean>;
@@ -214,6 +245,8 @@ export const authLocationFlags = {
 export const projectLocationFlags = {
   baseDir: baseDirFlag,
 } as const;
+
+export const hubHostingFlags = { publicUrl: publicUrlFlag } as const;
 
 export const sharedServerCommandFlags = {
   mode: modeFlag,
@@ -271,6 +304,7 @@ export const resolveServerConfig = (
       baseDir: flags.baseDir ?? Option.none(),
       cwd: flags.cwd ?? Option.none(),
       devUrl: flags.devUrl ?? Option.none(),
+      publicUrl: flags.publicUrl ?? Option.none(),
       noBrowser: flags.noBrowser ?? Option.none(),
       bootstrapFd: flags.bootstrapFd ?? Option.none(),
       autoBootstrapProjectFromCwd: flags.autoBootstrapProjectFromCwd ?? Option.none(),
@@ -314,13 +348,14 @@ export const resolveServerConfig = (
       resolveOptionPrecedence(normalizedFlags.devUrl, Option.fromUndefinedOr(env.devUrl)),
       () => undefined,
     );
+    const publicUrl = Option.getOrUndefined(normalizedFlags.publicUrl) ?? env.publicUrl;
     const devAuthToken =
       mode === "web" && devUrl !== undefined ? yield* DevAuthTokenConfig : undefined;
     const explicitBaseDir = resolveOptionPrecedence(
       normalizedFlags.baseDir,
       Option.fromUndefinedOr(env.t3Home),
     ).pipe(Option.filter((value) => value.trim().length > 0));
-    const baseDir = yield* resolveBaseDir(
+    const baseDir = yield* resolvePulseBaseDir(
       Option.getOrUndefined(
         resolveOptionPrecedence(explicitBaseDir, Option.fromUndefinedOr(bootstrap?.t3Home)),
       ),
@@ -463,6 +498,7 @@ export const resolveServerConfig = (
       host,
       staticDir,
       devUrl,
+      ...(publicUrl === undefined ? {} : { publicUrl }),
       ...(devAuthToken === undefined ? {} : { devAuthToken }),
       devAllowedOrigins: env.devAllowedOrigins,
       noBrowser,

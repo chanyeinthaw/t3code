@@ -1,3 +1,4 @@
+import { readHubCatalog } from "../hub";
 import {
   ConnectionCatalogDocument,
   type ConnectionCatalogDocument as ConnectionCatalogDocumentType,
@@ -119,7 +120,10 @@ const openDatabase = Effect.fn("web.connectionStorage.openDatabase")(function* (
       return;
     }
     try {
-      const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+      const request = indexedDB.open(
+        readHubCatalog() ? "t3code:hub-connection-runtime" : DATABASE_NAME,
+        DATABASE_VERSION,
+      );
       request.addEventListener("upgradeneeded", () => {
         if (!request.result.objectStoreNames.contains(CATALOG_STORE_NAME)) {
           request.result.createObjectStore(CATALOG_STORE_NAME);

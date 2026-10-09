@@ -51,7 +51,7 @@ import { browserApiCorsAllowedHeaders, browserApiCorsAllowedMethods } from "./ht
 
 const OTLP_TRACES_PROXY_PATH = "/api/observability/v1/traces";
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "::1", "localhost"]);
-const DESKTOP_RENDERER_ORIGINS = ["t3code://app", "t3code-dev://app"];
+const DESKTOP_RENDERER_ORIGINS = ["pulse://app", "pulse-dev://app"];
 const SVG_CONTENT_SECURITY_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox";
 // HTML previews are agent output, not the app. The sandbox gives the document an
 // opaque origin: scripts run, but same-origin cookies, storage, and API calls are
@@ -498,28 +498,30 @@ const decodeBuildManifest = Schema.decodeUnknownEffect(
   ),
 );
 
-const loadImmutableBuildAssets = Effect.gen(function* () {
-  const config = yield* ServerConfig.ServerConfig;
-  const staticDir =
-    config.staticDir ?? (config.devUrl ? yield* ServerConfig.resolveStaticDir() : undefined);
-  if (!staticDir) return new Set<string>();
-  const fileSystem = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  return yield* fileSystem.readFileString(path.join(staticDir, ".vite", "manifest.json")).pipe(
-    Effect.flatMap(decodeBuildManifest),
-    Effect.map(
-      (manifest) =>
-        new Set(
-          Object.values(manifest).flatMap((entry) => [
-            entry.file,
-            ...(entry.css ?? []),
-            ...(entry.assets ?? []),
-          ]),
-        ),
-    ),
-    Effect.orElseSucceed(() => new Set<string>()),
-  );
-});
+type StaticWebOptions = Pick<ServerConfig.ServerConfig["Service"], "staticDir" | "devUrl">;
+
+const loadImmutableBuildAssets = (config: StaticWebOptions) =>
+  Effect.gen(function* () {
+    const staticDir =
+      config.staticDir ?? (config.devUrl ? yield* ServerConfig.resolveStaticDir() : undefined);
+    if (!staticDir) return new Set<string>();
+    const fileSystem = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    return yield* fileSystem.readFileString(path.join(staticDir, ".vite", "manifest.json")).pipe(
+      Effect.flatMap(decodeBuildManifest),
+      Effect.map(
+        (manifest) =>
+          new Set(
+            Object.values(manifest).flatMap((entry) => [
+              entry.file,
+              ...(entry.css ?? []),
+              ...(entry.assets ?? []),
+            ]),
+          ),
+      ),
+      Effect.orElseSucceed(() => new Set<string>()),
+    );
+  });
 
 const openStaticFile = Effect.fn("openStaticFile")(function* (filePath: string) {
   const fileSystem = yield* FileSystem.FileSystem;
@@ -544,7 +546,7 @@ const streamStaticFile = (file: FileSystem.File, size: bigint) =>
   );
 
 const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
-  function* (immutableBuildAssets: ReadonlySet<string>) {
+  function* (config: StaticWebOptions, immutableBuildAssets: ReadonlySet<string>) {
     const request = yield* HttpServerRequest.HttpServerRequest;
     const url = HttpServerRequest.toURL(request);
 
@@ -552,7 +554,6 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
       return HttpServerResponse.text("Bad Request", { status: 400 });
     }
 
-    const config = yield* ServerConfig.ServerConfig;
     if (config.devUrl && isDevProxiedPath(url.value.pathname)) {
       return HttpServerResponse.text("Not Found", { status: 404 });
     }
@@ -674,8 +675,13 @@ const handleStaticAndDevRequest = Effect.fn("handleStaticAndDevRequest")(
 );
 
 // Read the installed build's manifest once. Unknown files use revalidation.
+export const makeStaticAndDevRoute = (config: StaticWebOptions) =>
+  Layer.unwrap(
+    loadImmutableBuildAssets(config).pipe(
+      Effect.map((assets) => HttpRouter.add("GET", "*", handleStaticAndDevRequest(config, assets))),
+    ),
+  );
+
 export const layerStaticAndDevRoute = Layer.unwrap(
-  loadImmutableBuildAssets.pipe(
-    Effect.map((assets) => HttpRouter.add("GET", "*", handleStaticAndDevRequest(assets))),
-  ),
+  Effect.map(ServerConfig.ServerConfig, makeStaticAndDevRoute),
 );

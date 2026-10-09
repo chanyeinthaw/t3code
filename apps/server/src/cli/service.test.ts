@@ -34,7 +34,7 @@ it("reports the installed service version and host paths", () => {
   assert.equal(
     formatServiceStatus(status, "0.0.29"),
     [
-      "T3 Code service",
+      "Pulse service",
       "  Status: installed · t3@0.0.29",
       "  Unit: /home/me/.config/systemd/user/t3code.service",
       "  Logs: /home/me/.t3/userdata/logs/boot-service.log",
@@ -45,7 +45,7 @@ it("reports the installed service version and host paths", () => {
 it("gives a direct repair command for a stale service", () => {
   assert.include(
     formatServiceStatus({ ...status, current: false }, "0.0.29"),
-    "Next: Run `t3 service install` to repair it.",
+    "Next: Run `pulse service install` to repair it.",
   );
 });
 
@@ -64,7 +64,7 @@ it("explains an incomplete nightly installation and keeps repair on its installe
   expect(output).toContain("last login session ends");
   expect(output).toContain('sudo loginctl enable-linger "$(id -un)"');
   expect(output).toContain("[service-stopped]");
-  expect(output).toContain("Run `t3 service install` to repair it.");
+  expect(output).toContain("Run `pulse service install` to repair it.");
   expect(output).not.toContain("npx");
 });
 
@@ -73,7 +73,7 @@ it("points an older service at a repair, never at npx", () => {
     { ...status, current: false, installedVersion: "0.0.28" },
     "0.0.29",
   );
-  expect(output).toContain("Run `t3 service install` to repair it.");
+  expect(output).toContain("Run `pulse service install` to repair it.");
   expect(output).not.toContain("npx");
 });
 
@@ -122,6 +122,76 @@ function makeTestService(serviceStatus: BootService.BootServiceStatus) {
 }
 
 it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))("service commands", (it) => {
+  it.effect.each([
+    ["serve", "--no-environment", "--port", "4780"],
+    ["serve", "--no-daemon", "--port", "4780"],
+    ["serve", "--public-url", "https://pulse.example.com"],
+    ["hub", "--host", "0.0.0.0"],
+    ["environment", "--hub", "https://hub.example.test", "--invitation", "test-code"],
+    ["daemon", "--hub", "https://hub.example.test", "--invitation", "test-code"],
+    ["client", "--hub", "https://hub.example.test"],
+  ])("installs an explicit runtime command even when the version is current: %j", (runtimeArgs) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-args-test-" });
+      const { service, installOptions } = makeTestService(status);
+      vi.spyOn(BootService, "layer").mockReturnValue(
+        Layer.succeed(BootService.BootService, service),
+      );
+      yield* Command.runWith(serviceCommand, { version: packageJson.version })([
+        "install",
+        "--base-dir",
+        baseDir,
+        "--",
+        ...runtimeArgs,
+      ]).pipe(
+        Effect.provideService(HostProcess.Environment, {}),
+        Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))),
+      );
+      expect(installOptions).toEqual([{ allowDowngrade: false, runtimeArgs }]);
+    }),
+  );
+
+  it.effect.each([
+    ["environment", "--no-environment"],
+    [
+      "environment",
+      "--hub",
+      "https://hub.example.test",
+      "--public-url",
+      "https://pulse.example.test",
+    ],
+    ...[
+      "ftp://pulse.example.com",
+      "https://user:password@pulse.example.com",
+      "https://pulse.example.com/path",
+      "https://pulse.example.com?query=1",
+      "https://pulse.example.com#fragment",
+    ].map((url) => ["serve", "--public-url", url]),
+  ])("rejects invalid runtime flags before changing the installed service: %j", (runtimeArgs) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-service-invalid-test-" });
+      const { service, installOptions } = makeTestService(status);
+      vi.spyOn(BootService, "layer").mockReturnValue(
+        Layer.succeed(BootService.BootService, service),
+      );
+      const result = yield* Command.runWith(serviceCommand, { version: packageJson.version })([
+        "install",
+        "--base-dir",
+        baseDir,
+        "--",
+        ...runtimeArgs,
+      ]).pipe(
+        Effect.provideService(HostProcess.Environment, {}),
+        Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} }))),
+        Effect.result,
+      );
+      expect(result._tag).toBe("Failure");
+      expect(installOptions).toEqual([]);
+    }),
+  );
+
   it.effect("restart restarts the installed service", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;

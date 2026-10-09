@@ -263,7 +263,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
                   T3CODE_MODE: "desktop",
                   T3CODE_PORT: "4001",
                   T3CODE_HOST: "0.0.0.0",
-                  T3CODE_HOME: baseDir,
+                  PULSE_HOME: baseDir,
                   VITE_DEV_SERVER_URL: "http://127.0.0.1:5173",
                   T3CODE_DEV_ALLOWED_ORIGINS:
                     "https://host.example.ts.net, https://phone.example.ts.net ",
@@ -336,7 +336,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
                   T3CODE_MODE: "desktop",
                   T3CODE_PORT: "4001",
                   T3CODE_HOST: "0.0.0.0",
-                  T3CODE_HOME: join(NodeOS.tmpdir(), "ignored-base"),
+                  PULSE_HOME: join(NodeOS.tmpdir(), "ignored-base"),
                   VITE_DEV_SERVER_URL: "http://127.0.0.1:5173",
                   T3CODE_NO_BROWSER: "false",
                   T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD: "false",
@@ -652,7 +652,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
                 env: {
                   T3CODE_MODE: "web",
                   T3CODE_BOOTSTRAP_FD: String(fd),
-                  T3CODE_HOME: baseDir,
+                  PULSE_HOME: baseDir,
                   T3CODE_NO_BROWSER: "true",
                   T3CODE_AUTO_BOOTSTRAP_PROJECT_FROM_CWD: "true",
                   T3CODE_LOG_WS_EVENTS: "true",
@@ -1101,6 +1101,36 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
     tailscaleServeEnabled: Option.none<boolean>(),
     tailscaleServePort: Option.none<number>(),
   });
+
+  it.effect(
+    "prefers the public URL flag over PULSE_PUBLIC_URL without changing the bind address",
+    () =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "pulse-public-url-" });
+        const resolve = (publicUrl?: URL) =>
+          resolveServerConfig(
+            { ...minimalWebFlags(baseDir), publicUrl: Option.fromUndefinedOr(publicUrl) },
+            Option.none(),
+          ).pipe(
+            Effect.provide(
+              Layer.merge(
+                NetService.layer,
+                ConfigProvider.layer(
+                  ConfigProvider.fromEnv({
+                    env: { PULSE_PUBLIC_URL: "https://env.example.test" },
+                  }),
+                ),
+              ),
+            ),
+          );
+        expect((yield* resolve()).publicUrl?.origin).toBe("https://env.example.test");
+        const config = yield* resolve(new URL("https://flag.example.test"));
+        expect(config.publicUrl?.origin).toBe("https://flag.example.test");
+        expect(config.host).toBeUndefined();
+        expect(config.port).toBe(3773);
+      }),
+  );
 
   it.effect(
     "resolves each signal's endpoint through T3CODE_OTLP_*_URL, an OTEL endpoint, the bootstrap envelope, and persisted Settings, in that order",

@@ -35,6 +35,7 @@ import {
   createProjectFaviconUrlAtomFamily,
   InvalidAssetCollectionKeyError,
   parseAssetCollectionKey,
+  resolveAssetUrl,
 } from "./assets.ts";
 
 describe("asset collection keys", () => {
@@ -509,5 +510,18 @@ describe("project favicon URL cache", () => {
     } finally {
       dispose();
     }
+  });
+});
+
+describe("hub asset routing", () => {
+  it("keeps a signed asset on its daemon route with its signature intact", () => {
+    expect(
+      resolveAssetUrl(
+        "https://hub.test/hub/environments/worker/",
+        "/api/assets/image?signature=abc%2B123&expires=42#frame",
+      ),
+    ).toBe(
+      "https://hub.test/hub/environments/worker/api/assets/image?signature=abc%2B123&expires=42#frame",
+    );
   });
 });

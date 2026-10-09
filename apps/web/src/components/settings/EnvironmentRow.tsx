@@ -28,6 +28,7 @@ export function environmentTransportLabel(
   activeTarget: ConnectionTarget | null = null,
 ): string {
   const { entry } = environment;
+  if (entry.target._tag === "HubConnectionTarget") return "Hub";
   if (entry.target._tag === "PrimaryConnectionTarget") return "This machine";
   const routes = connectionRoutes(entry);
   if (routes.length > 1) {

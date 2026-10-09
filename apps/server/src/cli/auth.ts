@@ -1,3 +1,4 @@
+import { hubAuthConfig } from "../hub/config.ts";
 import {
   AuthAdministrativeScopes,
   AuthSessionId,
@@ -5,6 +6,7 @@ import {
 } from "@t3tools/contracts";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as References from "effect/References";
@@ -36,7 +38,9 @@ const runWithEnvironmentAuth = <A, E>(
 ) =>
   Effect.gen(function* () {
     const logLevel = yield* GlobalFlag.LogLevel;
-    const config = yield* resolveCliAuthConfig(flags, logLevel);
+    const config = hubAuthConfig(yield* resolveCliAuthConfig(flags, logLevel));
+    const fs = yield* FileSystem.FileSystem;
+    yield* fs.makeDirectory(config.stateDir, { recursive: true });
     const minimumLogLevel = options?.quietLogs ? "Error" : config.logLevel;
     return yield* Effect.gen(function* () {
       const environmentAuth = yield* EnvironmentAuth.EnvironmentAuth;

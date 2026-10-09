@@ -22,7 +22,7 @@ import * as ChildProcess from "effect/process/ChildProcess";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as PreviewBrowserHost from "../preview/PreviewBrowserHost.ts";
-import { resolveBaseDir } from "../os-jank.ts";
+import { resolvePulseBaseDir } from "../pulse/paths.ts";
 import { baseDirFlag } from "./config.ts";
 import { resolveRootCliCommand } from "./invocation.ts";
 
@@ -54,12 +54,12 @@ const runStep = Effect.fn("browserSetup.runStep")(function* (
 
 /**
  * The T3 home to check. Under `sudo` the process home is root's, so an
- * unspecified home falls back to the invoking user's `~/.t3`.
+ * unspecified home falls back to the invoking user's `~/.pulse`.
  */
 const setupBaseDir = Effect.fn("browserSetup.baseDir")(function* (explicit: Option.Option<string>) {
   const env = yield* HostProcess.Environment;
-  const raw = Option.getOrUndefined(explicit) ?? env.T3CODE_HOME;
-  if (raw !== undefined || env.SUDO_USER === undefined) return yield* resolveBaseDir(raw);
+  const raw = Option.getOrUndefined(explicit) ?? env.PULSE_HOME;
+  if (raw !== undefined || env.SUDO_USER === undefined) return yield* resolvePulseBaseDir(raw);
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
   const entry = yield* spawner
     .string(
@@ -68,7 +68,7 @@ const setupBaseDir = Effect.fn("browserSetup.baseDir")(function* (explicit: Opti
     .pipe(Effect.orElseSucceed(() => ""));
   const home = entry.trim().split(":")[5];
   const path = yield* Path.Path;
-  return home ? path.join(home, ".t3") : yield* resolveBaseDir(undefined);
+  return home ? path.join(home, ".pulse") : yield* resolvePulseBaseDir(undefined);
 });
 
 /** Whether apt has an installable candidate for `name`. */
