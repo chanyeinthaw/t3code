@@ -431,13 +431,15 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
       const extensionPath = yield* provideCacheFs(
         materializePiT3McpExtension(host.paths.providerStatusCacheDir),
       );
+      const instructionsFile = `${host.paths.providerStatusCacheDir}/pi-agent-${input.providerSessionId.replace(/[^a-zA-Z0-9_-]/g, "_")}.txt`;
+      yield* provideCacheFs(fileSystem.writeFileString(instructionsFile, ""));
       const resolvedLaunchArgs = resolvePiLaunchArgs(options.settings.launchArgs);
       if (!resolvedLaunchArgs.ok) {
         return yield* protocolError(resolvedLaunchArgs.message);
       }
       const launch = buildPiRpcLaunch({
         launchArgs: resolvedLaunchArgs.args,
-        environment: options.environment,
+        environment: { ...options.environment, T3_PI_AGENT_INSTRUCTIONS_FILE: instructionsFile },
         mcpSession,
         extensionPath,
         runtimeMode: input.runtimePolicy.runtimeMode,
@@ -2475,6 +2477,11 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
             // extension's before_agent_start system-prompt hook, never by
             // wrapping the user text: a wrapped first message would no
             // longer start with "/" and slash commands would stop expanding.
+            yield* fileSystem.writeFileString(
+              `${instructionsFile}.tmp`,
+              turnInput.additionalInstructions ?? "",
+            );
+            yield* fileSystem.rename(`${instructionsFile}.tmp`, instructionsFile);
             const compactCommand = continuation
               ? null
               : parsePiCompactCommand(turnInput.message.text);

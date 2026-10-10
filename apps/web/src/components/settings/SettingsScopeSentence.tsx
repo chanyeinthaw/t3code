@@ -35,6 +35,7 @@ export const SETTINGS_DEVICE_ONLY_PATHS: ReadonlySet<string> = new Set([
   "/settings/snap-shot",
   "/settings/connections",
   "/settings/hub-connections",
+  "/settings/agents",
 ]);
 
 interface SettingsScopeMenuProps {

@@ -1,7 +1,10 @@
+import { oneChatInstructions } from "../oneChat/prompt.ts";
 import { modelSelectionsEqual } from "@t3tools/shared/model";
 import { projectComposerContextForProvider } from "@t3tools/shared/composerContextReferences";
 import {
   CommandId,
+  isAgentThread,
+  ONE_CHAT_INSTRUCTIONS_FILENAME,
   latestProviderTurnForAttempt,
   type OrchestrationV2DomainEvent,
   type OrchestrationV2ExecutionNode,
@@ -949,6 +952,32 @@ export const layer: Layer.Layer<
         text: message.text,
         records: message.context?.records ?? [],
       });
+      let additionalInstructions = "";
+      if (isAgentThread(projection.thread.id)) {
+        const project = yield* projects.getById(projection.thread.projectId);
+        if (Option.isSome(project)) {
+          const file = `${project.value.workspaceRoot}/${ONE_CHAT_INSTRUCTIONS_FILENAME}`;
+          const configured = (yield* fileSystem.exists(file))
+            ? yield* fileSystem.readFileString(file)
+            : "";
+          additionalInstructions = projection.thread.id.startsWith("one-chat:")
+            ? oneChatInstructions(configured)
+            : configured.trim() === ""
+              ? ""
+              : configured;
+        }
+      }
+      if (
+        additionalInstructions !== "" &&
+        !["codex", "claudeAgent", "opencode", "pi"].includes(session.driver)
+      ) {
+        return yield* new ProviderTurnStartError({
+          runId: run.id,
+          cause: new Error(
+            "This provider does not support appending native system instructions. Choose Codex, Claude Code, OpenCode, or Pi.",
+          ),
+        });
+      }
       // Delivered once: this run's provider turn marks the work as told. A
       // restart continuation is prompted by its own text or resumes natively.
       const noteContinuation = isRestartNoteContinuation(
@@ -1173,6 +1202,7 @@ export const layer: Layer.Layer<
           const { restartContinuationOfRunId: _resumedRunId, ...promptedInput } = turnInput;
           yield* start({
             ...(noteContinuation ? promptedInput : turnInput),
+            ...(additionalInstructions === "" ? {} : { additionalInstructions }),
             message: {
               ...turnInput.message,
               text: context === "" ? userText : `${context}\n\nUser message:\n${userText}`,
@@ -1216,6 +1246,7 @@ export const layer: Layer.Layer<
           ),
         );
       const deliverySession =
+        additionalInstructions === "" &&
         effectiveHandoffs.length === 0 &&
         missedItems.length === 0 &&
         restartNote === "" &&

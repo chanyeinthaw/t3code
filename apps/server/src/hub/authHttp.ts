@@ -27,7 +27,7 @@ export function sameOriginRequest(request: NodeHttp.IncomingMessage, publicOrigi
     return false;
   }
 }
-const readBody = (request: NodeHttp.IncomingMessage) =>
+export const readHubRequestBody = (request: NodeHttp.IncomingMessage) =>
   Effect.tryPromise({
     try: () =>
       new Promise<string>((resolve, reject) => {
@@ -46,7 +46,7 @@ const readBody = (request: NodeHttp.IncomingMessage) =>
     catch: (cause) => new HubAuth.HubAuthError({ status: 400, cause }),
   });
 const decodeBody = <S extends Schema.Top>(request: NodeHttp.IncomingMessage, schema: S) =>
-  readBody(request).pipe(
+  readHubRequestBody(request).pipe(
     Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(schema))),
     Effect.mapError((cause) => new HubAuth.HubAuthError({ status: 400, cause })),
   );

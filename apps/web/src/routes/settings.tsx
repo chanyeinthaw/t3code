@@ -134,7 +134,7 @@ function SettingsContentLayout() {
         </WorkspacePageHeader>
 
         <div
-          key={`${JSON.stringify(search)}:${restoreSignal}`}
+          key={`${SETTINGS_DEVICE_ONLY_PATHS.has(location.pathname) ? location.pathname : JSON.stringify(validateSettingsRouteSearch({ ...search }))}:${restoreSignal}`}
           className="min-h-0 flex flex-1 flex-col"
         >
           <SettingsScopeBoundary pathname={location.pathname}>

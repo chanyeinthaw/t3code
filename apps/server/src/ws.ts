@@ -1,3 +1,4 @@
+import { ensureWorkspace as ensureOneChatWorkspace } from "./oneChat/workspace.ts";
 import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
@@ -2579,6 +2580,12 @@ const layerWsRpc = (
                 Effect.ignoreCause({ log: true }),
               ),
           }),
+        [WS_METHODS.oneChatEnsureWorkspace]: (input) =>
+          ensureOneChatWorkspace(input).pipe(
+            Effect.mapError(
+              (cause) => new OrchestrationDispatchCommandError({ message: cause.message, cause }),
+            ),
+          ),
         [WS_METHODS.projectsEnsureScratch]: () =>
           managedFolders.ensureScratchProject.pipe(
             Effect.mapError(

@@ -76,7 +76,10 @@ import * as OpenCode2Server from "./OpenCode2Server.ts";
 import * as OpenCodeRuntime from "../OpenCodeRuntime.ts";
 import * as McpProviderSessions from "@t3tools/provider-core/server/McpProviderSessions";
 import { buildRuntimeInstructions } from "@t3tools/provider-core/server/runtimeInstructions";
-import { t3OrchestrationSystemPrompt } from "@t3tools/provider-core/server/orchestrationInstructions";
+import {
+  appendAgentInstructions,
+  t3OrchestrationSystemPrompt,
+} from "@t3tools/provider-core/server/orchestrationInstructions";
 import { SKILL_MENTION_PATTERN } from "@t3tools/shared/composerInlineTokens";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import { getModelSelectionStringOptionValue, modelSelectionsEqual } from "@t3tools/shared/model";
@@ -3293,12 +3296,19 @@ export const make = Effect.fn("OpenCode2Adapter.make")(function* (instanceId: Pr
           );
         if (added) state.mcp = wanted;
       }
-      const instructions = [
-        buildRuntimeInstructions({ harness: "OpenCode", model: turnInput.modelSelection.model }),
-        t3OrchestrationSystemPrompt(state.mcp !== undefined),
-      ]
-        .filter((part) => part !== undefined && part.length > 0)
-        .join("\n\n");
+      const instructions =
+        appendAgentInstructions(
+          [
+            buildRuntimeInstructions({
+              harness: "OpenCode",
+              model: turnInput.modelSelection.model,
+            }),
+            t3OrchestrationSystemPrompt(state.mcp !== undefined),
+          ]
+            .filter((part) => part !== undefined && part.length > 0)
+            .join("\n\n"),
+          turnInput.additionalInstructions,
+        ) ?? "";
       if (instructions !== state.instructions) {
         yield* client.session.instructions.entry.put({
           sessionID: Session.ID.make(sessionId),

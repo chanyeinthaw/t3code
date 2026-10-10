@@ -115,3 +115,12 @@ export function t3OrchestrationPromptForFirstRun(input: {
 export function t3OrchestrationSystemPrompt(hasT3Mcp: boolean): string | undefined {
   return hasT3Mcp ? T3_CODE_ORCHESTRATION_INSTRUCTIONS : undefined;
 }
+
+/** Preserve the provider's existing instructions before appending configured agent instructions. */
+export function appendAgentInstructions(
+  existing: string | undefined,
+  additional: string | undefined,
+): string | undefined {
+  if (!additional?.trim()) return existing;
+  return [existing, additional].filter((part) => part?.trim()).join("\n\n");
+}

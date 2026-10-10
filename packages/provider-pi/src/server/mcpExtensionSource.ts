@@ -395,8 +395,10 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
   // Deliver orchestration guidance through pi's real system-prompt channel.
   // Wrapping the first user message instead would stop it from starting
   // with "/" and silently break slash-command expansion.
-  pi.on("before_agent_start", (event) => ({
-    systemPrompt: event.systemPrompt + "\\n\\n" + ORCHESTRATION_INSTRUCTIONS,
-  }));
+  pi.on("before_agent_start", async (event) => {
+    const file = process.env.T3_PI_AGENT_INSTRUCTIONS_FILE;
+    const additional = file ? await NodeFSP.readFile(file, "utf8") : "";
+    return { systemPrompt: [event.systemPrompt, ORCHESTRATION_INSTRUCTIONS, additional].filter((part) => part.trim() !== "").join("\\n\\n") };
+  });
 }
 `;

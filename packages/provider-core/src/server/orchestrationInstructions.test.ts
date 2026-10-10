@@ -1,6 +1,7 @@
 import { assert, describe, it } from "@effect/vitest";
 
 import {
+  appendAgentInstructions,
   T3_CODE_ORCHESTRATION_INSTRUCTIONS,
   t3AcpPromptWithInstructions,
   t3OrchestrationPromptForFirstRun,
@@ -87,4 +88,10 @@ describe("T3 orchestration provider instructions", () => {
     assert.notInclude(withoutMcp, "T3 Code collaborative browser");
     assert.notInclude(withoutMcp, "T3 Code orchestration");
   });
+});
+
+it("preserves existing instructions and appends the configured block last", () => {
+  assert.equal(appendAgentInstructions("existing", "additional"), "existing\n\nadditional");
+  assert.equal(appendAgentInstructions("existing", ""), "existing");
+  assert.equal(appendAgentInstructions(undefined, "additional"), "additional");
 });

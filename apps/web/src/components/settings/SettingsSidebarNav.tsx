@@ -89,6 +89,7 @@ const SETTINGS_SECTION_ICONS: Readonly<
   "/settings/storage": HardDriveIcon,
   "/settings/connections": Link2Icon,
   "/settings/hub-connections": Link2Icon,
+  "/settings/agents": BotIcon,
   "/settings/archived": ArchiveIcon,
 };
 

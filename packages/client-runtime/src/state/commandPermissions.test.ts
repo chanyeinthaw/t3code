@@ -288,3 +288,20 @@ it.effect("rejects protected unary and streamed RPCs outside a guarded command",
     expect(writes).toBe(0);
   }),
 );
+
+it.effect("One Chat workspace creation requires the destination environment's operate grant", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const registry = yield* setup;
+      const permission = createCommandPermissions(runtime, WS_METHODS.oneChatEnsureWorkspace);
+      registry.set(sessions(env), AsyncResult.success(grant(false)));
+      expect(registry.get(permission.permissionAtom(env))).toBe(false);
+      expect((yield* permission.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+        "EnvironmentAuthorizationError",
+      );
+      registry.set(sessions(env), AsyncResult.success(grant(true)));
+      yield* permission.authorize(registry, env);
+      expect(registry.get(permission.permissionAtom(env))).toBe(true);
+    }),
+  ),
+);

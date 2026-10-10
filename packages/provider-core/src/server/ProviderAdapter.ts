@@ -401,6 +401,8 @@ export interface ProviderAdapterV2EnsureThreadInput {
 }
 
 export interface ProviderAdapterV2TurnInput {
+  /** Trusted agent configuration, appended through the native instruction channel. */
+  readonly additionalInstructions?: string;
   readonly appThread: OrchestrationV2AppThread;
   readonly threadId: ThreadId;
   readonly runId: RunId;

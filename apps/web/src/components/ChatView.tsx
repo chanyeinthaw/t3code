@@ -1,3 +1,4 @@
+import { isAgentThread } from "@t3tools/contracts";
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
@@ -2816,7 +2817,7 @@ export default function ChatView(props: ChatViewProps) {
     environmentById,
     scratchWorkspaceRootFor,
   ]);
-  const hasMultipleEnvironments = logicalProjectEnvironments.length > 1;
+  const hasMultipleEnvironments = !isAgentThread(threadId) && logicalProjectEnvironments.length > 1;
   // Auto balance retargets to an existing project; a machine's "No project"
   // folder may not exist until it is picked.
   const canAutoBalanceEnvironments = hasMultipleEnvironments && !activeProjectIsScratch;
@@ -3031,7 +3032,9 @@ export default function ChatView(props: ChatViewProps) {
     advertisedFileAttachmentBytes === null
       ? null
       : clampFileAttachmentUploadBytes(advertisedFileAttachmentBytes);
-  const envLocked = Boolean(activeThread && (activeMessageCount > 0 || activeRuntime !== null));
+  const envLocked =
+    isAgentThread(threadId) ||
+    Boolean(activeThread && (activeMessageCount > 0 || activeRuntime !== null));
 
   const loadBalancingSettings = useClientSettings();
   const automaticEnvironment = Boolean(

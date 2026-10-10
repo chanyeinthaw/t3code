@@ -1,3 +1,4 @@
+import { ensureWorkspace as ensureOneChatWorkspace } from "../oneChat/workspace.ts";
 import { assert, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { CommandId, GitCommandError, ProjectId, ThreadId } from "@t3tools/contracts";
@@ -83,6 +84,7 @@ const layer = (baseDir: string, options?: HarnessOptions) =>
     Layer.provideMerge(WorkspacePaths.layer),
     Layer.provideMerge(layerGitWorkflow),
     Layer.provideMerge(options?.git ?? layerRealGit),
+    Layer.provideMerge(VcsDriverRegistry.layer.pipe(Layer.provide(VcsProcess.layer))),
     Layer.provideMerge(SqlitePersistence.layerMemory),
     Layer.provideMerge(ServerConfig.layerTest(baseDir, baseDir)),
     Layer.provideMerge(NodeServices.layer),
@@ -96,6 +98,9 @@ const withScratch = <A, E>(
     A,
     E,
     | ManagedProjectFolders.ManagedProjectFolders
+    | ServerConfig.ServerConfig
+    | VcsDriverRegistry.VcsDriverRegistry
+    | GitVcsDriver.GitVcsDriver
     | ProjectService.ProjectService
     | NodeServices.NodeServices
     | Scope.Scope
@@ -568,5 +573,142 @@ it.effect("removes the folder when the repository cannot be made", () =>
           ),
       }),
     },
+  ),
+);
+
+it.effect(
+  "One Chat uses one stable directory across concurrent requests and preserves its files",
+  () =>
+    withScratch(({ baseDir }) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const results = yield* Effect.all(
+          [ensureOneChatWorkspace({}), ensureOneChatWorkspace({})],
+          {
+            concurrency: "unbounded",
+          },
+        );
+        assert.deepEqual(results[0], results[1]);
+        assert.equal(results[0]?.workspaceRoot, `${baseDir}/agents/pulse`);
+        const file = `${baseDir}/agents/pulse/memory.txt`;
+        yield* fs.writeFileString(file, "remember this");
+        assert.deepEqual(yield* ensureOneChatWorkspace({}), results[0]);
+        assert.equal(yield* fs.readFileString(file), "remember this");
+      }),
+    ),
+);
+
+it.effect("One Chat in a dev home does not inherit the checkout's repository", () =>
+  withScratch(({ baseDir }) =>
+    Effect.gen(function* () {
+      yield* git(baseDir, ["init"]);
+      const workspace = yield* ensureOneChatWorkspace({});
+      const registry = yield* VcsDriverRegistry.VcsDriverRegistry;
+      const repository = yield* registry.detect({ cwd: workspace.workspaceRoot });
+      assert.equal(repository?.repository.rootPath, workspace.workspaceRoot);
+    }),
+  ),
+);
+
+it.effect("moves the first-pass One Chat directory without losing its files", () =>
+  withScratch(({ baseDir }) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const projects = yield* ProjectService.ProjectService;
+      const oldRoot = `${baseDir}/one-chat`;
+      yield* fs.makeDirectory(oldRoot);
+      yield* fs.writeFileString(`${oldRoot}/memory.txt`, "keep this");
+      yield* projects.bootstrap({
+        commandId: CommandId.make("one-chat:old-workspace"),
+        projectId: ProjectId.make("one-chat:workspace"),
+        title: "The One Chat",
+        workspaceRoot: oldRoot,
+      });
+      const workspace = yield* ensureOneChatWorkspace({});
+      assert.equal(workspace.workspaceRoot, `${baseDir}/agents/pulse`);
+      assert.equal(yield* fs.readFileString(`${workspace.workspaceRoot}/memory.txt`), "keep this");
+      assert.isFalse(yield* fs.exists(oldRoot));
+      assert.equal(
+        Option.getOrThrow(yield* projects.getById(workspace.projectId)).workspaceRoot,
+        workspace.workspaceRoot,
+      );
+    }),
+  ),
+);
+
+it.effect("migrates the old agent slug directory without losing its files", () =>
+  withScratch(({ baseDir }) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const projects = yield* ProjectService.ProjectService;
+      const oldRoot = `${baseDir}/agents/one-chat`;
+      yield* fs.makeDirectory(oldRoot, { recursive: true });
+      yield* fs.writeFileString(`${oldRoot}/memory.txt`, "keep this");
+      yield* projects.bootstrap({
+        commandId: CommandId.make("one-chat:old-workspace"),
+        projectId: ProjectId.make("one-chat:workspace"),
+        title: "The One Chat",
+        workspaceRoot: oldRoot,
+      });
+      const workspace = yield* ensureOneChatWorkspace({});
+      assert.equal(workspace.workspaceRoot, `${baseDir}/agents/pulse`);
+      assert.equal(yield* fs.readFileString(`${workspace.workspaceRoot}/memory.txt`), "keep this");
+      assert.isFalse(yield* fs.exists(oldRoot));
+      assert.equal(
+        Option.getOrThrow(yield* projects.getById(workspace.projectId)).workspaceRoot,
+        workspace.workspaceRoot,
+      );
+    }),
+  ),
+);
+
+it.effect("persists configured instructions atomically for subsequent provider turns", () =>
+  withScratch(() =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const workspace = yield* ensureOneChatWorkspace({
+        additionalInstructions: "First instructions",
+      });
+      yield* ensureOneChatWorkspace({ additionalInstructions: "Updated instructions" });
+      assert.equal(
+        yield* fs.readFileString(`${workspace.workspaceRoot}/.pulse-agent-instructions`),
+        "Updated instructions",
+      );
+      yield* ensureOneChatWorkspace({ additionalInstructions: "" });
+      assert.equal(
+        yield* fs.readFileString(`${workspace.workspaceRoot}/.pulse-agent-instructions`),
+        "",
+      );
+    }),
+  ),
+);
+
+it.effect("agent workspaces isolate files and instructions and reject path traversal", () =>
+  withScratch(({ baseDir }) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const research = yield* ensureOneChatWorkspace({
+        agentId: "research",
+        additionalInstructions: "Cite sources",
+      });
+      const planner = yield* ensureOneChatWorkspace({
+        agentId: "planner",
+        additionalInstructions: "Plan first",
+      });
+      assert.equal(research.workspaceRoot, `${baseDir}/agents/research`);
+      assert.equal(planner.workspaceRoot, `${baseDir}/agents/planner`);
+      assert.notEqual(research.projectId, planner.projectId);
+      assert.equal(
+        yield* fs.readFileString(`${research.workspaceRoot}/.pulse-agent-instructions`),
+        "Cite sources",
+      );
+      assert.equal(
+        yield* fs.readFileString(`${planner.workspaceRoot}/.pulse-agent-instructions`),
+        "Plan first",
+      );
+      const error = yield* ensureOneChatWorkspace({ agentId: "../outside" }).pipe(Effect.flip);
+      assert.equal(error._tag, "OneChatWorkspaceError");
+      assert.isFalse(yield* fs.exists(`${baseDir}/outside`));
+    }),
   ),
 );

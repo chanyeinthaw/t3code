@@ -1,3 +1,5 @@
+import { handleAgents, handleOneChat } from "../oneChat/http.ts";
+import type * as OneChat from "../oneChat/OneChat.ts";
 import * as HubAuth from "./HubAuth.ts";
 import { handleHubAuth, hubRequestToken, sameOriginRequest } from "./authHttp.ts";
 import { HUB_INGRESS_HEADER } from "./ingress.ts";
@@ -41,6 +43,7 @@ export interface HubListenOptions {
   readonly port: number;
   readonly devUrl?: string;
   readonly publicOrigin?: string;
+  readonly oneChat?: OneChat.OneChat["Service"];
   readonly staticDir?: string;
   readonly serveWeb?: boolean;
   readonly localPort?: number;
@@ -230,6 +233,14 @@ const listen = Effect.fn("HubServer.listen")(function* (options: HubListenOption
           .join(";");
         delete request.headers[HUB_INGRESS_HEADER];
         proxyHubWebRequest(request, response, remoteHub);
+        return;
+      }
+      if (url.pathname === "/hub/agents" && options.oneChat) {
+        await runPromise(handleAgents(request, response, options.oneChat, options.publicOrigin));
+        return;
+      }
+      if (url.pathname === "/hub/one-chat" && options.oneChat) {
+        await runPromise(handleOneChat(request, response, options.oneChat, options.publicOrigin));
         return;
       }
       if (url.pathname.startsWith("/hub/auth/")) {

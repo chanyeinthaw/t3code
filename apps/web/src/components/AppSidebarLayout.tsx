@@ -1,3 +1,6 @@
+import { renderWorkspaceBrand, WorkspaceBrandMark } from "./agents/WorkspaceBrand";
+import { AgentsSidebar } from "./agents/AgentsSidebar";
+import { isAgentsPath, WorkspaceLocationTracker } from "./agents/workspaceMode";
 import { useAtomValue } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import {
@@ -312,14 +315,14 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         defaultOpen
         style={sidebarProviderStyle}
       >
-        <SidebarBrandWidthProbe onWidthChange={setBrandWidth} />
+        <SidebarBrandWidthProbe onWidthChange={setBrandWidth} brandMark={<WorkspaceBrandMark />} />
         <ProjectProjectionRetention />
         <Sidebar
           side="left"
           collapsible="offcanvas"
           data-app-sidebar=""
           role="navigation"
-          aria-label={isOnSettings ? "Settings" : "Threads"}
+          aria-label={isOnSettings ? "Settings" : isAgentsPath(pathname) ? "Agents" : "Threads"}
           resizable={{
             maxWidth: sidebarMaximumWidth,
             minWidth: sidebarMinimumWidth,
@@ -332,9 +335,11 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         >
           {isOnSettings ? (
             <>
-              <SidebarChromeHeader isElectron={isElectron} />
+              <SidebarChromeHeader isElectron={isElectron} renderBrand={renderWorkspaceBrand} />
               <SettingsSidebarNav pathname={pathname} />
             </>
+          ) : isAgentsPath(pathname) ? (
+            <AgentsSidebar />
           ) : legacySidebarEnabled ? (
             <LegacyThreadSidebar />
           ) : (
@@ -346,6 +351,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <SidebarControl />
         <NavigationHistoryShortcuts />
         <MainAppLocationTracker />
+        <WorkspaceLocationTracker />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

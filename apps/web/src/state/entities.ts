@@ -9,6 +9,7 @@ import {
   type EnvironmentThreadStatus,
   type ThreadHistoryMeta,
 } from "@t3tools/client-runtime/state/threads";
+import { isAgentProject } from "@t3tools/contracts";
 import type { ScopedProjectRef, ScopedThreadRef, ServerConfig } from "@t3tools/contracts";
 import type { EnvironmentId, OrchestrationV2ProjectedTurnItem } from "@t3tools/contracts";
 import { Atom } from "effect/reactivity";
@@ -77,8 +78,13 @@ export function useEnvironmentThreadRefs(
   );
 }
 
+// Internal One Chat backing records are not user projects in navigation or settings.
+const visibleProjectsAtom = Atom.make((get) =>
+  get(environmentProjects.projectsAtom).filter((project) => !isAgentProject(project.id)),
+);
+
 export function useProjects(): ReadonlyArray<EnvironmentProject> {
-  return useAtomValue(environmentProjects.projectsAtom);
+  return useAtomValue(visibleProjectsAtom);
 }
 
 export function useServerConfigs(): ReadonlyMap<EnvironmentId, ServerConfig> {

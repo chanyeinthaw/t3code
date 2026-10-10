@@ -1,3 +1,4 @@
+import * as OneChat from "../oneChat/OneChat.ts";
 import * as HubAuth from "./HubAuth.ts";
 import * as Crypto from "effect/Crypto";
 import { HubSwitchInput } from "@t3tools/contracts";
@@ -58,6 +59,7 @@ const make = Effect.gen(function* () {
       options: HostMode = { mode: "serve", environment: true },
     ) {
       const auth = yield* HubAuth.HubAuth;
+      const oneChat = yield* OneChat.OneChat;
       const ingressSecret = Buffer.from(yield* crypto.randomBytes(32)).toString("base64url");
       const localPort =
         options.mode === "serve" && options.environment
@@ -87,6 +89,7 @@ const make = Effect.gen(function* () {
       const listener = yield* hub.listen({
         host: config.host ?? "127.0.0.1",
         port: config.port,
+        oneChat,
         ...(config.publicUrl ? { publicOrigin: config.publicUrl.origin } : {}),
         ...(localPort === undefined ? {} : { localPort }),
         ...(config.devUrl ? { devUrl: config.devUrl.toString() } : {}),
@@ -289,7 +292,7 @@ const make = Effect.gen(function* () {
     (effect, config) =>
       effect.pipe(
         Effect.provide(
-          HubAuth.layer(config).pipe(
+          Layer.mergeAll(HubAuth.layer(config), OneChat.layer(config)).pipe(
             Layer.provide(
               Layer.mergeAll(
                 Layer.succeed(FileSystem.FileSystem, fs),

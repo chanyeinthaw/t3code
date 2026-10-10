@@ -1,3 +1,5 @@
+import { renderWorkspaceBrand } from "./agents/WorkspaceBrand";
+import { isAgentThread } from "@t3tools/contracts";
 import { type EnvironmentId } from "@t3tools/contracts";
 import { ThreadHoverCard, ThreadHoverCardPopup } from "./ThreadHoverCard";
 import { CollapsibleSectionHeader } from "./ui/collapsible-section-header";
@@ -2385,7 +2387,11 @@ const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props: {
 export default function Sidebar() {
   const projects = useProjects();
   const projectOrder = useUiStateStore((store) => store.projectOrder);
-  const threads = useThreadShells();
+  const allSidebarThreads = useThreadShells();
+  const threads = useMemo(
+    () => allSidebarThreads.filter((thread) => !isAgentThread(thread.id)),
+    [allSidebarThreads],
+  );
   const router = useRouter();
   const { isMobile, setOpenMobile } = useSidebar();
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
@@ -4978,7 +4984,7 @@ export default function Sidebar() {
   return (
     <>
       <ThreadContextDragGhost />
-      <SidebarChromeHeader isElectron={isElectron} />
+      <SidebarChromeHeader isElectron={isElectron} renderBrand={renderWorkspaceBrand} />
       <SidebarContent
         className="min-h-full"
         fixedHeader={

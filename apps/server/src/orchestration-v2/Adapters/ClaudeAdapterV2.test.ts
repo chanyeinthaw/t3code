@@ -10017,3 +10017,21 @@ describe("ClaudeAdapterV2 query message stream", () => {
     }),
   );
 });
+
+it("appends configured instructions while preserving Claude's built-in preset", () => {
+  const options = ClaudeAdapterV2.makeClaudeQueryOptions({
+    modelSelection: {
+      instanceId: ProviderInstanceId.make("claudeAgent"),
+      model: "claude-sonnet-4-6",
+    },
+    nativeThreadId: "agent-instructions",
+    resume: false,
+    cwd: null,
+    additionalInstructions: "User-configured agent instructions",
+  });
+  const prompt = options.systemPrompt;
+  if (!prompt || typeof prompt !== "object" || !("append" in prompt))
+    throw new Error("Expected a Claude preset prompt");
+  assert.equal(prompt.preset, "claude_code");
+  assert.equal(prompt.append?.endsWith("User-configured agent instructions"), true);
+});

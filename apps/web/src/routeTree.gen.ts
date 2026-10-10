@@ -16,6 +16,7 @@ import { Route as PairRouteImport } from './routes/pair'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as AgentsRouteImport } from './routes/_agents'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as SettingsStorageRouteImport } from './routes/settings.storage'
 import { Route as SettingsSourceControlRouteImport } from './routes/settings.source-control'
@@ -24,6 +25,7 @@ import { Route as SettingsScheduledTasksRouteImport } from './routes/settings.sc
 import { Route as SettingsProvidersRouteImport } from './routes/settings.providers'
 import { Route as SettingsProjectsRouteImport } from './routes/settings.projects'
 import { Route as SettingsOpenSourceLicensesRouteImport } from './routes/settings.open-source-licenses'
+import { Route as SettingsOneChatRouteImport } from './routes/settings.one-chat'
 import { Route as SettingsKeybindingsRouteImport } from './routes/settings.keybindings'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations'
 import { Route as SettingsHubConnectionsRouteImport } from './routes/settings.hub-connections'
@@ -32,10 +34,14 @@ import { Route as SettingsDiagnosticsRouteImport } from './routes/settings.diagn
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
+import { Route as SettingsAgentsRouteImport } from './routes/settings.agents'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
 import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-requests'
+import { Route as AgentsAgentsIndexRouteImport } from './routes/_agents.agents.index'
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
+import { Route as AgentsAgentsOneChatRouteImport } from './routes/_agents.agents.one-chat'
+import { Route as AgentsAgentsAgentIdRouteImport } from './routes/_agents.agents.$agentId'
 
 const WelcomeRoute = WelcomeRouteImport.update({
   id: '/welcome',
@@ -69,6 +75,10 @@ const ConnectRoute = ConnectRouteImport.update({
 } as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsRoute = AgentsRouteImport.update({
+  id: '/_agents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -112,6 +122,11 @@ const SettingsOpenSourceLicensesRoute =
     path: '/open-source-licenses',
     getParentRoute: () => SettingsRoute,
   } as any)
+const SettingsOneChatRoute = SettingsOneChatRouteImport.update({
+  id: '/one-chat',
+  path: '/one-chat',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsKeybindingsRoute = SettingsKeybindingsRouteImport.update({
   id: '/keybindings',
   path: '/keybindings',
@@ -152,6 +167,11 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsAgentsRoute = SettingsAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
   id: '/projects/$projectKey',
   path: '/projects/$projectKey',
@@ -161,6 +181,11 @@ const ChatPullRequestsRoute = ChatPullRequestsRouteImport.update({
   id: '/pull-requests',
   path: '/pull-requests',
   getParentRoute: () => ChatRoute,
+} as any)
+const AgentsAgentsIndexRoute = AgentsAgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
+  getParentRoute: () => AgentsRoute,
 } as any)
 const ChatDraftDraftIdRoute = ChatDraftDraftIdRouteImport.update({
   id: '/draft/$draftId',
@@ -173,6 +198,16 @@ const ChatEnvironmentIdThreadIdRoute =
     path: '/$environmentId/$threadId',
     getParentRoute: () => ChatRoute,
   } as any)
+const AgentsAgentsOneChatRoute = AgentsAgentsOneChatRouteImport.update({
+  id: '/agents/one-chat',
+  path: '/agents/one-chat',
+  getParentRoute: () => AgentsRoute,
+} as any)
+const AgentsAgentsAgentIdRoute = AgentsAgentsAgentIdRouteImport.update({
+  id: '/agents/$agentId',
+  path: '/agents/$agentId',
+  getParentRoute: () => AgentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
@@ -184,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/welcome': typeof WelcomeRoute
   '/pull-requests': typeof ChatPullRequestsRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/agents': typeof SettingsAgentsRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -192,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/settings/hub-connections': typeof SettingsHubConnectionsRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/one-chat': typeof SettingsOneChatRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/projects': typeof SettingsProjectsRoute
   '/settings/providers': typeof SettingsProvidersRoute
@@ -199,10 +236,14 @@ export interface FileRoutesByFullPath {
   '/settings/snap-shot': typeof SettingsSnapShotRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
+  '/agents/$agentId': typeof AgentsAgentsAgentIdRoute
+  '/agents/one-chat': typeof AgentsAgentsOneChatRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/agents/': typeof AgentsAgentsIndexRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof ChatIndexRoute
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/pair': typeof PairRoute
@@ -211,6 +252,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/pull-requests': typeof ChatPullRequestsRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/agents': typeof SettingsAgentsRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -219,6 +261,7 @@ export interface FileRoutesByTo {
   '/settings/hub-connections': typeof SettingsHubConnectionsRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/one-chat': typeof SettingsOneChatRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/projects': typeof SettingsProjectsRoute
   '/settings/providers': typeof SettingsProvidersRoute
@@ -226,12 +269,15 @@ export interface FileRoutesByTo {
   '/settings/snap-shot': typeof SettingsSnapShotRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
-  '/': typeof ChatIndexRoute
+  '/agents/$agentId': typeof AgentsAgentsAgentIdRoute
+  '/agents/one-chat': typeof AgentsAgentsOneChatRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/agents': typeof AgentsAgentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_agents': typeof AgentsRouteWithChildren
   '/_chat': typeof ChatRouteWithChildren
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
@@ -241,6 +287,7 @@ export interface FileRoutesById {
   '/welcome': typeof WelcomeRoute
   '/_chat/pull-requests': typeof ChatPullRequestsRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/agents': typeof SettingsAgentsRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/connections': typeof SettingsConnectionsRoute
@@ -249,6 +296,7 @@ export interface FileRoutesById {
   '/settings/hub-connections': typeof SettingsHubConnectionsRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/one-chat': typeof SettingsOneChatRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/projects': typeof SettingsProjectsRoute
   '/settings/providers': typeof SettingsProvidersRoute
@@ -257,8 +305,11 @@ export interface FileRoutesById {
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
   '/_chat/': typeof ChatIndexRoute
+  '/_agents/agents/$agentId': typeof AgentsAgentsAgentIdRoute
+  '/_agents/agents/one-chat': typeof AgentsAgentsOneChatRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/_chat/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/_agents/agents/': typeof AgentsAgentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -272,6 +323,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/pull-requests'
     | '/projects/$projectKey'
+    | '/settings/agents'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/connections'
@@ -280,6 +332,7 @@ export interface FileRouteTypes {
     | '/settings/hub-connections'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/one-chat'
     | '/settings/open-source-licenses'
     | '/settings/projects'
     | '/settings/providers'
@@ -287,10 +340,14 @@ export interface FileRouteTypes {
     | '/settings/snap-shot'
     | '/settings/source-control'
     | '/settings/storage'
+    | '/agents/$agentId'
+    | '/agents/one-chat'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
+    | '/agents/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/connect'
     | '/connect-agent'
     | '/pair'
@@ -299,6 +356,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/pull-requests'
     | '/projects/$projectKey'
+    | '/settings/agents'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/connections'
@@ -307,6 +365,7 @@ export interface FileRouteTypes {
     | '/settings/hub-connections'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/one-chat'
     | '/settings/open-source-licenses'
     | '/settings/projects'
     | '/settings/providers'
@@ -314,11 +373,14 @@ export interface FileRouteTypes {
     | '/settings/snap-shot'
     | '/settings/source-control'
     | '/settings/storage'
-    | '/'
+    | '/agents/$agentId'
+    | '/agents/one-chat'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
+    | '/agents'
   id:
     | '__root__'
+    | '/_agents'
     | '/_chat'
     | '/connect'
     | '/connect-agent'
@@ -328,6 +390,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/_chat/pull-requests'
     | '/projects/$projectKey'
+    | '/settings/agents'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/connections'
@@ -336,6 +399,7 @@ export interface FileRouteTypes {
     | '/settings/hub-connections'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/one-chat'
     | '/settings/open-source-licenses'
     | '/settings/projects'
     | '/settings/providers'
@@ -344,11 +408,15 @@ export interface FileRouteTypes {
     | '/settings/source-control'
     | '/settings/storage'
     | '/_chat/'
+    | '/_agents/agents/$agentId'
+    | '/_agents/agents/one-chat'
     | '/_chat/$environmentId/$threadId'
     | '/_chat/draft/$draftId'
+    | '/_agents/agents/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  AgentsRoute: typeof AgentsRouteWithChildren
   ChatRoute: typeof ChatRouteWithChildren
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
@@ -410,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_agents': {
+      id: '/_agents'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_chat/': {
       id: '/_chat/'
       path: '/'
@@ -464,6 +539,13 @@ declare module '@tanstack/react-router' {
       path: '/open-source-licenses'
       fullPath: '/settings/open-source-licenses'
       preLoaderRoute: typeof SettingsOpenSourceLicensesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/one-chat': {
+      id: '/settings/one-chat'
+      path: '/one-chat'
+      fullPath: '/settings/one-chat'
+      preLoaderRoute: typeof SettingsOneChatRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/keybindings': {
@@ -522,6 +604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/agents': {
+      id: '/settings/agents'
+      path: '/agents'
+      fullPath: '/settings/agents'
+      preLoaderRoute: typeof SettingsAgentsRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/projects/$projectKey': {
       id: '/projects/$projectKey'
       path: '/projects/$projectKey'
@@ -535,6 +624,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/pull-requests'
       preLoaderRoute: typeof ChatPullRequestsRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/_agents/agents/': {
+      id: '/_agents/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AgentsAgentsIndexRouteImport
+      parentRoute: typeof AgentsRoute
     }
     '/_chat/draft/$draftId': {
       id: '/_chat/draft/$draftId'
@@ -550,8 +646,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatEnvironmentIdThreadIdRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/_agents/agents/one-chat': {
+      id: '/_agents/agents/one-chat'
+      path: '/agents/one-chat'
+      fullPath: '/agents/one-chat'
+      preLoaderRoute: typeof AgentsAgentsOneChatRouteImport
+      parentRoute: typeof AgentsRoute
+    }
+    '/_agents/agents/$agentId': {
+      id: '/_agents/agents/$agentId'
+      path: '/agents/$agentId'
+      fullPath: '/agents/$agentId'
+      preLoaderRoute: typeof AgentsAgentsAgentIdRouteImport
+      parentRoute: typeof AgentsRoute
+    }
   }
 }
+
+interface AgentsRouteChildren {
+  AgentsAgentsAgentIdRoute: typeof AgentsAgentsAgentIdRoute
+  AgentsAgentsOneChatRoute: typeof AgentsAgentsOneChatRoute
+  AgentsAgentsIndexRoute: typeof AgentsAgentsIndexRoute
+}
+
+const AgentsRouteChildren: AgentsRouteChildren = {
+  AgentsAgentsAgentIdRoute: AgentsAgentsAgentIdRoute,
+  AgentsAgentsOneChatRoute: AgentsAgentsOneChatRoute,
+  AgentsAgentsIndexRoute: AgentsAgentsIndexRoute,
+}
+
+const AgentsRouteWithChildren =
+  AgentsRoute._addFileChildren(AgentsRouteChildren)
 
 interface ChatRouteChildren {
   ChatPullRequestsRoute: typeof ChatPullRequestsRoute
@@ -570,6 +695,7 @@ const ChatRouteChildren: ChatRouteChildren = {
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
 interface SettingsRouteChildren {
+  SettingsAgentsRoute: typeof SettingsAgentsRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsArchivedRoute: typeof SettingsArchivedRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
@@ -578,6 +704,7 @@ interface SettingsRouteChildren {
   SettingsHubConnectionsRoute: typeof SettingsHubConnectionsRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsKeybindingsRoute: typeof SettingsKeybindingsRoute
+  SettingsOneChatRoute: typeof SettingsOneChatRoute
   SettingsOpenSourceLicensesRoute: typeof SettingsOpenSourceLicensesRoute
   SettingsProjectsRoute: typeof SettingsProjectsRoute
   SettingsProvidersRoute: typeof SettingsProvidersRoute
@@ -588,6 +715,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsAgentsRoute: SettingsAgentsRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsArchivedRoute: SettingsArchivedRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
@@ -596,6 +724,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsHubConnectionsRoute: SettingsHubConnectionsRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsKeybindingsRoute: SettingsKeybindingsRoute,
+  SettingsOneChatRoute: SettingsOneChatRoute,
   SettingsOpenSourceLicensesRoute: SettingsOpenSourceLicensesRoute,
   SettingsProjectsRoute: SettingsProjectsRoute,
   SettingsProvidersRoute: SettingsProvidersRoute,
@@ -610,6 +739,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
+  AgentsRoute: AgentsRouteWithChildren,
   ChatRoute: ChatRouteWithChildren,
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,

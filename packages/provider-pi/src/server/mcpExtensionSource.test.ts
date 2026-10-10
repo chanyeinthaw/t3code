@@ -70,6 +70,7 @@ type AgentStartHook = (
 
 async function loadMcpBridge(
   options: {
+    readonly additionalInstructions?: string;
     readonly modern?: boolean;
     readonly toolSearchAvailable?: boolean;
     readonly toolSearchDisabled?: boolean;
@@ -100,8 +101,15 @@ async function loadMcpBridge(
   );
   await NodeVM.runInNewContext(`${source}\nt3McpExtension(pi)`, {
     process: {
-      env: { T3_MCP_URL: "http://fixture.invalid/mcp", T3_MCP_BEARER_TOKEN: "fixture-token" },
+      env: {
+        T3_MCP_URL: "http://fixture.invalid/mcp",
+        T3_MCP_BEARER_TOKEN: "fixture-token",
+        ...(options.additionalInstructions === undefined
+          ? {}
+          : { T3_PI_AGENT_INSTRUCTIONS_FILE: "/fixture/instructions" }),
+      },
     },
+    NodeFSP: { readFile: async () => options.additionalInstructions ?? "" },
     AbortSignal,
     Type: { Unsafe: (schema: unknown) => schema },
     fetch: async (
@@ -501,4 +509,17 @@ describe("Pi skill references", () => {
       await NodeFSP.rm(directory, { recursive: true });
     }
   });
+});
+
+it("appends configured instructions through Pi's system-prompt hook", async () => {
+  const bridge = await loadMcpBridge({
+    additionalInstructions: "User-configured agent instructions",
+  });
+  const prompt = await bridge.handlers.get("before_agent_start")!(
+    { systemPrompt: "Pi built-in prompt" },
+    { ui: { notify: () => undefined } },
+  );
+  assert.equal(prompt.systemPrompt.startsWith("Pi built-in prompt"), true);
+  assert.include(prompt.systemPrompt, "orchestrator_capabilities");
+  assert.equal(prompt.systemPrompt.endsWith("User-configured agent instructions"), true);
 });

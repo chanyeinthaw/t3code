@@ -9141,3 +9141,26 @@ describe("CodexAdapterV2 post-settle continuation", () => {
     );
   });
 });
+
+it.effect(
+  "appends configured instructions to Codex developer instructions without changing user input",
+  () =>
+    Effect.gen(function* () {
+      const userInput = [{ type: "text" as const, text: "/review" }];
+      const params = yield* CodexAdapterV2.buildCodexTurnStartParams({
+        nativeThreadId: "agent-instructions",
+        codexInput: userInput,
+        runtimePolicy: { runtimeMode: "full-access", interactionMode: "default", cwd: null },
+        modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+        hasT3Mcp: true,
+        additionalInstructions: "User-configured agent instructions",
+      });
+      assert.equal(
+        params.collaborationMode?.settings.developer_instructions?.endsWith(
+          "User-configured agent instructions",
+        ),
+        true,
+      );
+      assert.deepEqual(params.input, userInput);
+    }),
+);
